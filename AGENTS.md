@@ -188,6 +188,7 @@ $services->set(AdapterBackedCatalogCapability::class)
 - Dead code gate: `docker compose run --rm php composer dead-code`
 - Unused dependencies: `docker compose run --rm php composer unused-deps`
 - Mutation report and gate: `docker compose run --rm php composer mutation`
+- Local diff-based mutation run: `docker compose run --rm php composer mutation:changed`
 - Explicit mutation gate target: `docker compose run --rm php composer mutation:gate`
 - Full broad mutation run: `docker compose run --rm php composer mutation:full`
 
@@ -197,4 +198,5 @@ Dead-code rules:
 - Hard gates focus on `Ucp\Sdk\Internal`, bundle bridge and listener code, runtime commands and controllers, and the realistic merchant example.
 - The allowlist for internal reference scanning lives in [tools/internal-class-allowlist.php](/Users/b.meyer/Documents/Projects/ucp-php-sdk/tools/internal-class-allowlist.php).
 - The default mutation gate is intentionally fast. It targets protocol-critical classes first instead of the wider runtime tree while keeping a hard floor of `79%` MSI and `79%` covered MSI.
+- For local work, prefer `composer mutation:changed`. It uses Infection's git-diff filtering against `origin/main` by default and narrows execution to changed files plus related tests.
 - Use `composer mutation:full` for the slower broader manual sweep when changing wide parts of the runtime.

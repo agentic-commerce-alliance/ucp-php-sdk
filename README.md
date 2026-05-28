@@ -95,11 +95,12 @@ docker compose run --rm php composer coverage:gate
 docker compose run --rm php composer dead-code
 docker compose run --rm php composer unused-deps
 docker compose run --rm php composer mutation
+docker compose run --rm php composer mutation:changed
 docker compose run --rm php composer mutation:gate
 docker compose run --rm php composer mutation:full
 ```
 
-`composer qa` now enforces both the internal coverage gate and the fast scoped mutation gate. Use `composer mutation:full` only when you want the slower broad manual run.
+`composer qa` now enforces both the internal coverage gate and the fast scoped mutation gate. Use `composer mutation:changed` for a fast local diff-based mutation run over changed files and related tests, and `composer mutation:full` for the slower broad sweep.
 
 ## Runtime Defaults
 

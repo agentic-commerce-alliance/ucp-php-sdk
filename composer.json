@@ -88,6 +88,10 @@
             "@reports:prepare",
             "@php -d pcov.enabled=1 vendor/bin/infection --configuration=infection.json.dist --threads=max"
         ],
+        "mutation:changed": [
+            "@reports:prepare",
+            "sh scripts/run-mutation-changed.sh"
+        ],
         "mutation:full": [
             "@reports:prepare",
             "@php -d pcov.enabled=1 vendor/bin/infection --configuration=infection.full.json.dist --threads=max"

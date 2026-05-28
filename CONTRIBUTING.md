@@ -38,6 +38,7 @@ docker compose run --rm php composer cs:check
 docker compose run --rm php composer coverage:internal
 docker compose run --rm php composer dead-code
 docker compose run --rm php composer mutation
+docker compose run --rm php composer mutation:changed
 docker compose run --rm php composer public-api:check
 ```
 

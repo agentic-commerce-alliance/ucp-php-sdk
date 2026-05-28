@@ -99,6 +99,14 @@ The default mutation gate is intentionally narrower than the full runtime tree.
 
 The default gate keeps runtime reasonable mainly by narrowing the source scope to protocol-critical classes instead of mutating the wider runtime tree on every QA run.
 
+For local work on a branch, prefer:
+
+```bash
+docker compose run --rm php composer mutation:changed
+```
+
+That command uses Infection's git-diff filtering against `origin/main` by default, mutates only added and modified files, and narrows the initial test run to related tests.
+
 For a deeper manual run across the broader historical scope, use:
 
 ```bash
@@ -110,6 +118,7 @@ docker compose run --rm php composer mutation:full
 Mutation testing is now part of the hard QA gate.
 
 - `composer mutation` writes the fast scoped Infection reports and fails if the configured threshold is missed
+- `composer mutation:changed` is the preferred fast local developer command for branch work
 - `composer mutation:gate` is the explicit gate target used by `composer qa`
 - `composer mutation:full` is slower and meant for manual deeper inspection, not the default QA gate
 - current enforced floor:

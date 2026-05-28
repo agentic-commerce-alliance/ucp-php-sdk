@@ -31,10 +31,13 @@ jobs:
         run: docker compose run --rm php composer validate --strict -d packages/symfony-bundle
       - name: Run QA suite
         run: docker compose run --rm php composer qa
+      - name: Run full mutation sweep
+        run: docker compose run --rm php composer mutation:full
       - name: Collect release artifacts
         run: |
           mkdir -p release-artifacts
           cp var/reports/infection/summary.log release-artifacts/infection-summary.log
+          cp var/reports/infection-full/summary.log release-artifacts/infection-full-summary.log
           cp var/reports/coverage/internal-summary.json release-artifacts/coverage-internal-summary.json
           cp var/reports/pdepend/summary.xml release-artifacts/pdepend-summary.xml
       - name: Upload release artifacts
