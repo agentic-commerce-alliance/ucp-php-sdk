@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ucp.dev/schemas/shopping/checkout.json",
+  "name": "dev.ucp.shopping.checkout",
+  "type": "object",
+  "required": ["ucp", "id", "line_items", "status", "currency", "totals", "links"],
+  "properties": {
+    "ucp": {
+      "$ref": "../ucp.json#/$defs/business_schema"
+    },
+    "id": {
+      "type": "string"
+    },
+    "line_items": {
+      "type": "array"
+    },
+    "status": {
+      "type": "string"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "totals": {
+      "type": "array"
+    },
+    "links": {
+      "type": "array"
+    }
+  }
+}
+

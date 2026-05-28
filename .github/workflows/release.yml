@@ -1,0 +1,72 @@
+name: release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build PHP container
+        run: docker compose build php
+      - name: Install dependencies
+        run: docker compose run --rm php composer install
+      - name: Validate root Composer manifest
+        run: docker compose run --rm php composer validate --strict
+      - name: Validate core package manifest
+        run: docker compose run --rm php composer validate --strict -d packages/core
+      - name: Validate Symfony bundle manifest
+        run: docker compose run --rm php composer validate --strict -d packages/symfony-bundle
+      - name: Run QA suite
+        run: docker compose run --rm php composer qa
+      - name: Collect release artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp var/reports/infection/summary.log release-artifacts/infection-summary.log
+          cp var/reports/coverage/internal-summary.json release-artifacts/coverage-internal-summary.json
+          cp var/reports/pdepend/summary.xml release-artifacts/pdepend-summary.xml
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  draft-release:
+    needs: qa
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: release-artifacts
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --draft --title "$TAG"
+          else
+            gh release create "$TAG" \
+              --draft \
+              --generate-notes \
+              --title "$TAG"
+          fi
+
+          gh release upload "$TAG" release-artifacts/* --clobber

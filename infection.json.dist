@@ -1,0 +1,38 @@
+{
+    "$schema": "https://infection.github.io/schema.json",
+    "minMsi": 79,
+    "minCoveredMsi": 79,
+    "source": {
+        "directories": [
+            "packages/core/src/Internal/Security",
+            "packages/core/src/Internal/Service",
+            "packages/symfony-bundle/src/Bridge/DefaultStorage"
+        ],
+        "excludes": [
+            "packages/core/src/Internal/Security/DefaultJsonCanonicalization.php",
+            "packages/core/src/Internal/Security/DefaultSigningKeyManager.php",
+            "packages/core/src/Internal/Security/Rfc9421RequestSignatureService.php",
+            "packages/core/src/Internal/Security/UnsupportedMerchantAuthorizationService.php",
+            "packages/core/src/Internal/Service/DefaultHttpRequestContextFactory.php",
+            "packages/core/src/Internal/Service/DefaultOrderWebhookDispatcher.php",
+            "packages/core/src/Internal/Service/DefaultProfileBuilder.php",
+            "packages/core/src/Internal/Service/DefaultProtocolValidator.php",
+            "packages/core/src/Internal/Service/UrlSafetyValidator.php",
+            "packages/core/src/Internal/Service/ValidatedProfileUri.php",
+            "packages/core/src/Internal/Service/RepositoryProfileSigningKeyProvider.php",
+            "packages/symfony-bundle/src/Bridge/DefaultStorage/StorageCleanupService.php"
+        ]
+    },
+    "logs": {
+        "text": "var/reports/infection/summary.log",
+        "html": "var/reports/infection/index.html"
+    },
+    "phpUnit": {
+        "configDir": ".",
+        "customPath": "vendor/bin/phpunit"
+    },
+    "mutators": {
+        "@default": true
+    },
+    "tmpDir": "var/infection"
+}

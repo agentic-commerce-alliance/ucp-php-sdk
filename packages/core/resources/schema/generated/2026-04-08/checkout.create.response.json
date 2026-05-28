@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "required": ["id", "status", "currency", "line_items", "totals", "messages", "links"],
+  "properties": {
+    "id": { "type": "string" },
+    "status": { "type": "string" },
+    "currency": { "type": "string" },
+    "line_items": { "type": "array" },
+    "totals": { "type": "array" },
+    "messages": { "type": "array" },
+    "links": { "type": "array" },
+    "buyer": { "type": "object" },
+    "continue_url": { "type": "string" },
+    "expires_at": { "type": "string" },
+    "order": { "type": "object" }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "required": ["type", "handler_id"],
+  "properties": {
+    "type": { "type": "string" },
+    "handler_id": { "type": "string" },
+    "credential": { "type": "object" }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "required": ["line_items"],
+  "properties": {
+    "line_items": { "type": "array" },
+    "buyer": { "type": "object" },
+    "signals": { "type": "object" },
+    "discounts": { "type": "object" },
+    "fulfillment": { "type": "object" },
+    "buyer_consent": { "type": "object" }
+  }
+}
+

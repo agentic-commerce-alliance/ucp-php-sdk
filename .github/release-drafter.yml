@@ -1,0 +1,92 @@
+name-template: '$RESOLVED_VERSION'
+tag-template: '$RESOLVED_VERSION'
+template: |
+  ## Summary
+
+  $CHANGES
+
+  ## Packages
+
+  - `shopware/ucp-php-sdk-core`
+  - `ucp-php-sdk/symfony-bundle`
+
+  ## Notes
+
+  - Review the generated notes before publishing.
+  - Keep version-specific caveats in the GitHub Release, not in a separate repo file.
+
+version-template: '$MAJOR.$MINOR.$PATCH'
+change-template: '- $TITLE (#$NUMBER)'
+change-title-escapes: '\<*_&'
+version-resolver:
+  major:
+    labels:
+      - breaking-change
+  minor:
+    labels:
+      - feature
+      - enhancement
+  patch:
+    labels:
+      - bug
+      - fix
+      - security
+      - documentation
+      - docs
+      - qa
+      - tooling
+      - dependencies
+  default: patch
+categories:
+  - title: Breaking Changes
+    labels:
+      - breaking-change
+  - title: Features
+    labels:
+      - feature
+      - enhancement
+  - title: Fixes
+    labels:
+      - bug
+      - fix
+  - title: Security
+    labels:
+      - security
+  - title: Docs
+    labels:
+      - documentation
+      - docs
+  - title: QA And Tooling
+    labels:
+      - qa
+      - tooling
+      - github-actions
+  - title: Dependencies
+    labels:
+      - dependencies
+autolabeler:
+  - label: documentation
+    files:
+      - '*.md'
+      - 'docs/**/*'
+  - label: github-actions
+    files:
+      - '.github/**/*'
+  - label: core
+    files:
+      - 'packages/core/**/*'
+  - label: symfony-bundle
+    files:
+      - 'packages/symfony-bundle/**/*'
+  - label: examples
+    files:
+      - 'examples/**/*'
+  - label: tooling
+    files:
+      - 'tools/**/*'
+      - 'scripts/**/*'
+      - 'docker/**/*'
+exclude-labels:
+  - skip-changelog
+sort-by: merged_at
+sort-direction: descending

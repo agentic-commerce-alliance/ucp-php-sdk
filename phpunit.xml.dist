@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="vendor/autoload.php" cacheDirectory=".phpunit.cache">
+    <testsuites>
+        <testsuite name="core">
+            <directory>packages/core/tests</directory>
+        </testsuite>
+        <testsuite name="symfony">
+            <directory>packages/symfony-bundle/tests</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>packages/core/src</directory>
+            <directory>packages/symfony-bundle/src</directory>
+            <directory>examples/bootstrap-symfony-app/src</directory>
+            <directory>examples/merchant-symfony-app/src</directory>
+        </include>
+    </source>
+</phpunit>

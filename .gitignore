@@ -1,0 +1,7 @@
+/vendor/
+/var/
+/examples/**/var/
+/.phpunit.cache/
+/.idea/
+/.DS_Store
+/tools/public-api-snapshot.txt

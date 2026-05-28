@@ -1,0 +1,17 @@
+{
+    "name": "shopware/ucp-php-sdk-core",
+    "description": "Core library for the UCP PHP SDK",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "symfony/event-dispatcher-contracts": "^3.0",
+        "symfony/http-client": "^6.4 || ^7.0",
+        "symfony/http-foundation": "^6.4 || ^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ucp\\Sdk\\": "src/"
+        }
+    }
+}

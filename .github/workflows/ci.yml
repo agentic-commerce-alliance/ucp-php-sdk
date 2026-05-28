@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build PHP container
+        run: docker compose build php
+      - name: Install dependencies
+        run: docker compose run --rm php composer install
+      - name: Validate root Composer manifest
+        run: docker compose run --rm php composer validate --strict
+      - name: Validate core package manifest
+        run: docker compose run --rm php composer validate --strict -d packages/core
+      - name: Validate Symfony bundle manifest
+        run: docker compose run --rm php composer validate --strict -d packages/symfony-bundle
+      - name: Run QA suite
+        run: docker compose run --rm php composer qa
+  bc:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build PHP container
+        run: docker compose build php
+      - name: Install dependencies
+        run: docker compose run --rm php composer install
+      - name: Backward compatibility check
+        run: docker compose run --rm php vendor/bin/roave-backward-compatibility-check --from="${{ github.event.pull_request.base.sha }}" --to="${{ github.sha }}"
