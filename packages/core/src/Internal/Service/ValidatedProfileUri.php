@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Service;
 
+/** @internal */
 final readonly class ValidatedProfileUri
 {
     public function __construct(

@@ -8,6 +8,7 @@ use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
 
+/** @internal */
 final readonly class RepositoryBackedSignatureReplayGuard implements SignatureReplayGuardInterface
 {
     public function __construct(

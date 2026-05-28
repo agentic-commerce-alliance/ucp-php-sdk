@@ -12,6 +12,7 @@ use Ucp\Sdk\Model\Security\SignatureVerificationResult;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
 
+/** @internal */
 final readonly class Rfc9421RequestSignatureService implements RequestSignatureServiceInterface
 {
     /** @var list<string> */

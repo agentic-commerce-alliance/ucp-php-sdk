@@ -18,6 +18,7 @@ use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
+/** @internal */
 final readonly class DefaultHttpRequestContextFactory implements HttpRequestContextFactoryInterface
 {
     public function __construct(

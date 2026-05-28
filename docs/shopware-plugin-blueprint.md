@@ -7,7 +7,7 @@ This document describes what a future Shopware plugin should build on top of the
 Reuse these pieces from the shared SDK:
 
 - public UCP DTOs and contracts
-- adapter-backed capabilities
+- optional adapter-backed capabilities
 - request context, signing, negotiation, idempotency, and validation services
 - webhook publisher
 - public repository interfaces
@@ -28,6 +28,26 @@ Implement these in the Shopware plugin:
 - payment method mapping
 - order event subscribers that call `OrderWebhookPublisherInterface`
 - admin UI, ACL, diagnostics, and operator flows
+
+## Shopware Plugin Shape
+
+```mermaid
+flowchart TD
+    A["Shopware plugin"] --> B["RuntimeConfigurationResolverInterface"]
+    A --> C["CatalogAdapterInterface or direct capability"]
+    A --> D["CartAdapterInterface or direct capability"]
+    A --> E["CheckoutAdapterInterface or direct capability"]
+    A --> F["OrderAdapterInterface or direct capability"]
+    A --> G["PaymentAdapterInterface or direct capability"]
+    A --> H["Shopware storage adapters"]
+    B --> I["Shared SDK"]
+    C --> I
+    D --> I
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+```
 
 ## Important Boundaries
 

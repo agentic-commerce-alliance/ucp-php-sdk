@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Internal\Registry;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
 use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 
+/** @internal */
 final class PaymentHandlerRegistry implements PaymentHandlerRegistryInterface
 {
     /**

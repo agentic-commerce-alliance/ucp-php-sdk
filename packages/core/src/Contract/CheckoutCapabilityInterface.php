@@ -9,6 +9,11 @@ use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Checkout session operations.
+ *
+ * Reference: https://ucp.dev/specification/checkout/
+ */
 interface CheckoutCapabilityInterface extends CapabilityInterface
 {
     public function createCheckout(CheckoutCreateRequest $request, RequestContext $context): Checkout;

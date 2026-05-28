@@ -12,6 +12,11 @@ use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Optional convenience wrapper for host applications that prefer small platform adapters
+ * and a separate capability descriptor. Projects may implement CatalogCapabilityInterface
+ * directly instead.
+ */
 final readonly class AdapterBackedCatalogCapability implements CatalogCapabilityInterface
 {
     public function __construct(
@@ -27,19 +32,16 @@ final readonly class AdapterBackedCatalogCapability implements CatalogCapability
 
     public function search(CatalogSearchRequest $request, RequestContext $context): CatalogSearchResponse
     {
-        return new CatalogSearchResponse(array_map(
-            static fn ($record): Product => $record->toProduct(),
-            $this->adapter->search($request, $context),
-        ));
+        return new CatalogSearchResponse($this->adapter->search($request, $context));
     }
 
     public function lookup(CatalogLookupRequest $request, RequestContext $context): array
     {
-        return array_map(static fn ($record): Product => $record->toProduct(), $this->adapter->lookup($request, $context));
+        return $this->adapter->lookup($request, $context);
     }
 
     public function getProduct(string $id, RequestContext $context): Product
     {
-        return $this->adapter->getProduct($id, $context)->toProduct();
+        return $this->adapter->getProduct($id, $context);
     }
 }

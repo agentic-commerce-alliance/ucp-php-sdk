@@ -18,6 +18,7 @@ use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\OrderWebhookPublisherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 
+/** @internal */
 final readonly class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterface
 {
     /**

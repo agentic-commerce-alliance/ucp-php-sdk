@@ -9,6 +9,7 @@ use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
+/** @internal */
 final readonly class RepositoryProfileSigningKeyProvider implements ProfileSigningKeyProviderInterface
 {
     public function __construct(

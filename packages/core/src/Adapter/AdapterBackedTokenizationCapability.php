@@ -9,6 +9,11 @@ use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Optional convenience wrapper for host applications that prefer small platform adapters
+ * and a separate capability descriptor. Projects may implement TokenizationCapabilityInterface
+ * directly instead.
+ */
 final readonly class AdapterBackedTokenizationCapability implements TokenizationCapabilityInterface
 {
     public function __construct(
@@ -26,7 +31,7 @@ final readonly class AdapterBackedTokenizationCapability implements Tokenization
     {
         $result = $this->adapter->tokenize($instrument, $context);
 
-        return $result?->toArray() ?? [
+        return $result ?? [
             'status' => 'handler_declined',
             'handler_id' => $instrument->handlerId,
         ];

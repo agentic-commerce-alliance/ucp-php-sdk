@@ -8,6 +8,11 @@ use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Payment handler metadata and preparation hooks.
+ *
+ * Reference: https://ucp.dev/specification/payment-handler-guide/
+ */
 interface PaymentHandlerInterface
 {
     public function id(): string;

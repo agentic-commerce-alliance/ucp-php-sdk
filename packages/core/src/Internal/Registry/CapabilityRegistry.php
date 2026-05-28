@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Internal\Registry;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 
+/** @internal */
 final class CapabilityRegistry implements CapabilityRegistryInterface
 {
     /**

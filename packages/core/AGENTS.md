@@ -12,7 +12,6 @@ This package defines the reusable SDK surface and the adapter layer future comme
 - `Ucp\Sdk\Repository`
 - selected interfaces in `Ucp\Sdk\Service`
 - `Ucp\Sdk\Adapter`
-- `Ucp\Sdk\Adapter\Model`
 
 ## Internal Namespace
 
@@ -29,9 +28,7 @@ QA note:
 - `src/Contract`
   capability contracts, payment handlers, validators, enrichers, and profile contributors
 - `src/Adapter`
-  platform adapter contracts and adapter-backed capability implementations
-- `src/Adapter/Model`
-  normalized records such as `ProductRecord`, `CartRecord`, `CheckoutRecord`, and `OrderRecord`
+  platform adapter contracts and optional adapter-backed capability implementations
 - `src/Model`
   immutable DTOs for protocol input and output
 - `src/Service`
@@ -47,8 +44,8 @@ The adapter layer is the recommended integration path for commerce platforms.
 
 Pattern:
 
-1. Platform adapter returns normalized records.
-2. Adapter-backed capability maps normalized records into public UCP DTOs.
+1. Platform adapter returns public SDK DTOs and payload shapes, never platform entities.
+2. Adapter-backed capability is an optional wrapper when you want to keep descriptor wiring separate from the adapter itself.
 3. Transport layer only sees public DTOs and protocol services.
 
 Example:
@@ -59,6 +56,8 @@ $catalogCapability = new AdapterBackedCatalogCapability(
     $catalogAdapter,
 );
 ```
+
+Projects may skip the adapter layer entirely and implement `CatalogCapabilityInterface`, `CheckoutCapabilityInterface`, or the other capability contracts directly.
 
 ## Important Boundaries
 

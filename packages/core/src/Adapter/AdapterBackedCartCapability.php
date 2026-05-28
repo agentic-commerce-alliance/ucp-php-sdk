@@ -11,6 +11,11 @@ use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Optional convenience wrapper for host applications that prefer small platform adapters
+ * and a separate capability descriptor. Projects may implement CartCapabilityInterface
+ * directly instead.
+ */
 final readonly class AdapterBackedCartCapability implements CartCapabilityInterface
 {
     public function __construct(
@@ -26,21 +31,21 @@ final readonly class AdapterBackedCartCapability implements CartCapabilityInterf
 
     public function createCart(CartCreateRequest $request, RequestContext $context): Cart
     {
-        return $this->adapter->createCart($request, $context)->toCart();
+        return $this->adapter->createCart($request, $context);
     }
 
     public function getCart(string $id, RequestContext $context): Cart
     {
-        return $this->adapter->getCart($id, $context)->toCart();
+        return $this->adapter->getCart($id, $context);
     }
 
     public function updateCart(CartUpdateRequest $request, RequestContext $context): Cart
     {
-        return $this->adapter->updateCart($request, $context)->toCart();
+        return $this->adapter->updateCart($request, $context);
     }
 
     public function cancelCart(string $id, RequestContext $context): Cart
     {
-        return $this->adapter->cancelCart($id, $context)->toCart();
+        return $this->adapter->cancelCart($id, $context);
     }
 }

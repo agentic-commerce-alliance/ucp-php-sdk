@@ -31,7 +31,6 @@ flowchart TD
 | --- | --- | --- |
 | Public DTOs | `packages/core/src/Model` | Shared protocol model |
 | Public capability or adapter contracts | `packages/core/src/Contract` or `packages/core/src/Adapter` | Stable extension surface |
-| Normalized adapter records | `packages/core/src/Adapter/Model` | Platform-neutral mapping layer |
 | Public service interfaces | `packages/core/src/Service` | Replaceable integration hooks |
 | Public repository interfaces | `packages/core/src/Repository` | Replaceable storage contracts |
 | Default runtime implementations | `packages/core/src/Internal` | Internal shared behavior |

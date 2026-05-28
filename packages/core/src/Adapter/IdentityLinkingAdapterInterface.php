@@ -10,6 +10,12 @@ use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
 use Ucp\Sdk\Model\Identity\OAuthTokenResponse;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Optional platform-facing contract for identity linking.
+ *
+ * Projects may implement IdentityLinkingCapabilityInterface directly instead when they
+ * do not need a separate adapter layer.
+ */
 interface IdentityLinkingAdapterInterface
 {
     public function getMetadata(RequestContext $context): OAuthMetadata;

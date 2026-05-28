@@ -16,6 +16,7 @@ $directories = [
     $root . '/packages/core/src' => 'Ucp\\Sdk\\',
 ];
 $namespaces = [
+    'Ucp\\Sdk\\Adapter\\',
     'Ucp\\Sdk\\Contract\\',
     'Ucp\\Sdk\\Model\\',
     'Ucp\\Sdk\\Enum\\',

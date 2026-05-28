@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Internal\Service;
 
 use Ucp\Sdk\Exception\ValidationException;
 
+/** @internal */
 final readonly class UrlSafetyValidator
 {
     /** @var list<int> */

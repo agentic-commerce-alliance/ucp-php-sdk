@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Enum;
 
+/**
+ * Checkout lifecycle states from the UCP checkout flow.
+ *
+ * Reference: https://ucp.dev/specification/checkout/
+ */
 enum CheckoutStatus: string
 {
     case Incomplete = 'incomplete';

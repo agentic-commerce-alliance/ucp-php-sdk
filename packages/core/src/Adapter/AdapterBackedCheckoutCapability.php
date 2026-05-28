@@ -11,6 +11,11 @@ use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Optional convenience wrapper for host applications that prefer small platform adapters
+ * and a separate capability descriptor. Projects may implement CheckoutCapabilityInterface
+ * directly instead.
+ */
 final readonly class AdapterBackedCheckoutCapability implements CheckoutCapabilityInterface
 {
     public function __construct(
@@ -26,26 +31,26 @@ final readonly class AdapterBackedCheckoutCapability implements CheckoutCapabili
 
     public function createCheckout(CheckoutCreateRequest $request, RequestContext $context): Checkout
     {
-        return $this->adapter->createCheckout($request, $context)->toCheckout();
+        return $this->adapter->createCheckout($request, $context);
     }
 
     public function getCheckout(string $id, RequestContext $context): Checkout
     {
-        return $this->adapter->getCheckout($id, $context)->toCheckout();
+        return $this->adapter->getCheckout($id, $context);
     }
 
     public function updateCheckout(CheckoutUpdateRequest $request, RequestContext $context): Checkout
     {
-        return $this->adapter->updateCheckout($request, $context)->toCheckout();
+        return $this->adapter->updateCheckout($request, $context);
     }
 
     public function completeCheckout(string $id, RequestContext $context): Checkout
     {
-        return $this->adapter->completeCheckout($id, $context)->toCheckout();
+        return $this->adapter->completeCheckout($id, $context);
     }
 
     public function cancelCheckout(string $id, RequestContext $context): Checkout
     {
-        return $this->adapter->cancelCheckout($id, $context)->toCheckout();
+        return $this->adapter->cancelCheckout($id, $context);
     }
 }

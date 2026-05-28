@@ -8,6 +8,7 @@ use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
+/** @internal */
 final readonly class StaticRuntimeConfigurationResolver implements RuntimeConfigurationResolverInterface
 {
     public function __construct(

@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Internal\Validation;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Service\SchemaValidatorInterface;
 
+/** @internal */
 final class GeneratedSchemaValidator implements SchemaValidatorInterface
 {
     /** @var array<string, array<string, mixed>> */

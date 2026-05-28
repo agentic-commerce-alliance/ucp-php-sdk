@@ -20,7 +20,6 @@ use Ucp\Sdk\Adapter\DiscountAdapterInterface;
 use Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface;
 use Ucp\Sdk\Adapter\OrderAdapterInterface;
 use Ucp\Sdk\Adapter\PaymentAdapterInterface;
-use Ucp\Sdk\Adapter\StoreContextResolverInterface;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CheckoutRequestValidatorInterface;
 use Ucp\Sdk\Contract\CheckoutResponseAugmenterInterface;
@@ -126,7 +125,6 @@ final class UcpSdkExtension extends Extension
         $container->registerForAutoconfiguration(DiscountAdapterInterface::class)->addTag('ucp_sdk.adapter.discount');
         $container->registerForAutoconfiguration(IdentityLinkingAdapterInterface::class)->addTag('ucp_sdk.adapter.identity_linking');
         $container->registerForAutoconfiguration(PaymentAdapterInterface::class)->addTag('ucp_sdk.adapter.payment');
-        $container->registerForAutoconfiguration(StoreContextResolverInterface::class)->addTag('ucp_sdk.adapter.store_context_resolver');
 
         $container->setDefinition(UcpSdkConfiguration::class, new Definition(UcpSdkConfiguration::class, [
             $config['version'],

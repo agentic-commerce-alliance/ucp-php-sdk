@@ -12,6 +12,11 @@ use Ucp\Sdk\Model\Identity\OAuthTokenResponse;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Optional convenience wrapper for host applications that prefer small platform adapters
+ * and a separate capability descriptor. Projects may implement
+ * IdentityLinkingCapabilityInterface directly instead.
+ */
 final readonly class AdapterBackedIdentityLinkingCapability implements IdentityLinkingCapabilityInterface
 {
     public function __construct(

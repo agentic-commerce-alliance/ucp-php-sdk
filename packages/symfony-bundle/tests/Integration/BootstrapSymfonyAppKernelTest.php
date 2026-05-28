@@ -9,7 +9,7 @@ use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-final class UcpBundleKernelTest extends WebTestCase
+final class BootstrapSymfonyAppKernelTest extends WebTestCase
 {
     use CreatesConfiguredKernelBrowserTrait;
 

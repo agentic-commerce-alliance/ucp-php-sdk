@@ -31,7 +31,7 @@ The shared SDK owns protocol work:
 
 - UCP models and contracts
 - request context, signing, idempotency, negotiation, and validation
-- adapter-backed capabilities for commerce platforms
+- optional adapter-backed capabilities for commerce platforms
 
 The Symfony bundle owns HTTP wiring:
 
@@ -41,7 +41,7 @@ The Symfony bundle owns HTTP wiring:
 - console commands for signing keys
 - one aggregate cleanup command for retained SDK state
 
-Commerce platforms should add platform adapters on top. A future Shopware plugin should stay DAL-first and use the shared SDK through adapter contracts. MCP is intentionally out of scope for this shared SDK.
+Commerce platforms can either implement the capability contracts directly or add platform adapters on top. The adapter-backed wrappers are convenience helpers, not a required layer. A future Shopware plugin should stay DAL-first and use the shared SDK through the public contracts. MCP is intentionally out of scope for this shared SDK.
 
 ## Quickstart
 

@@ -7,6 +7,12 @@ This folder contains the Symfony example apps used to show and test the SDK.
 
 Both apps are plain Symfony examples. They do not contain Shopware code.
 
+CI coverage:
+
+- `packages/symfony-bundle/tests/Integration/BootstrapSymfonyAppKernelTest.php` boots and exercises the bootstrap example app.
+- `packages/symfony-bundle/tests/Integration/MerchantSymfonyAppKernelTest.php` boots and exercises the merchant example app.
+- `composer test` runs both in CI.
+
 Setup model:
 
 - The example apps use the root workspace dependencies. They are not standalone Composer projects.

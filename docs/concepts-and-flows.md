@@ -31,18 +31,17 @@ flowchart TD
     D --> H["Capability negotiation"]
     H --> I["Capability service"]
     I --> J["Adapter-backed capability or custom capability"]
-    J --> K["Platform adapter"]
-    K --> L["Normalized record"]
-    L --> M["Public SDK DTO"]
-    M --> N["ProtocolValidator response check"]
-    N --> O["Symfony JSON response"]
+    J --> K["Platform adapter or direct capability logic"]
+    K --> L["Public SDK DTO"]
+    L --> M["ProtocolValidator response check"]
+    M --> N["Symfony JSON response"]
 ```
 
 Notes:
 
 - `HttpPayloadMapper` is protocol mapping only. It must not become a platform mapper.
 - `HttpRequestContextFactory` builds the transport-neutral context used by capabilities and adapters.
-- A capability can be fully custom or adapter-backed. The adapter-backed path is the preferred path for commerce platforms.
+- A capability can be fully custom or adapter-backed. The adapter-backed path is a convenience pattern for commerce platforms, not a requirement.
 
 ## Outbound Webhook Flow
 
@@ -59,7 +58,7 @@ flowchart TD
 Notes:
 
 - The shared SDK owns signing and delivery behavior.
-- The host app or future Shopware plugin decides when a webhook should be sent.
+- The host app or future platform plugin decides when a webhook should be sent.
 - MCP does not belong in this flow. This shared SDK is REST-first.
 
 ## Extension Model
@@ -82,29 +81,6 @@ flowchart LR
 - Public extension points live in `Ucp\Sdk\Contract`, `Ucp\Sdk\Repository`, selected `Ucp\Sdk\Service` interfaces, and `Ucp\Sdk\Adapter`.
 - Internal classes under `Ucp\Sdk\Internal` and bundle bridge code are not the place to build platform-specific behavior.
 
-## Shopware Plugin Shape
-
-```mermaid
-flowchart TD
-    A["Shopware plugin"] --> B["RuntimeConfigurationResolverInterface"]
-    A --> C["CatalogAdapterInterface"]
-    A --> D["CartAdapterInterface"]
-    A --> E["CheckoutAdapterInterface"]
-    A --> F["OrderAdapterInterface"]
-    A --> G["PaymentAdapterInterface"]
-    A --> H["Shopware storage adapters"]
-    B --> I["Shared SDK"]
-    C --> I
-    D --> I
-    E --> I
-    F --> I
-    G --> I
-    H --> I
-```
-
-- The future Shopware plugin should implement adapter and storage contracts.
-- The shared SDK should stay free of Shopware entity classes, DAL definitions, admin UI, and MCP runtime code.
-
 ## What This SDK Does Not Own
 
 ```mermaid
@@ -119,3 +95,4 @@ flowchart LR
 
 - Keep the shared SDK small and reusable.
 - Put platform-specific product, cart, order, and payment mapping into platform plugins.
+- For the future Shopware-specific wiring, see [shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md).

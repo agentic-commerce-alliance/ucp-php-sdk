@@ -10,6 +10,11 @@ use Ucp\Sdk\Model\Catalog\CatalogSearchResponse;
 use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Catalog operations for the shopping flow.
+ *
+ * Reference: https://ucp.dev/specification/overview/
+ */
 interface CatalogCapabilityInterface extends CapabilityInterface
 {
     public function search(CatalogSearchRequest $request, RequestContext $context): CatalogSearchResponse;

@@ -20,6 +20,7 @@ use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 
+/** @internal */
 final readonly class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
 {
     public function __construct(

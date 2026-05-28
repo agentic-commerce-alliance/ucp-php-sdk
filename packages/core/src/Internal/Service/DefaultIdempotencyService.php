@@ -9,6 +9,7 @@ use Ucp\Sdk\Model\IdempotencyRecord;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Service\IdempotencyServiceInterface;
 
+/** @internal */
 final readonly class DefaultIdempotencyService implements IdempotencyServiceInterface
 {
     public function __construct(

@@ -8,6 +8,7 @@ use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Service\SchemaValidatorInterface;
 
+/** @internal */
 final readonly class DefaultProtocolValidator implements ProtocolValidatorInterface
 {
     public function __construct(

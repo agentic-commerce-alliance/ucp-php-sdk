@@ -15,6 +15,7 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 
+/** @internal */
 final readonly class DefaultProfileBuilder implements ProfileBuilderInterface
 {
     /**

@@ -10,6 +10,11 @@ use Ucp\Sdk\Model\Checkout\DiscountCode;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
+/**
+ * Optional convenience wrapper for host applications that prefer small platform adapters
+ * and a separate capability descriptor. Projects may implement DiscountCapabilityInterface
+ * directly instead.
+ */
 final readonly class AdapterBackedDiscountCapability implements DiscountCapabilityInterface
 {
     public function __construct(
@@ -25,6 +30,6 @@ final readonly class AdapterBackedDiscountCapability implements DiscountCapabili
 
     public function applyCartDiscount(string $cartId, DiscountCode $discount, RequestContext $context): Cart
     {
-        return $this->adapter->applyCartDiscount($cartId, $discount, $context)->toCart();
+        return $this->adapter->applyCartDiscount($cartId, $discount, $context);
     }
 }

@@ -90,15 +90,16 @@ final readonly class ShopwareCatalogAdapter implements CatalogAdapterInterface
     ) {
     }
 
-    public function getProduct(string $id, RequestContext $context): ProductRecord
+    public function getProduct(string $id, RequestContext $context): Product
     {
         $product = $this->productRoute->load($id);
 
-        return new ProductRecord(
+        return new Product(
             $product->getId(),
             $product->getTranslation('name'),
             (float) $product->getCalculatedPrice()->getUnitPrice(),
-            'EUR',
+            $product->getCover()?->getMedia()?->getUrl(),
+            ['currency' => 'EUR'],
         );
     }
 }
@@ -109,12 +110,12 @@ Example Shopware checkout adapter shape:
 ```php
 final readonly class ShopwareCheckoutAdapter implements CheckoutAdapterInterface
 {
-    public function createCheckout(CheckoutCreateRequest $request, RequestContext $context): CheckoutRecord
+    public function createCheckout(CheckoutCreateRequest $request, RequestContext $context): Checkout
     {
         // 1. Resolve sales channel context
         // 2. Map line items into a Shopware cart
         // 3. Price it through Shopware
-        // 4. Return normalized CheckoutRecord
+        // 4. Return the public Checkout DTO
     }
 }
 ```
@@ -156,6 +157,8 @@ $services->set(AdapterBackedCatalogCapability::class)
     ->args([new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', '...', '...'), service(ShopwareCatalogAdapter::class)])
     ->tag('ucp_sdk.capability');
 ```
+
+Projects may also skip the adapter layer and register a direct `CatalogCapabilityInterface` implementation instead.
 
 ## Do Not Do This
 

@@ -1,3 +1,69 @@
+class Ucp\Sdk\Adapter\AdapterBackedCartCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CartAdapterInterface $adapter)
+  - cancelCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - createCart(Ucp\Sdk\Model\Cart\CartCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - updateCart(Ucp\Sdk\Model\Cart\CartUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+class Ucp\Sdk\Adapter\AdapterBackedCatalogCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CatalogAdapterInterface $adapter)
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\CatalogSearchResponse
+class Ucp\Sdk\Adapter\AdapterBackedCheckoutCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CheckoutAdapterInterface $adapter)
+  - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+class Ucp\Sdk\Adapter\AdapterBackedDiscountCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\DiscountAdapterInterface $adapter)
+  - applyCartDiscount(string $cartId, Ucp\Sdk\Model\Checkout\DiscountCode $discount, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+class Ucp\Sdk\Adapter\AdapterBackedIdentityLinkingCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface $adapter)
+  - authorize(Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getMetadata(Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthMetadata
+  - issueToken(Ucp\Sdk\Model\Identity\OAuthTokenRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthTokenResponse
+class Ucp\Sdk\Adapter\AdapterBackedOrderCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\OrderAdapterInterface $adapter)
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getOrder(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Order\OrderView
+class Ucp\Sdk\Adapter\AdapterBackedTokenizationCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\PaymentAdapterInterface $adapter)
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
+interface Ucp\Sdk\Adapter\CartAdapterInterface
+  - cancelCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - createCart(Ucp\Sdk\Model\Cart\CartCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - getCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - updateCart(Ucp\Sdk\Model\Cart\CartUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+interface Ucp\Sdk\Adapter\CatalogAdapterInterface
+  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+interface Ucp\Sdk\Adapter\CheckoutAdapterInterface
+  - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+interface Ucp\Sdk\Adapter\DiscountAdapterInterface
+  - applyCartDiscount(string $cartId, Ucp\Sdk\Model\Checkout\DiscountCode $discount, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+interface Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface
+  - authorize(Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - getMetadata(Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthMetadata
+  - issueToken(Ucp\Sdk\Model\Identity\OAuthTokenRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthTokenResponse
+interface Ucp\Sdk\Adapter\OrderAdapterInterface
+  - getOrder(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Order\OrderView
+interface Ucp\Sdk\Adapter\PaymentAdapterInterface
+  - prepareInstrument(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
+  - supportsTokenization(): bool
+  - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): ?array
 interface Ucp\Sdk\Contract\CapabilityInterface
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
 interface Ucp\Sdk\Contract\CartCapabilityInterface

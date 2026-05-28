@@ -10,6 +10,7 @@ use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 
+/** @internal */
 final readonly class HttpAgentProfileFetcher implements AgentProfileFetcherInterface
 {
     public function __construct(
