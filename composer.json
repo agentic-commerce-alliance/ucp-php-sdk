@@ -86,15 +86,18 @@
         "unused-deps": "vendor/bin/composer-unused --configuration=composer-unused.php",
         "mutation": [
             "@reports:prepare",
-            "@php -d pcov.enabled=1 vendor/bin/infection --configuration=infection.json.dist --threads=max"
+            "Composer\\Config::disableProcessTimeout",
+            "sh scripts/run-infection.sh --configuration=infection.json.dist --threads=max"
         ],
         "mutation:changed": [
             "@reports:prepare",
+            "Composer\\Config::disableProcessTimeout",
             "sh scripts/run-mutation-changed.sh"
         ],
         "mutation:full": [
             "@reports:prepare",
-            "@php -d pcov.enabled=1 vendor/bin/infection --configuration=infection.full.json.dist --threads=max"
+            "Composer\\Config::disableProcessTimeout",
+            "sh scripts/run-infection.sh --configuration=infection.full.json.dist --threads=max"
         ],
         "mutation:gate": [
             "@mutation"
