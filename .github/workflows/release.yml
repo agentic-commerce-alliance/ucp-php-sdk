@@ -15,6 +15,8 @@ concurrency:
 jobs:
   qa:
     runs-on: ubuntu-latest
+    env:
+      MUTATION_THREADS: '4'
     steps:
       - uses: actions/checkout@v4
         with:

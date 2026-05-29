@@ -113,6 +113,8 @@ For a deeper manual run across the broader historical scope, use:
 docker compose run --rm php composer mutation:full
 ```
 
+Local mutation commands default to `7` workers. Override that with `MUTATION_THREADS`, for example `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation`. CI and release workflows pin the broader sweep to `4` workers for stable runtime.
+
 ## Mutation Gate
 
 Mutation testing is now part of the hard QA gate.

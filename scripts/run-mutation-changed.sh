@@ -12,7 +12,6 @@ fi
 
 exec sh scripts/run-infection.sh \
   --configuration=infection.full.json.dist \
-  --threads=max \
   --git-diff-filter=AM \
   --git-diff-base="${BASE_REF}" \
   --map-source-class-to-test \

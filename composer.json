@@ -87,7 +87,7 @@
         "mutation": [
             "@reports:prepare",
             "Composer\\Config::disableProcessTimeout",
-            "sh scripts/run-infection.sh --configuration=infection.json.dist --threads=max"
+            "sh scripts/run-infection.sh --configuration=infection.json.dist"
         ],
         "mutation:changed": [
             "@reports:prepare",
@@ -97,7 +97,7 @@
         "mutation:full": [
             "@reports:prepare",
             "Composer\\Config::disableProcessTimeout",
-            "sh scripts/run-infection.sh --configuration=infection.full.json.dist --threads=max"
+            "sh scripts/run-infection.sh --configuration=infection.full.json.dist"
         ],
         "mutation:gate": [
             "@mutation"
