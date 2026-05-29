@@ -19,17 +19,17 @@ jobs:
       - name: Build PHP container
         run: docker compose build php
       - name: Install dependencies
-        run: docker compose run --rm php composer install
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh install
       - name: Validate root Composer manifest
-        run: docker compose run --rm php composer validate --strict
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict
       - name: Validate core package manifest
-        run: docker compose run --rm php composer validate --strict -d packages/core
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict -d packages/core
       - name: Validate Symfony bundle manifest
-        run: docker compose run --rm php composer validate --strict -d packages/symfony-bundle
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict -d packages/symfony-bundle
       - name: Run QA suite
-        run: docker compose run --rm php composer qa
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh qa
       - name: Run full mutation sweep
-        run: docker compose run --rm php composer mutation:full
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh mutation:full
   bc:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -57,7 +57,7 @@ jobs:
         run: docker compose build php
       - name: Install dependencies
         if: steps.baseline.outputs.skip != 'true'
-        run: docker compose run --rm php composer install
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh install
       - name: Backward compatibility check
         if: steps.baseline.outputs.skip != 'true'
         run: docker compose run --rm php vendor/bin/roave-backward-compatibility-check --from="${{ steps.baseline.outputs.tag }}" --to=HEAD

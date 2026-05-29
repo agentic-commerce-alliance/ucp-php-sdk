@@ -121,6 +121,9 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
             return ArrayParameterType::STRING;
         }
 
-        return Connection::PARAM_STR_ARRAY;
+        /** @var mixed $legacyType */
+        $legacyType = constant(Connection::class . '::PARAM_STR_ARRAY');
+
+        return $legacyType;
     }
 }
