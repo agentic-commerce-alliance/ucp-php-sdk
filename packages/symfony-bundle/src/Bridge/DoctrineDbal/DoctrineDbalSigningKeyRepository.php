@@ -96,6 +96,14 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
         }
     }
 
+    public function deleteManaged(string $kid): bool
+    {
+        return $this->connection->executeStatement(
+            'DELETE FROM ucp_signing_keys WHERE kid = :kid',
+            ['kid' => $kid],
+        ) > 0;
+    }
+
     /**
      * @param array<string, mixed> $row
      */
