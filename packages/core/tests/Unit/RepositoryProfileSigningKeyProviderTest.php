@@ -35,6 +35,11 @@ final class RepositoryProfileSigningKeyProviderTest extends TestCase
                     return null;
                 }
 
+                public function deleteManaged(string $kid): bool
+                {
+                    return false;
+                }
+
                 public function allManaged(): array
                 {
                     return [$this->existing];
@@ -91,6 +96,11 @@ final class RepositoryProfileSigningKeyProviderTest extends TestCase
                 public function findManaged(string $kid): ?ManagedSigningKey
                 {
                     return null;
+                }
+
+                public function deleteManaged(string $kid): bool
+                {
+                    return false;
                 }
 
                 public function allManaged(): array

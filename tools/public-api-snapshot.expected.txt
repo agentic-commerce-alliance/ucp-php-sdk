@@ -277,6 +277,7 @@ interface Ucp\Sdk\Repository\IdempotencyRepositoryInterface
 interface Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface
   - active(): array
   - allManaged(): array
+  - deleteManaged(string $kid): bool
   - findManaged(string $kid): ?Ucp\Sdk\Model\Security\ManagedSigningKey
   - purgeRetired(string $olderThanIso8601): void
   - saveManaged(Ucp\Sdk\Model\Security\ManagedSigningKey $key): void

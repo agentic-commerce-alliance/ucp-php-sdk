@@ -41,6 +41,11 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                     return $kid === $this->activeKey->kid ? $this->activeKey : null;
                 }
 
+                public function deleteManaged(string $kid): bool
+                {
+                    return false;
+                }
+
                 public function allManaged(): array
                 {
                     return [$this->activeKey];
@@ -119,6 +124,11 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                     return null;
                 }
 
+                public function deleteManaged(string $kid): bool
+                {
+                    return false;
+                }
+
                 public function allManaged(): array
                 {
                     return [new ManagedSigningKey('fallback', 'public', 'private')];
@@ -180,6 +190,11 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                 public function findManaged(string $kid): ?ManagedSigningKey
                 {
                     return null;
+                }
+
+                public function deleteManaged(string $kid): bool
+                {
+                    return false;
                 }
 
                 public function allManaged(): array

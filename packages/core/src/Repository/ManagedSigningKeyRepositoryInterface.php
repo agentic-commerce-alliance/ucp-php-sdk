@@ -12,6 +12,8 @@ interface ManagedSigningKeyRepositoryInterface
 
     public function findManaged(string $kid): ?ManagedSigningKey;
 
+    public function deleteManaged(string $kid): bool;
+
     /**
      * @return list<ManagedSigningKey>
      */

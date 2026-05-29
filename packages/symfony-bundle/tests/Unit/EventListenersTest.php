@@ -189,6 +189,51 @@ final class EventListenersTest extends TestCase
     }
 
     #[Test]
+    public function itIgnoresNonUcpRoutes(): void
+    {
+        $state = new EventListenerState();
+        $listener = new RequestContextListener(
+            new class () implements HttpRequestContextFactoryInterface {
+                public function create(HttpRequest $request): RequestContext
+                {
+                    throw new \RuntimeException('Should not be called for non-UCP routes.');
+                }
+            },
+            new class ($state) implements IdempotencyServiceInterface {
+                public function __construct(private readonly EventListenerState $state)
+                {
+                }
+
+                public function claim(string $key, string $fingerprint): IdempotencyRecord
+                {
+                    $this->state->claimedKey = $key;
+
+                    throw new \RuntimeException('Should not be called for non-UCP routes.');
+                }
+
+                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
+                {
+                }
+
+                public function abort(IdempotencyRecord $record): void
+                {
+                }
+            },
+            new UcpResponseFactory($this->configuration()),
+            $this->configuration(),
+        );
+
+        $request = Request::create('https://merchant.example/_action/swag-agentic-commerce/test/webhooks', 'POST');
+        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $listener->onKernelRequest($event);
+
+        self::assertNull($request->attributes->get('ucp_request_context'));
+        self::assertNull($state->claimedKey);
+        self::assertNull($event->getResponse());
+    }
+
+    #[Test]
     public function itAbortsOrCompletesPendingIdempotencyRecordsOnResponse(): void
     {
         $state = new EventListenerState();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Symfony\EventListener;
 
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\ValidationException;
@@ -31,6 +32,10 @@ final readonly class RequestContextListener
         }
 
         $request = $event->getRequest();
+        if (! $this->isUcpRequest($request)) {
+            return;
+        }
+
         $headers = [];
         foreach ($request->headers->all() as $name => $value) {
             $headers[$name] = implode(', ', array_map(static fn (?string $entry): string => (string) $entry, $value));
@@ -90,5 +95,21 @@ final readonly class RequestContextListener
                 $event->setResponse(new JsonResponse($record->responseBody, $record->statusCode, ['Idempotency-Replay' => '1']));
             }
         }
+    }
+
+    private function isUcpRequest(Request $request): bool
+    {
+        $path = $request->getPathInfo();
+
+        if (str_starts_with($path, '/ucp/')) {
+            return true;
+        }
+
+        return in_array($path, [
+            '/.well-known/ucp',
+            '/.well-known/oauth-authorization-server',
+            '/.well-known/openid-configuration',
+            '/.well-known/agent-card.json',
+        ], true);
     }
 }

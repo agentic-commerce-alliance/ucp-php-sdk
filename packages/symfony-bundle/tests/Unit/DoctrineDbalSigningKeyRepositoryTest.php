@@ -38,4 +38,26 @@ final class DoctrineDbalSigningKeyRepositoryTest extends TestCase
         self::assertCount(1, $repository->allManaged());
         self::assertCount(1, $repository->active());
     }
+
+    #[Test]
+    public function itDeletesManagedSigningKeys(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $repository = new DoctrineDbalSigningKeyRepository(
+            $connection,
+            new SchemaBootstrapper($connection),
+            new DefaultPrivateKeyEncryptor('test-secret'),
+        );
+        $manager = new DefaultSigningKeyManager();
+        $key = $manager->generate('kid-delete');
+
+        $repository->saveManaged($key);
+
+        self::assertTrue($repository->deleteManaged('kid-delete'));
+        self::assertNull($repository->findManaged('kid-delete'));
+        self::assertFalse($repository->deleteManaged('kid-delete'));
+    }
 }

@@ -123,6 +123,11 @@ final class PurgeSignatureNoncesCommandTest extends TestCase
                         return null;
                     }
 
+                    public function deleteManaged(string $kid): bool
+                    {
+                        return false;
+                    }
+
                     public function allManaged(): array
                     {
                         return [];
