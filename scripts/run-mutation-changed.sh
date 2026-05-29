@@ -3,8 +3,12 @@
 set -eu
 
 BASE_REF="${MUTATION_BASE:-origin/main}"
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-git config --global --add safe.directory "${REPO_ROOT}" >/dev/null 2>&1 || true
+CURRENT_DIR="$(pwd -P)"
+git config --global --add safe.directory "${CURRENT_DIR}" >/dev/null 2>&1 || true
+
+if [ "${CURRENT_DIR}" != "/workspace" ]; then
+    git config --global --add safe.directory /workspace >/dev/null 2>&1 || true
+fi
 
 exec sh scripts/run-infection.sh \
   --configuration=infection.full.json.dist \
