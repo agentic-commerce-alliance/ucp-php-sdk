@@ -74,7 +74,7 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
             $this->connection->fetchAllAssociative(
                 'SELECT * FROM ucp_signing_keys WHERE status IN (:statuses) ORDER BY kid ASC',
                 ['statuses' => ['active', 'retiring']],
-                ['statuses' => ArrayParameterType::STRING],
+                ['statuses' => $this->getStringArrayParameterType()],
             ),
         );
     }
@@ -113,5 +113,14 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
             isset($row['created_at']) ? (string) $row['created_at'] : null,
             isset($row['retire_at']) ? (string) $row['retire_at'] : null,
         );
+    }
+
+    private function getStringArrayParameterType(): mixed
+    {
+        if (class_exists(ArrayParameterType::class)) {
+            return ArrayParameterType::STRING;
+        }
+
+        return Connection::PARAM_STR_ARRAY;
     }
 }

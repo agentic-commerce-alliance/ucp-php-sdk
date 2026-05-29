@@ -5,7 +5,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "doctrine/dbal": "^4.0",
+        "doctrine/dbal": "^3.7 || ^4.0",
         "shopware/ucp-php-sdk-core": "^0.0.1@alpha",
         "symfony/config": "^6.4 || ^7.0",
         "symfony/dependency-injection": "^6.4 || ^7.0",
