@@ -9,7 +9,6 @@ use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Model\RequestContext;
-use Ucp\Sdk\Model\Security\PublicSigningKey;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
@@ -49,10 +48,7 @@ final readonly class DefaultHttpRequestContextFactory implements HttpRequestCont
         $verificationResult = null;
         $publicKeys = [];
         if ($platformProfile !== null) {
-            $publicKeys = array_map(
-                static fn (PublicSigningKey $key): PublicSigningKey => $key,
-                $platformProfile->signingKeys,
-            );
+            $publicKeys = $platformProfile->signingKeys;
 
             $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);
         }
