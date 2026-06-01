@@ -121,7 +121,7 @@ final readonly class DefaultCapabilityNegotiator implements CapabilityNegotiator
         }
 
         if ($capability instanceof DiscountCapabilityInterface) {
-            $operations = [...$operations, 'cart.create', 'cart.update', 'checkout.create', 'checkout.update'];
+            $operations = [...$operations, 'discount.apply', 'cart.create', 'cart.update', 'checkout.create', 'checkout.update'];
         }
 
         if ($capability instanceof CheckoutCapabilityInterface) {

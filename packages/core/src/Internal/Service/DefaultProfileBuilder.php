@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Internal\Service;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
+use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Event\ProfileBuiltEvent;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
@@ -48,9 +49,12 @@ final readonly class DefaultProfileBuilder implements ProfileBuilderInterface
 
         $services = [
             'dev.ucp.shopping' => array_map(
-                static function (\Ucp\Sdk\Enum\Transport $transport) use ($input): ServiceEndpoint {
-                    $endpoint = match ($transport) {
-                        \Ucp\Sdk\Enum\Transport::Rest => rtrim($input->baseUri, '/') . '/ucp/v1',
+                static function (Transport $transport) use ($input): ServiceEndpoint {
+                    $endpoint = $input->transportEndpoints[$transport->value] ?? match ($transport) {
+                        Transport::Rest => rtrim($input->baseUri, '/') . '/ucp/v1',
+                        Transport::Mcp => rtrim($input->baseUri, '/') . '/ucp/mcp',
+                        Transport::A2a => rtrim($input->baseUri, '/') . '/ucp/a2a',
+                        Transport::Embedded => rtrim($input->baseUri, '/') . '/ucp/embedded',
                     };
 
                     return new ServiceEndpoint(

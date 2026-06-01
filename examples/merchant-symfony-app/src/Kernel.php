@@ -37,7 +37,9 @@ final class Kernel extends BaseKernel
         $container->extension('ucp_sdk', [
             'base_uri' => $baseUri,
             'allowed_profile_hosts' => $this->allowedProfileHosts($baseUri),
+            'allowed_agent_domains' => $this->allowedProfileHosts($baseUri),
             'signature_policy' => $this->signaturePolicy(),
+            'transports' => ['rest', 'a2a', 'embedded'],
             'supported_versions' => ['2026-04-08' => $baseUri . '/.well-known/ucp'],
             'storage' => [
                 'dsn' => 'sqlite:///' . dirname(__DIR__) . '/var/ucp_sdk.sqlite',

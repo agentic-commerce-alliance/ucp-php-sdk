@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
+use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
 use Ucp\Sdk\Internal\Service\DefaultProfileBuilder;
@@ -72,5 +73,32 @@ final class DefaultProfileBuilderTest extends TestCase
         self::assertSame('2026-04-08', $profile->version);
         self::assertArrayHasKey('dev.ucp.shopping.checkout', $profile->capabilities);
         self::assertArrayHasKey('com.demo.tokenizer', $profile->paymentHandlers);
+    }
+
+    public function testItBuildsAllConfiguredTransportEndpoints(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $profile = $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            [Transport::Rest, Transport::Mcp, Transport::A2a, Transport::Embedded],
+            transportEndpoints: [
+                Transport::Mcp->value => 'https://shop.example/store-api/_mcp',
+            ],
+        ));
+
+        $endpoints = $profile->services['dev.ucp.shopping'];
+
+        self::assertSame('https://shop.example/ucp/v1', $endpoints[0]->endpoint);
+        self::assertSame('https://shop.example/store-api/_mcp', $endpoints[1]->endpoint);
+        self::assertSame('https://shop.example/ucp/a2a', $endpoints[2]->endpoint);
+        self::assertSame('https://shop.example/ucp/embedded', $endpoints[3]->endpoint);
     }
 }
