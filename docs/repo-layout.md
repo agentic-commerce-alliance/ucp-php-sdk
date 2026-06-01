@@ -108,11 +108,11 @@ flowchart LR
     A["Shared SDK repo"] -. not here .-> B["Shopware entity classes"]
     A -. not here .-> C["Shopware DAL definitions"]
     A -. not here .-> D["Shopware admin module"]
-    A -. not here .-> E["MCP transport runtime"]
+    A -. not here .-> E["Shopware-specific MCP tools"]
 ```
 
 - The future Shopware plugin belongs on top of this SDK, not inside `packages/core`.
-- MCP stays out of the shared SDK.
+- Generic transport metadata and controllers can live in the shared SDK when they stay platform-neutral.
 - Doctrine DBAL bridge code is a default Symfony storage adapter, not the model every adopter must use.
 
 ## Test Placement

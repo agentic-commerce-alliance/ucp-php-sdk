@@ -16,6 +16,7 @@ If the goal is to build or extend a future Shopware plugin, read files in this o
 6. [docs/mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)
 7. [docs/concepts-and-flows.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/concepts-and-flows.md)
 8. [docs/repo-layout.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/repo-layout.md)
+9. [docs/full-ucp-parity-plan.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/full-ucp-parity-plan.md)
 
 ## Core Decisions
 
@@ -28,7 +29,7 @@ If the goal is to build or extend a future Shopware plugin, read files in this o
 - The shared SDK is shop-agnostic. Do not add Shopware classes or Shopware-only concepts to `packages/core` or `packages/symfony-bundle`.
 - The example apps are plain Symfony apps. Do not add Shopware code there.
 - Protocol target is UCP `2026-04-08`.
-- Scope is REST-first and business-side only. MCP, A2A, and embedded transport stay out of this shared SDK.
+- Scope now targets full UCP parity with the Shopware core UCP foundation: REST, MCP profile metadata, A2A, and embedded transport metadata are shared SDK concerns when they stay shop-agnostic.
 - Doctrine DBAL is only the default Symfony storage adapter for SDK state. It is not the platform model for Shopware.
 - Future Shopware work should be DAL-first in its own plugin.
 - The root workspace package is not the main install target for external projects. External consumers should require `shopware/ucp-php-sdk-core` or `ucp-php-sdk/symfony-bundle`.
@@ -163,7 +164,7 @@ Projects may also skip the adapter layer and register a direct `CatalogCapabilit
 ## Do Not Do This
 
 - Do not put Shopware entity classes into `packages/core`.
-- Do not add MCP runtime concerns to the shared SDK.
+- Do not add Shopware-specific MCP runtime code to the shared SDK. Generic transport metadata and generic transport controllers are allowed when they remain shop-agnostic and explicitly configurable.
 - Do not turn the default DBAL storage adapter into the required persistence model for all adopters.
 - Do not subclass bundle controllers to customize commerce behavior when an adapter, tagged service, or decorator can do it.
 

@@ -16,12 +16,13 @@ This folder stores cross-cutting architecture notes.
 - keep these docs close to the current public contracts
 - link back to package `README.md` and `AGENTS.md` files instead of copying package internals
 - update these docs when the public extension model changes
-- keep MCP out of shared-SDK docs except when clarifying that it is intentionally out of scope
+- document generic transport parity in the shared SDK while keeping Shopware-specific MCP tooling in plugin docs
 
 ## Main Documents
 
 - `extension-contract.md`
 - `concepts-and-flows.md`
+- `full-ucp-parity-plan.md`
 - `platform-adapters.md`
 - `mapping-flow.md`
 - `repo-layout.md`

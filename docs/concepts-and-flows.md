@@ -59,7 +59,7 @@ Notes:
 
 - The shared SDK owns signing and delivery behavior.
 - The host app or future platform plugin decides when a webhook should be sent.
-- MCP does not belong in this flow. This shared SDK is REST-first.
+- Transport-specific webhook triggers still belong to the host app or future platform plugin.
 
 ## Extension Model
 
@@ -86,13 +86,15 @@ flowchart LR
 ```mermaid
 flowchart LR
     A["Shared SDK"] --> B["REST protocol support"]
+    A --> F["A2A protocol support"]
+    A --> G["Embedded transport hooks"]
+    A --> H["MCP profile metadata"]
     A --> C["Shared orchestration"]
     A -. not here .-> D["Shopware admin UI"]
     A -. not here .-> E["Shopware DAL definitions"]
-    A -. not here .-> F["MCP transport"]
-    A -. not here .-> G["A2A or embedded transport"]
+    A -. not here .-> I["Shopware-specific MCP tools"]
 ```
 
-- Keep the shared SDK small and reusable.
+- Keep transport support generic, configurable, and reusable.
 - Put platform-specific product, cart, order, and payment mapping into platform plugins.
 - For the future Shopware-specific wiring, see [shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md).

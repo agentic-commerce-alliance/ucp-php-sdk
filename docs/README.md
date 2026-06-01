@@ -5,6 +5,7 @@ This folder holds cross-cutting notes for the SDK and future platform integratio
 Current documents:
 
 - [concepts-and-flows.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/concepts-and-flows.md)
+- [full-ucp-parity-plan.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/full-ucp-parity-plan.md)
 - [extension-contract.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/extension-contract.md)
 - [platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
 - [mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)

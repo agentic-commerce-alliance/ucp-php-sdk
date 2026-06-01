@@ -103,7 +103,7 @@ $services->set(ManagedSigningKeyRepositoryInterface::class, ShopwareSigningKeyRe
 ## Do Not Do This
 
 - Do not add Shopware entity mapping here.
-- Do not add MCP runtime code here.
+- Do not add Shopware-specific MCP runtime code here. Generic transport controllers and metadata are allowed when they stay platform-neutral and respect bundle configuration.
 - Do not turn `HttpPayloadMapper` into a platform mapper.
 - Do not require consumers to subclass controllers to customize commerce behavior.
 

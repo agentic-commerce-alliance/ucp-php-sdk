@@ -111,10 +111,11 @@ Each GitHub Release should include:
   - identity linking
   - order read
   - outbound order webhooks
-- explicit out-of-scope list:
   - MCP
   - A2A
-  - embedded transport
+  - embedded transport hooks
+- explicit out-of-scope list:
+  - Shopware-specific MCP tools and Store API wiring
   - Shopware admin UI and DAL definitions
   - full AP2 credential stack
 - operational defaults or caveats relevant to that release

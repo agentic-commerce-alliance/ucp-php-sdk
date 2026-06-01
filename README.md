@@ -41,7 +41,7 @@ The Symfony bundle owns HTTP wiring:
 - console commands for signing keys
 - one aggregate cleanup command for retained SDK state
 
-Commerce platforms can either implement the capability contracts directly or add platform adapters on top. The adapter-backed wrappers are convenience helpers, not a required layer. A future Shopware plugin should stay DAL-first and use the shared SDK through the public contracts. MCP is intentionally out of scope for this shared SDK.
+Commerce platforms can either implement the capability contracts directly or add platform adapters on top. The adapter-backed wrappers are convenience helpers, not a required layer. A future Shopware plugin should stay DAL-first and use the shared SDK through the public contracts. The SDK now keeps full UCP transport parity at the generic layer: REST runtime, A2A runtime, embedded transport hooks, and MCP profile metadata. Shopware-specific MCP tooling and DAL wiring still belong in the Shopware plugin.
 
 ## Quickstart
 
@@ -128,6 +128,7 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 - [docs/concepts-and-flows.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/concepts-and-flows.md)
 - [docs/extension-contract.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/extension-contract.md)
 - [docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
+- [docs/full-ucp-parity-plan.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/full-ucp-parity-plan.md)
 - [docs/mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)
 - [docs/repo-layout.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/repo-layout.md)
 - [docs/release-process.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/release-process.md)
@@ -150,11 +151,12 @@ In scope:
 - identity linking
 - order read
 - outbound order webhooks
+- A2A
+- embedded transport hooks
+- MCP profile metadata and endpoint advertisement
 
 Out of scope in this shared SDK:
 
-- MCP
-- A2A
-- embedded transport
+- Shopware-specific MCP tools and Store API wiring
 - Shopware admin UI and DAL definitions
 - full AP2 credential stack

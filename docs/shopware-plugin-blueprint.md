@@ -52,8 +52,8 @@ flowchart TD
 ## Important Boundaries
 
 - Keep Shopware DAL definitions in the plugin, not in the shared SDK.
-- Keep MCP out of the shared SDK. If Shopware needs it later, build it in the plugin or another package.
-- Keep HTTP protocol mapping in the bundle. Do not rewrite that logic in the plugin unless Shopware needs a different transport.
+- Keep Shopware-specific MCP tools and Store API wiring in the plugin. The shared SDK may advertise MCP endpoints and own generic transport metadata.
+- Keep protocol mapping in the bundle. Do not rewrite that logic in the plugin unless Shopware needs platform-specific routing or authentication around it.
 
 ## Suggested Build Order
 
