@@ -68,6 +68,7 @@ final readonly class RequestContextListener
         $isMutating = in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true);
         if (
             $isMutating
+            && $this->requiresUcpIdempotency($request)
             && $context->runtimeConfiguration?->idempotencyRequired === true
             && $context->idempotencyKey === null
         ) {
@@ -106,10 +107,13 @@ final readonly class RequestContextListener
         }
 
         return in_array($path, [
-            '/.well-known/ucp',
             '/.well-known/oauth-authorization-server',
             '/.well-known/openid-configuration',
-            '/.well-known/agent-card.json',
         ], true);
+    }
+
+    private function requiresUcpIdempotency(Request $request): bool
+    {
+        return $request->getPathInfo() !== '/ucp/v1/oauth/token';
     }
 }

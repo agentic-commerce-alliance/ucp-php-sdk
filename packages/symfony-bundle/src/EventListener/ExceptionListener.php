@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\EventListener;
 
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
@@ -22,6 +23,10 @@ final readonly class ExceptionListener
 
     public function onKernelException(ExceptionEvent $event): void
     {
+        if (! $this->isUcpRequest($event->getRequest())) {
+            return;
+        }
+
         $throwable = $event->getThrowable();
 
         if ($throwable instanceof ValidationException) {
@@ -65,5 +70,21 @@ final readonly class ExceptionListener
         }
 
         $event->setResponse($this->responseFactory->error('Internal server error.', 500));
+    }
+
+    private function isUcpRequest(Request $request): bool
+    {
+        $path = $request->getPathInfo();
+
+        if (str_starts_with($path, '/ucp/')) {
+            return true;
+        }
+
+        return in_array($path, [
+            '/.well-known/ucp',
+            '/.well-known/oauth-authorization-server',
+            '/.well-known/openid-configuration',
+            '/.well-known/agent-card.json',
+        ], true);
     }
 }

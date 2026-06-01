@@ -14,6 +14,8 @@ final readonly class UcpSdkConfiguration
      * @param list<string> $allowedProfileHosts
      * @param list<string> $allowedAgentDomains
      * @param array<string, string> $supportedVersions
+     * @param list<Transport> $transports
+     * @param array<string, string> $transportEndpoints
      */
     public function __construct(
         public string $version,
@@ -38,12 +40,35 @@ final readonly class UcpSdkConfiguration
         public int $webhookTimeout,
         public bool $ap2Enabled,
         public string $storageDsn,
+        public array $transports = [Transport::Rest],
+        public array $transportEndpoints = [],
     ) {
     }
 
     public function resolvedBaseUri(?string $fallback = null): string
     {
         return $this->baseUri ?? $fallback ?? '';
+    }
+
+    public function supportsTransport(Transport $transport): bool
+    {
+        return in_array($transport, $this->transports, true);
+    }
+
+    public function allowsOrigin(string $origin, ?string $fallbackBaseUri = null): bool
+    {
+        $host = parse_url($origin, PHP_URL_HOST);
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        $allowedHosts = $this->allowedAgentDomains;
+        $baseHost = parse_url($this->resolvedBaseUri($fallbackBaseUri), PHP_URL_HOST);
+        if (is_string($baseHost) && $baseHost !== '') {
+            $allowedHosts[] = $baseHost;
+        }
+
+        return in_array($host, array_unique($allowedHosts), true);
     }
 
     public function toRuntimeConfiguration(?string $fallbackBaseUri = null): RuntimeConfiguration
@@ -56,8 +81,9 @@ final readonly class UcpSdkConfiguration
             $this->allowedProfileHosts,
             $this->allowedAgentDomains,
             $this->supportedVersions,
-            [Transport::Rest],
+            $this->transports,
             [],
+            transportEndpoints: $this->transportEndpoints,
         );
     }
 }

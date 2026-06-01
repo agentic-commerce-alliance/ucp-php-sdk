@@ -83,6 +83,7 @@ use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalPlatformProfileCacheReposito
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalSignatureNonceRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalSigningKeyRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper;
+use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\Command\GenerateSigningKeyCommand;
@@ -90,9 +91,11 @@ use Ucp\Sdk\Symfony\Command\ListSigningKeysCommand;
 use Ucp\Sdk\Symfony\Command\PurgeSignatureNoncesCommand;
 use Ucp\Sdk\Symfony\Command\ShowPublicSigningKeysCommand;
 use Ucp\Sdk\Symfony\Command\StorageCleanupCommand;
+use Ucp\Sdk\Symfony\Controller\A2aController;
 use Ucp\Sdk\Symfony\Controller\CartController;
 use Ucp\Sdk\Symfony\Controller\CatalogController;
 use Ucp\Sdk\Symfony\Controller\CheckoutController;
+use Ucp\Sdk\Symfony\Controller\EmbeddedController;
 use Ucp\Sdk\Symfony\Controller\OAuthController;
 use Ucp\Sdk\Symfony\Controller\OrderController;
 use Ucp\Sdk\Symfony\Controller\ProfileController;
@@ -118,6 +121,7 @@ final class UcpSdkExtension extends Extension
         $container->registerForAutoconfiguration(CheckoutResponseAugmenterInterface::class)->addTag('ucp_sdk.checkout_response_augmenter');
         $container->registerForAutoconfiguration(PaymentMandateVerifierInterface::class)->addTag('ucp_sdk.payment_mandate_verifier');
         $container->registerForAutoconfiguration(OrderWebhookEnricherInterface::class)->addTag('ucp_sdk.order_webhook_enricher');
+        $container->registerForAutoconfiguration(EmbeddedPageRendererInterface::class)->addTag('ucp_sdk.embedded_renderer');
         $container->registerForAutoconfiguration(CatalogAdapterInterface::class)->addTag('ucp_sdk.adapter.catalog');
         $container->registerForAutoconfiguration(CartAdapterInterface::class)->addTag('ucp_sdk.adapter.cart');
         $container->registerForAutoconfiguration(CheckoutAdapterInterface::class)->addTag('ucp_sdk.adapter.checkout');
@@ -125,6 +129,8 @@ final class UcpSdkExtension extends Extension
         $container->registerForAutoconfiguration(DiscountAdapterInterface::class)->addTag('ucp_sdk.adapter.discount');
         $container->registerForAutoconfiguration(IdentityLinkingAdapterInterface::class)->addTag('ucp_sdk.adapter.identity_linking');
         $container->registerForAutoconfiguration(PaymentAdapterInterface::class)->addTag('ucp_sdk.adapter.payment');
+
+        $transports = array_map(static fn (mixed $transport): Transport => Transport::from((string) $transport), $config['transports']);
 
         $container->setDefinition(UcpSdkConfiguration::class, new Definition(UcpSdkConfiguration::class, [
             $config['version'],
@@ -149,6 +155,8 @@ final class UcpSdkExtension extends Extension
             $config['webhooks']['timeout'],
             $config['ap2']['enabled'],
             $config['storage']['dsn'],
+            $transports,
+            $config['transport_endpoints'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -159,8 +167,10 @@ final class UcpSdkExtension extends Extension
             $config['allowed_profile_hosts'],
             $config['allowed_agent_domains'],
             $config['supported_versions'],
-            [Transport::Rest],
+            $transports,
             [],
+            null,
+            $config['transport_endpoints'],
         ]));
 
         $container->setDefinition(StaticRuntimeConfigurationResolver::class, new Definition(StaticRuntimeConfigurationResolver::class, [
@@ -345,6 +355,10 @@ final class UcpSdkExtension extends Extension
         $container->autowire(TokenizationController::class)->addTag('controller.service_arguments');
         $container->autowire(OrderController::class)->addTag('controller.service_arguments');
         $container->autowire(OAuthController::class)->addTag('controller.service_arguments');
+        $container->autowire(A2aController::class)->addTag('controller.service_arguments');
+        $container->autowire(EmbeddedController::class)
+            ->setArgument('$renderers', new TaggedIteratorArgument('ucp_sdk.embedded_renderer'))
+            ->addTag('controller.service_arguments');
 
         $container->autowire(RequestContextListener::class)
             ->addTag('kernel.event_listener', ['event' => 'kernel.request', 'method' => 'onKernelRequest']);

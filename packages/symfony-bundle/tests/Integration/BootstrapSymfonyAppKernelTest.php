@@ -160,4 +160,16 @@ final class BootstrapSymfonyAppKernelTest extends WebTestCase
         self::assertArrayHasKey('issuer', $payload);
         self::assertArrayHasKey('token_endpoint', $payload);
     }
+
+    #[Test]
+    public function itDoesNotExposeNonRestTransportsByDefault(): void
+    {
+        $client = $this->createConfiguredClient();
+
+        $this->request($client, 'GET', '/.well-known/agent-card.json');
+        self::assertResponseStatusCodeSame(404);
+
+        $this->request($client, 'GET', '/ucp/embedded/cart/demo');
+        self::assertResponseStatusCodeSame(404);
+    }
 }
