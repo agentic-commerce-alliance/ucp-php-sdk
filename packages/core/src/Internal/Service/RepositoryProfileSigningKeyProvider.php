@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Internal\Service;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 /** @internal */
@@ -24,11 +25,18 @@ final readonly class RepositoryProfileSigningKeyProvider implements ProfileSigni
 
     public function provide(ProfileBuildInput $input): array
     {
-        $keys = $this->repository->active();
+        $keys = $this->repository instanceof TenantAwareManagedSigningKeyRepositoryInterface
+            ? $this->repository->activeForTenant($input->tenantIdentifier)
+            : $this->repository->active();
+
         if ($keys === [] && $this->autoGenerate) {
             $generated = $this->signingKeyManager->generate($this->defaultKid, $this->defaultAlgorithm);
             $generated = $this->withRetirement($generated);
-            $this->repository->saveManaged($generated);
+            if ($this->repository instanceof TenantAwareManagedSigningKeyRepositoryInterface) {
+                $this->repository->saveManagedForTenant($input->tenantIdentifier, $generated);
+            } else {
+                $this->repository->saveManaged($generated);
+            }
             $keys = [$generated];
         }
 

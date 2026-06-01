@@ -11,6 +11,7 @@ use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Security\PublicSigningKey;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 final class RepositoryProfileSigningKeyProviderTest extends TestCase
@@ -148,9 +149,107 @@ final class RepositoryProfileSigningKeyProviderTest extends TestCase
         self::assertSame('ES384', $state->saved->algorithm);
         self::assertNotNull($state->saved->retireAt);
     }
+
+    #[Test]
+    public function itReadsAndStoresKeysForTheProfileTenant(): void
+    {
+        $state = new RepositoryProfileSigningKeyProviderState();
+        $repository = new class ($state) implements ManagedSigningKeyRepositoryInterface, TenantAwareManagedSigningKeyRepositoryInterface {
+            public function __construct(private readonly RepositoryProfileSigningKeyProviderState $state)
+            {
+            }
+
+            public function saveManaged(ManagedSigningKey $key): void
+            {
+                $this->saveManagedForTenant(null, $key);
+            }
+
+            public function findManaged(string $kid): ?ManagedSigningKey
+            {
+                return null;
+            }
+
+            public function deleteManaged(string $kid): bool
+            {
+                return false;
+            }
+
+            public function allManaged(): array
+            {
+                return [];
+            }
+
+            public function active(): array
+            {
+                return [];
+            }
+
+            public function purgeRetired(string $olderThanIso8601): void
+            {
+            }
+
+            public function saveManagedForTenant(?string $tenantIdentifier, ManagedSigningKey $key): void
+            {
+                $this->state->tenantIdentifier = $tenantIdentifier;
+                $this->state->saved = $key;
+            }
+
+            public function findManagedForTenant(?string $tenantIdentifier, string $kid): ?ManagedSigningKey
+            {
+                return null;
+            }
+
+            public function deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
+            {
+                return false;
+            }
+
+            public function allManagedForTenant(?string $tenantIdentifier): array
+            {
+                return [];
+            }
+
+            public function activeForTenant(?string $tenantIdentifier): array
+            {
+                $this->state->tenantIdentifier = $tenantIdentifier;
+
+                return [];
+            }
+        };
+
+        $provider = new RepositoryProfileSigningKeyProvider(
+            $repository,
+            new class () implements SigningKeyManagerInterface {
+                public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
+                {
+                    return new ManagedSigningKey($kid, 'public', 'private', $algorithm);
+                }
+
+                public function toPublicKey(ManagedSigningKey $key): PublicSigningKey
+                {
+                    return new PublicSigningKey($key->kid, $key->algorithm, publicKeyPem: $key->publicKeyPem);
+                }
+
+                public function publicKeyFromJwk(array $jwk): PublicSigningKey
+                {
+                    throw new \RuntimeException('Not used in this test.');
+                }
+            },
+            true,
+            'tenant-key',
+        );
+
+        $provider->provide(new ProfileBuildInput('2026-04-08', 'https://merchant.example', tenantIdentifier: 'sales-channel-a'));
+
+        self::assertSame('sales-channel-a', $state->tenantIdentifier);
+        self::assertNotNull($state->saved);
+        self::assertSame('tenant-key', $state->saved->kid);
+    }
 }
 
 final class RepositoryProfileSigningKeyProviderState
 {
     public ?ManagedSigningKey $saved = null;
+
+    public ?string $tenantIdentifier = null;
 }
