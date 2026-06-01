@@ -13,6 +13,7 @@ final readonly class OAuthTokenRequest
         public ?string $clientId = null,
         public ?string $clientSecret = null,
         public ?string $codeVerifier = null,
+        public ?string $redirectUri = null,
     ) {
     }
 }

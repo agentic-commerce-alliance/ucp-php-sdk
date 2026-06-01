@@ -58,6 +58,31 @@ final readonly class DoctrineDbalPlatformProfileCacheRepository implements Platf
         return PlatformProfile::fromArray(json_decode((string) $row['payload'], true, 512, JSON_THROW_ON_ERROR));
     }
 
+    public function all(bool $allowExpired = false): array
+    {
+        $sql = 'SELECT uri, payload, expires_at FROM ucp_platform_profile_cache';
+        if (!$allowExpired) {
+            $sql .= ' WHERE expires_at IS NULL OR expires_at >= :now';
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            $sql.' ORDER BY uri ASC',
+            $allowExpired ? [] : ['now' => time()],
+        );
+
+        $profiles = [];
+        foreach ($rows as $row) {
+            $profiles[(string) $row['uri']] = PlatformProfile::fromArray(json_decode((string) $row['payload'], true, 512, JSON_THROW_ON_ERROR));
+        }
+
+        return $profiles;
+    }
+
+    public function delete(string $uri): bool
+    {
+        return $this->connection->delete('ucp_platform_profile_cache', ['uri' => $uri]) > 0;
+    }
+
     public function purgeExpired(int $olderThanUnixTimestamp): void
     {
         $this->connection->executeStatement(

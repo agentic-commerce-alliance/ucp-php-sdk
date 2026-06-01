@@ -85,6 +85,16 @@ final class PurgeSignatureNoncesCommandTest extends TestCase
                         return null;
                     }
 
+                    public function all(bool $allowExpired = false): array
+                    {
+                        return [];
+                    }
+
+                    public function delete(string $uri): bool
+                    {
+                        return false;
+                    }
+
                     public function purgeExpired(int $olderThanUnixTimestamp): void
                     {
                     }

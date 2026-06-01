@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Tests\Integration;
 use Doctrine\DBAL\Connection;
 use MerchantSymfonyApp\Kernel;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class MerchantSymfonyAppKernelTest extends WebTestCase
@@ -110,6 +111,118 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
     }
 
     #[Test]
+    public function itExposesShoppingOperationsThroughA2a(): void
+    {
+        $client = $this->createConfiguredClient($this->clearMerchantState(...));
+
+        $this->request($client, 'GET', '/.well-known/agent-card.json');
+        self::assertResponseIsSuccessful();
+        $agentCard = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('http://localhost:8081/ucp/a2a', $agentCard['url']);
+
+        $search = $this->a2a($client, 'catalog.search', [
+            'query' => 'tent',
+            'limit' => 1,
+        ]);
+        self::assertSame('tent-4p', $search['items'][0]['id']);
+
+        $cart = $this->a2a($client, 'cart.create', [
+            'line_items' => [[
+                'item' => ['id' => 'tent-4p', 'title' => 'Placeholder', 'price' => 1.0],
+                'quantity' => 1,
+            ]],
+        ]);
+        self::assertStringStartsWith('cart_', $cart['id']);
+
+        $discountedCart = $this->a2a($client, 'discount.apply', [
+            'cart_id' => $cart['id'],
+            'code' => 'SAVE10',
+        ]);
+        self::assertSame('discount', $discountedCart['totals'][1]['type']);
+        self::assertLessThan(0, $discountedCart['totals'][1]['amount']);
+
+        $checkout = $this->a2a($client, 'checkout.create', [
+            'line_items' => [[
+                'item' => ['id' => 'tent-4p', 'title' => 'Placeholder', 'price' => 1.0],
+                'quantity' => 1,
+            ]],
+            'buyer' => [
+                'email' => 'buyer@example.test',
+                'first_name' => 'Alex',
+                'last_name' => 'Summit',
+            ],
+        ]);
+        self::assertStringStartsWith('chk_', $checkout['id']);
+
+        $updatedCheckout = $this->a2a($client, 'checkout.update', [
+            'id' => $checkout['id'],
+            'line_items' => [[
+                'item' => ['id' => 'tent-4p'],
+                'quantity' => 1,
+            ]],
+            'buyer' => [
+                'email' => 'buyer@example.test',
+                'first_name' => 'Alex',
+                'last_name' => 'Summit',
+            ],
+            'fulfillment' => [
+                'type' => 'shipping',
+                'method_id' => 'express-shipping',
+            ],
+            'payment' => [
+                'type' => 'card',
+                'handler_id' => 'merchant.card',
+                'credential' => [
+                    'card_last4' => '4242',
+                ],
+            ],
+        ]);
+        self::assertSame('ready_for_complete', $updatedCheckout['status']);
+
+        $completedCheckout = $this->a2a($client, 'checkout.complete', ['id' => $checkout['id']]);
+        self::assertSame('completed', $completedCheckout['status']);
+        self::assertStringStartsWith('ord_', $completedCheckout['order']['id']);
+
+        $order = $this->a2a($client, 'order.get', ['id' => $completedCheckout['order']['id']]);
+        self::assertSame($completedCheckout['order']['id'], $order['id']);
+
+        $cancelableCheckout = $this->a2a($client, 'checkout.create', [
+            'line_items' => [[
+                'item' => ['id' => 'tent-4p', 'title' => 'Placeholder', 'price' => 1.0],
+                'quantity' => 1,
+            ]],
+        ]);
+        $canceledCheckout = $this->a2a($client, 'checkout.cancel', ['id' => $cancelableCheckout['id']]);
+        self::assertSame('canceled', $canceledCheckout['status']);
+
+        $canceledCart = $this->a2a($client, 'cart.cancel', ['id' => $cart['id']]);
+        self::assertSame($cart['id'], $canceledCart['id']);
+    }
+
+    #[Test]
+    public function itRejectsInvalidA2aRequestsAndUntrustedEmbeddedOrigins(): void
+    {
+        $client = $this->createConfiguredClient($this->clearMerchantState(...));
+
+        $this->request($client, 'POST', '/ucp/a2a', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 99,
+            'method' => 'cart.get',
+            'params' => [],
+        ], JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(400);
+        $a2aError = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame(-32602, $a2aError['error']['code']);
+
+        $this->request($client, 'GET', '/ucp/embedded/cart/cart-demo', ['HTTP_ORIGIN' => 'https://evil.example']);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->request($client, 'GET', '/ucp/embedded/cart/cart-demo', ['HTTP_ORIGIN' => 'http://localhost:8081']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('http://localhost:8081', $client->getResponse()->headers->get('Access-Control-Allow-Origin'));
+    }
+
+    #[Test]
     public function itRunsMerchantOauthAndWebhookInboxFlows(): void
     {
         $client = $this->createConfiguredClient($this->clearMerchantState(...));
@@ -196,5 +309,28 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         }
 
         @unlink(dirname(__DIR__, 4) . '/examples/merchant-symfony-app/var/ucp_sdk.sqlite');
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>
+     */
+    private function a2a(KernelBrowser $client, string $method, array $params): array
+    {
+        $this->request($client, 'POST', '/ucp/a2a', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 42,
+            'method' => $method,
+            'params' => $params,
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseIsSuccessful();
+        $response = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('2.0', $response['jsonrpc']);
+        self::assertSame(42, $response['id']);
+        self::assertIsArray($response['result']);
+
+        return $response['result'];
     }
 }

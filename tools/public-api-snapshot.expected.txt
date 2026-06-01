@@ -208,7 +208,7 @@ class Ucp\Sdk\Model\Common\Signals
   - __construct(array $values = [])
   - toArray(): array
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
-  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null)
+  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [])
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
 class Ucp\Sdk\Model\IdempotencyRecord
@@ -219,7 +219,7 @@ class Ucp\Sdk\Model\Identity\OAuthMetadata
   - __construct(string $issuer, string $authorizationEndpoint, string $tokenEndpoint, array $scopesSupported = [], array $grantTypesSupported = [], array $tokenEndpointAuthMethodsSupported = [])
   - toArray(): array
 class Ucp\Sdk\Model\Identity\OAuthTokenRequest
-  - __construct(string $grantType, ?string $code = null, ?string $refreshToken = null, ?string $clientId = null, ?string $clientSecret = null, ?string $codeVerifier = null)
+  - __construct(string $grantType, ?string $code = null, ?string $refreshToken = null, ?string $clientId = null, ?string $clientSecret = null, ?string $codeVerifier = null, ?string $redirectUri = null)
 class Ucp\Sdk\Model\Identity\OAuthTokenResponse
   - __construct(string $accessToken, string $tokenType = 'Bearer', int $expiresIn = 3600, ?string $refreshToken = null, ?string $scope = null)
   - toArray(): array
@@ -247,7 +247,7 @@ class Ucp\Sdk\Model\Profile\PlatformProfile
   - static fromArray(array $payload): self
   - toArray(): array
 class Ucp\Sdk\Model\Profile\ProfileBuildInput
-  - __construct(string $version, string $baseUri, array $transports = [], array $supportedVersions = [])
+  - __construct(string $version, string $baseUri, array $transports = [], array $supportedVersions = [], array $transportEndpoints = [], ?string $tenantIdentifier = null)
 class Ucp\Sdk\Model\Profile\ServiceEndpoint
   - __construct(Ucp\Sdk\Enum\Transport $transport, string $endpoint, string $version, string $specUrl)
   - static fromArray(array $entry): self
@@ -291,6 +291,8 @@ interface Ucp\Sdk\Repository\OAuthStateRepositoryInterface
   - purgeExpired(int $olderThanUnixTimestamp): void
   - save(Ucp\Sdk\Model\OAuthState $state): void
 interface Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface
+  - all(bool $allowExpired = false): array
+  - delete(string $uri): bool
   - find(string $uri, bool $allowExpired = false): ?Ucp\Sdk\Model\Profile\PlatformProfile
   - purgeExpired(int $olderThanUnixTimestamp): void
   - save(string $uri, Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
@@ -299,6 +301,12 @@ interface Ucp\Sdk\Repository\SignatureNonceRepositoryInterface
   - purgeExpired(int $olderThanUnixTimestamp): void
   - save(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): void
   - saveIfNew(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): bool
+interface Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface
+  - activeForTenant(?string $tenantIdentifier): array
+  - allManagedForTenant(?string $tenantIdentifier): array
+  - deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
+  - findManagedForTenant(?string $tenantIdentifier, string $kid): ?Ucp\Sdk\Model\Security\ManagedSigningKey
+  - saveManagedForTenant(?string $tenantIdentifier, Ucp\Sdk\Model\Security\ManagedSigningKey $key): void
 interface Ucp\Sdk\Service\AgentProfileFetcherInterface
   - fetch(string $uri): Ucp\Sdk\Model\Profile\PlatformProfile
 interface Ucp\Sdk\Service\CapabilityNegotiatorInterface

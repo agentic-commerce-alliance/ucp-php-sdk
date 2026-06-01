@@ -195,6 +195,16 @@ final class RecordingPlatformProfileCacheRepository implements PlatformProfileCa
         return $allowExpired ? $this->staleProfile : $this->freshProfile;
     }
 
+    public function all(bool $allowExpired = false): array
+    {
+        return [];
+    }
+
+    public function delete(string $uri): bool
+    {
+        return false;
+    }
+
     public function purgeExpired(int $olderThanUnixTimestamp): void
     {
     }

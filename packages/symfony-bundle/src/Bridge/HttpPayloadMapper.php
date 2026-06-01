@@ -28,7 +28,23 @@ final class HttpPayloadMapper
      */
     public function decode(Request $request): array
     {
-        return $request->getContent() !== '' ? json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR) : [];
+        if ($request->getContent() === '') {
+            return [];
+        }
+
+        if (str_contains((string) $request->headers->get('content-type'), 'application/x-www-form-urlencoded')) {
+            $payload = [];
+            parse_str($request->getContent(), $payload);
+
+            $decoded = [];
+            foreach ($payload as $key => $value) {
+                $decoded[(string) $key] = $value;
+            }
+
+            return $decoded;
+        }
+
+        return json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR);
     }
 
     /**
@@ -130,6 +146,7 @@ final class HttpPayloadMapper
             $payload['client_id'] ?? null,
             $payload['client_secret'] ?? null,
             $payload['code_verifier'] ?? null,
+            $payload['redirect_uri'] ?? null,
         );
     }
 

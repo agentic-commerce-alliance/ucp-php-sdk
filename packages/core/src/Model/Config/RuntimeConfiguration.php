@@ -15,6 +15,7 @@ final readonly class RuntimeConfiguration
      * @param array<string, string> $supportedVersions
      * @param list<Transport> $transports
      * @param list<string> $enabledCapabilities
+     * @param array<string, string> $transportEndpoints
      */
     public function __construct(
         public string $version,
@@ -27,6 +28,7 @@ final readonly class RuntimeConfiguration
         public array $transports = [Transport::Rest],
         public array $enabledCapabilities = [],
         public ?string $tenantIdentifier = null,
+        public array $transportEndpoints = [],
     ) {
     }
 }

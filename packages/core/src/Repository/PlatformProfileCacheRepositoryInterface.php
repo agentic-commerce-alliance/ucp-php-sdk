@@ -12,5 +12,12 @@ interface PlatformProfileCacheRepositoryInterface
 
     public function find(string $uri, bool $allowExpired = false): ?PlatformProfile;
 
+    /**
+     * @return array<string, PlatformProfile>
+     */
+    public function all(bool $allowExpired = false): array;
+
+    public function delete(string $uri): bool;
+
     public function purgeExpired(int $olderThanUnixTimestamp): void;
 }
