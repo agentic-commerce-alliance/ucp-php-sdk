@@ -60,4 +60,62 @@ final class DoctrineDbalSigningKeyRepositoryTest extends TestCase
         self::assertNull($repository->findManaged('kid-delete'));
         self::assertFalse($repository->deleteManaged('kid-delete'));
     }
+
+    #[Test]
+    public function itScopesManagedSigningKeysByTenant(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $repository = new DoctrineDbalSigningKeyRepository(
+            $connection,
+            new SchemaBootstrapper($connection),
+            new DefaultPrivateKeyEncryptor('test-secret'),
+        );
+        $manager = new DefaultSigningKeyManager();
+
+        $repository->saveManagedForTenant('sales-channel-a', $manager->generate('shared-kid'));
+        $repository->saveManagedForTenant('sales-channel-b', $manager->generate('shared-kid'));
+
+        self::assertNotNull($repository->findManagedForTenant('sales-channel-a', 'shared-kid'));
+        self::assertNotNull($repository->findManagedForTenant('sales-channel-b', 'shared-kid'));
+        self::assertCount(1, $repository->allManagedForTenant('sales-channel-a'));
+        self::assertTrue($repository->deleteManagedForTenant('sales-channel-a', 'shared-kid'));
+        self::assertNull($repository->findManagedForTenant('sales-channel-a', 'shared-kid'));
+        self::assertNotNull($repository->findManagedForTenant('sales-channel-b', 'shared-kid'));
+    }
+
+    #[Test]
+    public function itPurgesRetiredKeysWithoutCrossTenantDeletes(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        $repository = new DoctrineDbalSigningKeyRepository(
+            $connection,
+            new SchemaBootstrapper($connection),
+            new DefaultPrivateKeyEncryptor('test-secret'),
+        );
+
+        $repository->saveManagedForTenant('sales-channel-a', new \Ucp\Sdk\Model\Security\ManagedSigningKey(
+            'shared-kid',
+            'public-a',
+            'private-a',
+            status: 'retired',
+            retireAt: '2026-01-01T00:00:00+00:00',
+        ));
+        $repository->saveManagedForTenant('sales-channel-b', new \Ucp\Sdk\Model\Security\ManagedSigningKey(
+            'shared-kid',
+            'public-b',
+            'private-b',
+            status: 'active',
+        ));
+
+        $repository->purgeRetired('2026-02-01T00:00:00+00:00');
+
+        self::assertNull($repository->findManagedForTenant('sales-channel-a', 'shared-kid'));
+        self::assertNotNull($repository->findManagedForTenant('sales-channel-b', 'shared-kid'));
+    }
 }

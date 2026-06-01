@@ -9,9 +9,10 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\SecretEncryptorInterface;
 
-final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningKeyRepositoryInterface
+final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningKeyRepositoryInterface, TenantAwareManagedSigningKeyRepositoryInterface
 {
     public function __construct(
         private Connection $connection,
@@ -23,7 +24,14 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
 
     public function saveManaged(ManagedSigningKey $key): void
     {
+        $this->saveManagedForTenant(null, $key);
+    }
+
+    public function saveManagedForTenant(?string $tenantIdentifier, ManagedSigningKey $key): void
+    {
+        $tenantIdentifier = $this->tenantIdentifier($tenantIdentifier);
         $data = [
+            'tenant_identifier' => $tenantIdentifier,
             'kid' => $key->kid,
             'public_key_pem' => $key->publicKeyPem,
             'private_key_pem' => $this->secretEncryptor->encrypt($key->privateKeyPem, $key->kid),
@@ -36,7 +44,7 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
             'retire_at' => $key->retireAt,
         ];
 
-        $updated = $this->connection->update('ucp_signing_keys', $data, ['kid' => $key->kid]);
+        $updated = $this->connection->update('ucp_signing_keys', $data, ['tenant_identifier' => $tenantIdentifier, 'kid' => $key->kid]);
         if ($updated > 0) {
             return;
         }
@@ -44,13 +52,21 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
         try {
             $this->connection->insert('ucp_signing_keys', $data);
         } catch (UniqueConstraintViolationException) {
-            $this->connection->update('ucp_signing_keys', $data, ['kid' => $key->kid]);
+            $this->connection->update('ucp_signing_keys', $data, ['tenant_identifier' => $tenantIdentifier, 'kid' => $key->kid]);
         }
     }
 
     public function findManaged(string $kid): ?ManagedSigningKey
     {
-        $row = $this->connection->fetchAssociative('SELECT * FROM ucp_signing_keys WHERE kid = :kid', ['kid' => $kid]);
+        return $this->findManagedForTenant(null, $kid);
+    }
+
+    public function findManagedForTenant(?string $tenantIdentifier, string $kid): ?ManagedSigningKey
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT * FROM ucp_signing_keys WHERE tenant_identifier = :tenant_identifier AND kid = :kid',
+            ['tenant_identifier' => $this->tenantIdentifier($tenantIdentifier), 'kid' => $kid],
+        );
 
         if ($row === false) {
             return null;
@@ -61,19 +77,32 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
 
     public function allManaged(): array
     {
+        return $this->allManagedForTenant(null);
+    }
+
+    public function allManagedForTenant(?string $tenantIdentifier): array
+    {
         return array_map(
             fn (array $row): ManagedSigningKey => $this->hydrateManaged($row),
-            $this->connection->fetchAllAssociative('SELECT * FROM ucp_signing_keys ORDER BY kid ASC'),
+            $this->connection->fetchAllAssociative(
+                'SELECT * FROM ucp_signing_keys WHERE tenant_identifier = :tenant_identifier ORDER BY kid ASC',
+                ['tenant_identifier' => $this->tenantIdentifier($tenantIdentifier)],
+            ),
         );
     }
 
     public function active(): array
     {
+        return $this->activeForTenant(null);
+    }
+
+    public function activeForTenant(?string $tenantIdentifier): array
+    {
         return array_map(
             fn (array $row): ManagedSigningKey => $this->hydrateManaged($row),
             $this->connection->fetchAllAssociative(
-                'SELECT * FROM ucp_signing_keys WHERE status IN (:statuses) ORDER BY kid ASC',
-                ['statuses' => ['active', 'retiring']],
+                'SELECT * FROM ucp_signing_keys WHERE tenant_identifier = :tenant_identifier AND status IN (:statuses) ORDER BY kid ASC',
+                ['tenant_identifier' => $this->tenantIdentifier($tenantIdentifier), 'statuses' => ['active', 'retiring']],
                 ['statuses' => $this->getStringArrayParameterType()],
             ),
         );
@@ -86,21 +115,29 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
             return;
         }
 
-        foreach ($this->connection->fetchAllAssociative('SELECT kid, retire_at, status FROM ucp_signing_keys WHERE status = :status AND retire_at IS NOT NULL', ['status' => 'retired']) as $row) {
+        foreach ($this->connection->fetchAllAssociative('SELECT tenant_identifier, kid, retire_at, status FROM ucp_signing_keys WHERE status = :status AND retire_at IS NOT NULL', ['status' => 'retired']) as $row) {
             $retireAt = strtotime((string) $row['retire_at']);
             if ($retireAt === false || $retireAt >= $threshold) {
                 continue;
             }
 
-            $this->connection->executeStatement('DELETE FROM ucp_signing_keys WHERE kid = :kid', ['kid' => $row['kid']]);
+            $this->connection->executeStatement(
+                'DELETE FROM ucp_signing_keys WHERE tenant_identifier = :tenant_identifier AND kid = :kid',
+                ['tenant_identifier' => (string) ($row['tenant_identifier'] ?? ''), 'kid' => $row['kid']],
+            );
         }
     }
 
     public function deleteManaged(string $kid): bool
     {
+        return $this->deleteManagedForTenant(null, $kid);
+    }
+
+    public function deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
+    {
         return $this->connection->executeStatement(
-            'DELETE FROM ucp_signing_keys WHERE kid = :kid',
-            ['kid' => $kid],
+            'DELETE FROM ucp_signing_keys WHERE tenant_identifier = :tenant_identifier AND kid = :kid',
+            ['tenant_identifier' => $this->tenantIdentifier($tenantIdentifier), 'kid' => $kid],
         ) > 0;
     }
 
@@ -133,5 +170,10 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
         $legacyType = constant(Connection::class . '::PARAM_STR_ARRAY');
 
         return $legacyType;
+    }
+
+    private function tenantIdentifier(?string $tenantIdentifier): string
+    {
+        return $tenantIdentifier ?? '';
     }
 }
