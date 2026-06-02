@@ -9,6 +9,7 @@ use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\OAuthException;
+use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
@@ -62,6 +63,12 @@ final readonly class ExceptionListener
             return;
         }
 
+        if ($throwable instanceof ResourceNotFoundException) {
+            $event->setResponse($this->responseFactory->error($throwable->getMessage(), 404));
+
+            return;
+        }
+
         if ($throwable instanceof HttpExceptionInterface) {
             $message = $throwable->getMessage() !== '' ? $throwable->getMessage() : 'Request failed.';
             $event->setResponse($this->responseFactory->error($message, $throwable->getStatusCode()));
@@ -75,6 +82,10 @@ final readonly class ExceptionListener
     private function isUcpRequest(Request $request): bool
     {
         $path = $request->getPathInfo();
+
+        if ($path === '/ucp/mcp' || str_starts_with($path, '/ucp/mcp/')) {
+            return false;
+        }
 
         if (str_starts_with($path, '/ucp/')) {
             return true;

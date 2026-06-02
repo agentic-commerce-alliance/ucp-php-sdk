@@ -90,14 +90,14 @@ final class DefaultProfileBuilderTest extends TestCase
             'https://shop.example',
             [Transport::Rest, Transport::Mcp, Transport::A2a, Transport::Embedded],
             transportEndpoints: [
-                Transport::Mcp->value => 'https://shop.example/store-api/_mcp',
+                Transport::Mcp->value => 'https://shop.example/ucp/mcp',
             ],
         ));
 
         $endpoints = $profile->services['dev.ucp.shopping'];
 
         self::assertSame('https://shop.example/ucp/v1', $endpoints[0]->endpoint);
-        self::assertSame('https://shop.example/store-api/_mcp', $endpoints[1]->endpoint);
+        self::assertSame('https://shop.example/ucp/mcp', $endpoints[1]->endpoint);
         self::assertSame('https://shop.example/ucp/a2a', $endpoints[2]->endpoint);
         self::assertSame('https://shop.example/ucp/embedded', $endpoints[3]->endpoint);
     }

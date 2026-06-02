@@ -148,6 +148,7 @@ class Ucp\Sdk\Event\ProfileBuiltEvent
   - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
 class Ucp\Sdk\Exception\IdempotencyConflictException
 class Ucp\Sdk\Exception\OAuthException
+class Ucp\Sdk\Exception\ResourceNotFoundException
 class Ucp\Sdk\Exception\SignatureException
 class Ucp\Sdk\Exception\UcpException
 class Ucp\Sdk\Exception\UnsupportedCapabilityException

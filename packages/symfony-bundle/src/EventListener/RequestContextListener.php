@@ -102,6 +102,10 @@ final readonly class RequestContextListener
     {
         $path = $request->getPathInfo();
 
+        if ($path === '/ucp/mcp' || str_starts_with($path, '/ucp/mcp/')) {
+            return false;
+        }
+
         if (str_starts_with($path, '/ucp/')) {
             return true;
         }

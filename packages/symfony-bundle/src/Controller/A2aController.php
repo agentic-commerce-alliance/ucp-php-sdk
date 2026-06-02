@@ -19,6 +19,7 @@ use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
+use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
@@ -43,9 +44,9 @@ final readonly class A2aController
     #[Route(path: '/.well-known/agent-card.json', methods: ['GET'])]
     public function agentCard(Request $request): Response
     {
-        $this->requireTransport();
-
         $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($this->toHttpRequest($request));
+        $this->requireTransport($runtimeConfiguration);
+
         $baseUri = $runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $this->configuration->resolvedBaseUri($request->getSchemeAndHttpHost());
         $profile = $this->profileBuilder->build(new ProfileBuildInput(
             $runtimeConfiguration->version,
@@ -85,7 +86,7 @@ final readonly class A2aController
     #[Route(path: '/ucp/a2a', methods: ['POST'])]
     public function invoke(Request $request): Response
     {
-        $this->requireTransport();
+        $this->requireTransport($this->runtimeConfigurationResolver->resolve($this->toHttpRequest($request)));
 
         $id = null;
 
@@ -324,9 +325,9 @@ final readonly class A2aController
         return $capability;
     }
 
-    private function requireTransport(): void
+    private function requireTransport(RuntimeConfiguration $runtimeConfiguration): void
     {
-        if (! $this->configuration->supportsTransport(Transport::A2a)) {
+        if (! in_array(Transport::A2a, $runtimeConfiguration->transports, true)) {
             throw new NotFoundHttpException('A2A transport is not enabled.');
         }
     }

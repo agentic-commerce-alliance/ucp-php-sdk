@@ -14,6 +14,7 @@ use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
+use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
@@ -73,6 +74,15 @@ final class EventListenersTest extends TestCase
         $listener->onKernelException($unsupportedEvent);
         self::assertSame(501, $unsupportedEvent->getResponse()?->getStatusCode());
 
+        $notFoundEvent = new ExceptionEvent(
+            $kernel,
+            Request::create('/ucp/v1/carts/missing', 'GET'),
+            HttpKernelInterface::MAIN_REQUEST,
+            new ResourceNotFoundException('missing'),
+        );
+        $listener->onKernelException($notFoundEvent);
+        self::assertSame(404, $notFoundEvent->getResponse()?->getStatusCode());
+
         $httpEvent = new ExceptionEvent(
             $kernel,
             Request::create('/ucp/v1/carts', 'POST'),
@@ -100,6 +110,23 @@ final class EventListenersTest extends TestCase
         $event = new ExceptionEvent(
             $kernel,
             Request::create('/admin', 'GET'),
+            HttpKernelInterface::MAIN_REQUEST,
+            new \RuntimeException('boom'),
+        );
+
+        $listener->onKernelException($event);
+
+        self::assertNull($event->getResponse());
+    }
+
+    #[Test]
+    public function itIgnoresMcpTransportExceptions(): void
+    {
+        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()));
+        $kernel = $this->createMock(HttpKernelInterface::class);
+        $event = new ExceptionEvent(
+            $kernel,
+            Request::create('/ucp/mcp', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new \RuntimeException('boom'),
         );
@@ -282,6 +309,51 @@ final class EventListenersTest extends TestCase
         );
 
         $request = Request::create('https://merchant.example/_action/swag-agentic-commerce/test/webhooks', 'POST');
+        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $listener->onKernelRequest($event);
+
+        self::assertNull($request->attributes->get('ucp_request_context'));
+        self::assertNull($state->claimedKey);
+        self::assertNull($event->getResponse());
+    }
+
+    #[Test]
+    public function itDoesNotBuildRestContextForMcpTransportRequests(): void
+    {
+        $state = new EventListenerState();
+        $listener = new RequestContextListener(
+            new class () implements HttpRequestContextFactoryInterface {
+                public function create(HttpRequest $request): RequestContext
+                {
+                    throw new \RuntimeException('MCP transport requests must not use the REST UCP context listener.');
+                }
+            },
+            new class ($state) implements IdempotencyServiceInterface {
+                public function __construct(private readonly EventListenerState $state)
+                {
+                }
+
+                public function claim(string $key, string $fingerprint): IdempotencyRecord
+                {
+                    $this->state->claimedKey = $key;
+
+                    throw new \RuntimeException('MCP transport requests must not claim UCP idempotency records.');
+                }
+
+                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
+                {
+                }
+
+                public function abort(IdempotencyRecord $record): void
+                {
+                }
+            },
+            new UcpResponseFactory($this->configuration()),
+            $this->configuration(),
+        );
+
+        $request = Request::create('https://merchant.example/ucp/mcp', 'POST', [], [], [], [], '{"jsonrpc":"2.0"}');
         $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
         $listener->onKernelRequest($event);

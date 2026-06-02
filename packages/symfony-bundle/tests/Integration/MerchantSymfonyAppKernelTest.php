@@ -220,6 +220,13 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         $this->request($client, 'GET', '/ucp/embedded/cart/cart-demo', ['HTTP_ORIGIN' => 'http://localhost:8081']);
         self::assertResponseIsSuccessful();
         self::assertSame('http://localhost:8081', $client->getResponse()->headers->get('Access-Control-Allow-Origin'));
+        self::assertSame("frame-ancestors 'self' http://localhost:8081", $client->getResponse()->headers->get('Content-Security-Policy'));
+
+        $this->request($client, 'OPTIONS', '/ucp/embedded/cart/cart-demo', ['HTTP_ORIGIN' => 'http://localhost:8081']);
+        self::assertResponseStatusCodeSame(204);
+        self::assertSame('GET, OPTIONS', $client->getResponse()->headers->get('Access-Control-Allow-Methods'));
+        self::assertSame('Content-Type, Accept', $client->getResponse()->headers->get('Access-Control-Allow-Headers'));
+        self::assertSame('http://localhost:8081', $client->getResponse()->headers->get('Access-Control-Allow-Origin'));
     }
 
     #[Test]

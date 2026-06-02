@@ -65,7 +65,11 @@ final readonly class DefaultOrderWebhookDispatcher implements OrderWebhookPublis
             return new WebhookDispatchResult($targetUrl, 0, false, true);
         }
 
-        return $this->toResult($targetUrl, $response);
+        try {
+            return $this->toResult($targetUrl, $response);
+        } catch (\Throwable) {
+            return new WebhookDispatchResult($targetUrl, 0, false, true);
+        }
     }
 
     private function toResult(string $targetUrl, ResponseInterface $response): WebhookDispatchResult

@@ -154,15 +154,7 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                     throw new \RuntimeException('Not used in this test.');
                 }
             },
-            new class () extends MockHttpClient {
-                /**
-                 * @param array<string, mixed> $options
-                 */
-                public function request(string $method, string $url, array $options = []): \Symfony\Contracts\HttpClient\ResponseInterface
-                {
-                    throw new \RuntimeException('network down');
-                }
-            },
+            new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['error' => 'network down'])),
             [],
             new EventDispatcher(),
         );
