@@ -36,7 +36,6 @@ final class Kernel extends BaseKernel
             'base_uri' => $baseUri,
             'allowed_profile_hosts' => $this->allowedProfileHosts($baseUri),
             'signature_policy' => $this->signaturePolicy(),
-            'supported_versions' => ['2026-04-08' => $baseUri . '/.well-known/ucp'],
             'storage' => [
                 'dsn' => 'sqlite:///' . dirname(__DIR__) . '/var/ucp_sdk.sqlite',
             ],

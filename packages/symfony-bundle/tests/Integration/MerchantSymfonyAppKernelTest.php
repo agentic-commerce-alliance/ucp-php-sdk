@@ -27,7 +27,7 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $profile = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame('Acme Outdoor', $profile['capabilities']['dev.ucp.shopping.checkout'][0]['config']['merchant']['brand']);
+        self::assertSame('Acme Outdoor', $profile['ucp']['capabilities']['dev.ucp.shopping.checkout'][0]['config']['merchant']['brand']);
 
         $this->request($client, 'POST', '/ucp/v1/catalog/search', ['CONTENT_TYPE' => 'application/json'], json_encode([
             'query' => 'tent',

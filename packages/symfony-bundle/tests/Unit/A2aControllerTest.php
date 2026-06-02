@@ -35,7 +35,7 @@ final class A2aControllerTest extends TestCase
             '',
             SignaturePolicy::Log,
             transports: [Transport::Rest, Transport::A2a],
-            supportedVersions: ['2026-04-08' => 'https://merchant.example/.well-known/ucp'],
+            supportedVersions: ['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'],
             transportEndpoints: ['a2a' => 'https://merchant.example/custom-a2a'],
             tenantIdentifier: 'tenant-1',
         ));

@@ -13,6 +13,7 @@ final readonly class ServiceEndpoint
         public string $endpoint,
         public string $version,
         public string $specUrl,
+        public ?string $schemaUrl = null,
     ) {
     }
 
@@ -21,12 +22,18 @@ final readonly class ServiceEndpoint
      */
     public function toArray(): array
     {
-        return [
+        $payload = [
             'transport' => $this->transport->value,
             'endpoint' => $this->endpoint,
             'version' => $this->version,
             'spec' => $this->specUrl,
         ];
+
+        if ($this->schemaUrl !== null && $this->schemaUrl !== '') {
+            $payload['schema'] = $this->schemaUrl;
+        }
+
+        return $payload;
     }
 
     /**
@@ -39,6 +46,7 @@ final readonly class ServiceEndpoint
             (string) ($entry['endpoint'] ?? ''),
             (string) ($entry['version'] ?? ''),
             (string) ($entry['spec'] ?? ''),
+            isset($entry['schema']) && is_string($entry['schema']) && $entry['schema'] !== '' ? $entry['schema'] : null,
         );
     }
 }

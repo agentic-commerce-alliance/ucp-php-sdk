@@ -62,6 +62,7 @@ final readonly class DefaultProfileBuilder implements ProfileBuilderInterface
                         $endpoint,
                         $input->version,
                         'https://ucp.dev/specification/overview/',
+                        self::schemaUrl($transport, $input->version),
                     );
                 },
                 $input->transports,
@@ -92,5 +93,15 @@ final readonly class DefaultProfileBuilder implements ProfileBuilderInterface
         $this->eventDispatcher->dispatch($event);
 
         return $event->getProfile();
+    }
+
+    private static function schemaUrl(Transport $transport, string $version): ?string
+    {
+        return match ($transport) {
+            Transport::Rest => \sprintf('https://ucp.dev/%s/services/shopping/rest.openapi.json', $version),
+            Transport::Mcp => \sprintf('https://ucp.dev/%s/services/shopping/mcp.openrpc.json', $version),
+            Transport::Embedded => \sprintf('https://ucp.dev/%s/services/shopping/embedded.openrpc.json', $version),
+            Transport::A2a => null,
+        };
     }
 }

@@ -137,7 +137,7 @@ final readonly class ShopwareRuntimeConfigurationResolver implements RuntimeConf
             true,
             [$host],
             [$host],
-            ['2026-04-08' => 'https://' . $host . '/.well-known/ucp'],
+            [],
         );
     }
 }

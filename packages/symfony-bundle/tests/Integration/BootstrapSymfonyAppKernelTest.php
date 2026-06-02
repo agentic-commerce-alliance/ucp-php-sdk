@@ -27,9 +27,12 @@ final class BootstrapSymfonyAppKernelTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $payload = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('2026-04-08', $payload['ucp']['version']);
-        self::assertArrayHasKey('dev.ucp.shopping.checkout', $payload['capabilities']);
-        self::assertArrayHasKey('dev.ucp.shopping.order', $payload['capabilities']);
-        self::assertArrayHasKey('com.demo.tokenizer', $payload['payment_handlers']);
+        self::assertArrayHasKey('dev.ucp.shopping.checkout', $payload['ucp']['capabilities']);
+        self::assertArrayHasKey('dev.ucp.shopping.order', $payload['ucp']['capabilities']);
+        self::assertArrayHasKey('com.demo.tokenizer', $payload['ucp']['payment_handlers']);
+        self::assertArrayNotHasKey('supported_versions', $payload['ucp']);
+        self::assertArrayNotHasKey('capabilities', $payload);
+        self::assertArrayNotHasKey('payment_handlers', $payload);
         self::assertNotEmpty($payload['signing_keys']);
     }
 

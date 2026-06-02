@@ -100,5 +100,10 @@ final class DefaultProfileBuilderTest extends TestCase
         self::assertSame('https://shop.example/ucp/mcp', $endpoints[1]->endpoint);
         self::assertSame('https://shop.example/ucp/a2a', $endpoints[2]->endpoint);
         self::assertSame('https://shop.example/ucp/embedded', $endpoints[3]->endpoint);
+        self::assertSame('https://ucp.dev/2026-04-08/services/shopping/rest.openapi.json', $endpoints[0]->schemaUrl);
+        self::assertSame('https://ucp.dev/2026-04-08/services/shopping/mcp.openrpc.json', $endpoints[1]->schemaUrl);
+        self::assertNull($endpoints[2]->schemaUrl);
+        self::assertArrayNotHasKey('schema', $endpoints[2]->toArray());
+        self::assertSame('https://ucp.dev/2026-04-08/services/shopping/embedded.openrpc.json', $endpoints[3]->schemaUrl);
     }
 }

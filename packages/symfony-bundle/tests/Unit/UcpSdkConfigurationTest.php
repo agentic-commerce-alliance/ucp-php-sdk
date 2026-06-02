@@ -52,7 +52,7 @@ final class UcpSdkConfigurationTest extends TestCase
             signaturePolicy: SignaturePolicy::Strict->value,
             allowedProfileHosts: ['profiles.example'],
             allowedAgentDomains: ['agent.example'],
-            supportedVersions: ['2026-04-08' => 'https://merchant.example/.well-known/ucp'],
+            supportedVersions: ['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'],
             transports: [Transport::Rest, Transport::A2a],
             transportEndpoints: ['a2a' => 'https://merchant.example/ucp/a2a'],
         );
@@ -64,7 +64,7 @@ final class UcpSdkConfigurationTest extends TestCase
         self::assertSame(SignaturePolicy::Strict, $runtime->signaturePolicy);
         self::assertSame(['profiles.example'], $runtime->allowedProfileHosts);
         self::assertSame(['agent.example'], $runtime->allowedAgentDomains);
-        self::assertSame(['2026-04-08' => 'https://merchant.example/.well-known/ucp'], $runtime->supportedVersions);
+        self::assertSame(['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'], $runtime->supportedVersions);
         self::assertSame([Transport::Rest, Transport::A2a], $runtime->transports);
         self::assertSame(['a2a' => 'https://merchant.example/ucp/a2a'], $runtime->transportEndpoints);
     }

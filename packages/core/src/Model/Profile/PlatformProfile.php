@@ -30,20 +30,20 @@ final readonly class PlatformProfile
      */
     public function toArray(): array
     {
-        return [
-            'ucp' => [
-                'version' => $this->version,
-                'services' => $this->normalizeServices(),
-                'capabilities' => $this->normalizeCapabilities(),
-                'payment_handlers' => $this->normalizePaymentHandlers(),
-                'supported_versions' => $this->supportedVersions,
-            ],
+        $ucp = [
             'version' => $this->version,
-            'services' => $this->normalizeServices(),
-            'capabilities' => $this->normalizeCapabilities(),
-            'payment_handlers' => $this->normalizePaymentHandlers(),
+            'services' => self::jsonObjectMap($this->normalizeServices()),
+            'capabilities' => self::jsonObjectMap($this->normalizeCapabilities()),
+            'payment_handlers' => self::jsonObjectMap($this->normalizePaymentHandlers()),
+        ];
+
+        if ($this->supportedVersions !== []) {
+            $ucp['supported_versions'] = $this->supportedVersions;
+        }
+
+        return [
+            'ucp' => $ucp,
             'signing_keys' => array_map(static fn (PublicSigningKey $key): array => $key->toJwk(), $this->signingKeys),
-            'supported_versions' => $this->supportedVersions,
         ];
     }
 
@@ -90,6 +90,16 @@ final readonly class PlatformProfile
     }
 
     /**
+     * @param array<string, mixed> $map
+     *
+     * @return array<string, mixed>|\stdClass
+     */
+    private static function jsonObjectMap(array $map): array|\stdClass
+    {
+        return $map === [] ? new \stdClass() : $map;
+    }
+
+    /**
      * @param array<string, mixed> $payload
      */
     public static function fromArray(array $payload): self
@@ -99,21 +109,21 @@ final readonly class PlatformProfile
         $capabilities = [];
         $paymentHandlers = [];
 
-        foreach (($root['services'] ?? []) as $name => $entries) {
+        foreach (self::section($root, $payload, 'services') as $name => $entries) {
             $services[(string) $name] = array_values(array_map(
                 static fn (array $entry): ServiceEndpoint => ServiceEndpoint::fromArray($entry),
                 is_array($entries) ? array_filter($entries, 'is_array') : [],
             ));
         }
 
-        foreach (($root['capabilities'] ?? []) as $name => $entries) {
+        foreach (self::section($root, $payload, 'capabilities') as $name => $entries) {
             $capabilities[(string) $name] = array_values(array_map(
                 static fn (array $entry): CapabilityDescriptor => CapabilityDescriptor::fromProfileEntry((string) $name, $entry),
                 is_array($entries) ? array_filter($entries, 'is_array') : [],
             ));
         }
 
-        foreach (($root['payment_handlers'] ?? []) as $name => $entries) {
+        foreach (self::section($root, $payload, 'payment_handlers') as $name => $entries) {
             $paymentHandlers[(string) $name] = array_values(array_map(
                 static fn (array $entry): PaymentHandlerDescriptor => PaymentHandlerDescriptor::fromArray($entry),
                 is_array($entries) ? array_filter($entries, 'is_array') : [],
@@ -131,7 +141,40 @@ final readonly class PlatformProfile
             $capabilities,
             $paymentHandlers,
             $signingKeys,
-            is_array($root['supported_versions'] ?? null) ? $root['supported_versions'] : [],
+            self::stringMap(self::section($root, $payload, 'supported_versions')),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $root
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private static function section(array $root, array $payload, string $name): array
+    {
+        $section = $root[$name] ?? $payload[$name] ?? [];
+
+        return is_array($section) ? $section : [];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, string>
+     */
+    private static function stringMap(array $payload): array
+    {
+        $normalized = [];
+
+        foreach ($payload as $key => $value) {
+            if (! is_string($value)) {
+                continue;
+            }
+
+            $normalized[(string) $key] = $value;
+        }
+
+        return $normalized;
     }
 }

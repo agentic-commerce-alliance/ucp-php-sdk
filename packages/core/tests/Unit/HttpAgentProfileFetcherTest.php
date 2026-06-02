@@ -46,7 +46,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
     #[Test]
     public function itUsesExpectedRequestOptionsAndCachesSuccessfulProfiles(): void
     {
-        $body = '{"ucp":{"version":"2026-04-08"},"capabilities":[],"payment_handlers":[],"signing_keys":[],"supported_versions":{"2026-04-08":"https://platform.example/.well-known/ucp"}}';
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
         $response = new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]);
         $cacheRepository = new RecordingPlatformProfileCacheRepository();
         $client = new RecordingHttpClient(
@@ -89,7 +89,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
     #[Test]
     public function itAllowsResponsesWhoseContentLengthExactlyMatchesTheConfiguredByteLimit(): void
     {
-        $body = '{"ucp":{"version":"2026-04-08"},"capabilities":[],"payment_handlers":[],"signing_keys":[],"supported_versions":{"2026-04-08":"https://platform.example/.well-known/ucp"}}';
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
         $cacheRepository = new RecordingPlatformProfileCacheRepository();
         $response = new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]);
         $fetcher = new HttpAgentProfileFetcher(
