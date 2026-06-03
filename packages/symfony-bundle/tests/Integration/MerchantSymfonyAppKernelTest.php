@@ -111,6 +111,36 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
     }
 
     #[Test]
+    public function itCreatesCheckoutFromExistingCart(): void
+    {
+        $client = $this->createConfiguredClient($this->clearMerchantState(...));
+
+        $this->request($client, 'POST', '/ucp/v1/carts', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'line_items' => [[
+                'item' => ['id' => 'tent-4p', 'title' => 'Placeholder', 'price' => 1.0],
+                'quantity' => 1,
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(201);
+        $cart = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->request($client, 'POST', '/ucp/v1/checkout-sessions', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'cart_id' => $cart['id'],
+            'buyer' => [
+                'email' => 'buyer@example.test',
+                'first_name' => 'Alex',
+                'last_name' => 'Summit',
+            ],
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(201);
+        $checkout = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame($cart['id'], $checkout['id']);
+        self::assertSame('tent-4p', $checkout['line_items'][0]['item']['id']);
+    }
+
+    #[Test]
     public function itExposesShoppingOperationsThroughA2a(): void
     {
         $client = $this->createConfiguredClient($this->clearMerchantState(...));

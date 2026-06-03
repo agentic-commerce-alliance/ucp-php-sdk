@@ -20,6 +20,12 @@ final readonly class OrderController
     ) {
     }
 
+    #[Route(path: '/ucp/v1/orders', methods: ['GET'])]
+    public function missingId(): Response
+    {
+        return $this->responseFactory->error('Order id is required.', 400);
+    }
+
     #[Route(path: '/ucp/v1/orders/{id}', methods: ['GET'])]
     public function get(string $id, Request $request): Response
     {

@@ -91,6 +91,7 @@ final class HttpPayloadMapper
             $this->toDiscounts($payload['discounts']['codes'] ?? []),
             $this->toFulfillment($payload['fulfillment'] ?? null),
             $this->toConsent($payload['buyer_consent'] ?? null),
+            $this->nullableString($payload['cart_id'] ?? null),
         );
     }
 
@@ -225,6 +226,11 @@ final class HttpPayloadMapper
         }
 
         return new FulfillmentSelection((string) ($payload['type'] ?? 'shipping'), $payload['method_id'] ?? null, $payload);
+    }
+
+    private function nullableString(mixed $payload): ?string
+    {
+        return is_string($payload) && $payload !== '' ? $payload : null;
     }
 
     /**

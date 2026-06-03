@@ -39,4 +39,33 @@ final class HttpPayloadMapperTest extends TestCase
         self::assertSame('https://agent.example/callback', $tokenRequest->redirectUri);
         self::assertSame('verifier', $tokenRequest->codeVerifier);
     }
+
+    #[Test]
+    public function itMapsCheckoutCreateCartIdAndFulfillmentAddress(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $checkoutRequest = $mapper->toCheckoutCreateRequest([
+            'cart_id' => 'cart-123',
+            'buyer' => [
+                'email' => 'buyer@example.test',
+                'first_name' => 'Alex',
+                'last_name' => 'Summit',
+            ],
+            'fulfillment' => [
+                'type' => 'shipping',
+                'shipping_address' => [
+                    'street' => 'Test Street 1',
+                    'zipcode' => '12345',
+                    'city' => 'Berlin',
+                    'country_code' => 'DE',
+                ],
+            ],
+        ]);
+
+        self::assertSame('cart-123', $checkoutRequest->cartId);
+        self::assertSame('buyer@example.test', $checkoutRequest->buyer?->email);
+        self::assertSame('shipping', $checkoutRequest->fulfillment?->type);
+        self::assertSame('Test Street 1', $checkoutRequest->fulfillment?->extra['shipping_address']['street'] ?? null);
+    }
 }

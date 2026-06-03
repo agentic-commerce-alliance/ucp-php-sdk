@@ -19,8 +19,8 @@ final readonly class MerchantCheckoutRequestValidator implements CheckoutRequest
 
     public function validate(CheckoutCreateRequest $request, RequestContext $context): void
     {
-        if ($request->lineItems === []) {
-            throw new ValidationException('Checkout must contain at least one line item.');
+        if ($request->lineItems === [] && $request->cartId === null) {
+            throw new ValidationException('Checkout must contain at least one line item or reference an existing cart.');
         }
 
         $violations = [];

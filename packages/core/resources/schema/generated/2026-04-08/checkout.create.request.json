@@ -1,7 +1,11 @@
 {
   "type": "object",
-  "required": ["line_items"],
+  "anyOf": [
+    { "required": ["line_items"] },
+    { "required": ["cart_id"] }
+  ],
   "properties": {
+    "cart_id": { "type": "string" },
     "line_items": { "type": "array" },
     "buyer": { "type": "object" },
     "signals": { "type": "object" },
@@ -10,4 +14,3 @@
     "buyer_consent": { "type": "object" }
   }
 }
-

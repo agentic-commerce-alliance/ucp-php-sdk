@@ -21,6 +21,7 @@ final readonly class CheckoutCreateRequest
         public array $discounts = [],
         public ?FulfillmentSelection $fulfillment = null,
         public ?BuyerConsent $consent = null,
+        public ?string $cartId = null,
     ) {
     }
 }

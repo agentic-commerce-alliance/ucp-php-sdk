@@ -22,6 +22,7 @@ use Ucp\Sdk\Model\RequestContext;
 final readonly class MerchantCheckoutCapability implements CheckoutCapabilityInterface
 {
     private const COLLECTION = 'merchant_checkouts';
+    private const CART_COLLECTION = 'merchant_carts';
     private const ORDER_COLLECTION = 'merchant_orders';
 
     public function __construct(
@@ -49,9 +50,17 @@ final readonly class MerchantCheckoutCapability implements CheckoutCapabilityInt
 
     public function createCheckout(CheckoutCreateRequest $request, RequestContext $context): Checkout
     {
+        $lineItems = $request->lineItems;
+        $checkoutId = $this->generateId('chk');
+        if ([] === $lineItems && null !== $request->cartId) {
+            $checkoutId = $request->cartId;
+            $cart = $this->stateStore->find(self::CART_COLLECTION, $request->cartId);
+            $lineItems = null !== $cart ? $this->modelFactory->cartFromArray($cart)->lineItems : [];
+        }
+
         $checkout = $this->checkoutFromRequest(
-            $this->generateId('chk'),
-            $request->lineItems,
+            $checkoutId,
+            $lineItems,
             $request->discounts,
             $request->fulfillment,
             $request->buyer,
