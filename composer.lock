@@ -2410,10 +2410,10 @@
             "dist": {
                 "type": "path",
                 "url": "packages/symfony-bundle",
-                "reference": "674633b83caacfcb6953cbd4ff5fa57b302b9d5d"
+                "reference": "25e7571a95373d9aed8659acaa564b0cf744f933"
             },
             "require": {
-                "doctrine/dbal": "^4.0",
+                "doctrine/dbal": "^3.7 || ^4.0",
                 "php": "^8.2",
                 "shopware/ucp-php-sdk-core": "^0.0.1@alpha",
                 "symfony/config": "^6.4 || ^7.0",
@@ -5034,11 +5034,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.0",
+            "version": "2.2.2",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/b4cd98348c809924f62bb9cc8c047f5e73bc9a58",
-                "reference": "b4cd98348c809924f62bb9cc8c047f5e73bc9a58",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e5cc34d491a90e79c216d824f60fe21fd4d93bd6",
+                "reference": "e5cc34d491a90e79c216d824f60fe21fd4d93bd6",
                 "shasum": ""
             },
             "require": {
@@ -5094,7 +5094,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-28T08:22:43+00:00"
+            "time": "2026-06-05T09:00:01+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
