@@ -7,16 +7,15 @@ namespace Ucp\Sdk\Symfony\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Ucp\Sdk\Contract\OrderCapabilityInterface;
-use Ucp\Sdk\Exception\UnsupportedCapabilityException;
-use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
+use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
+use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 
 final readonly class OrderController
 {
     public function __construct(
-        private CapabilityRegistryInterface $capabilityRegistry,
         private UcpResponseFactory $responseFactory,
+        private ShoppingOperationExecutor $operationExecutor,
     ) {
     }
 
@@ -29,13 +28,11 @@ final readonly class OrderController
     #[Route(path: '/ucp/v1/orders/{id}', methods: ['GET'])]
     public function get(string $id, Request $request): Response
     {
-        $capability = $this->capabilityRegistry->firstImplementing(OrderCapabilityInterface::class);
-        if (! $capability instanceof OrderCapabilityInterface) {
-            throw new UnsupportedCapabilityException('Order capability is not registered.');
-        }
-
-        return $this->responseFactory->success(
-            $capability->getOrder($id, $request->attributes->get('ucp_request_context'))->toArray(),
-        );
+        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+            'order.get',
+            [],
+            $request->attributes->get('ucp_request_context'),
+            $id,
+        )));
     }
 }

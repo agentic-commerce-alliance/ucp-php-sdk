@@ -52,7 +52,8 @@ final class HttpAgentProfileFetcherTest extends TestCase
         $client = new RecordingHttpClient(
             $response,
             [
-                new RecordingChunk(first: true),
+                new RecordingChunk(first: true, content: 'ignored-first-chunk'),
+                new RecordingChunk(timeout: true, content: 'ignored-timeout-chunk'),
                 new RecordingChunk(content: substr($body, 0, 40), offset: 0),
                 new RecordingChunk(content: substr($body, 40), offset: 40),
                 new RecordingChunk(last: true, offset: strlen($body)),
@@ -110,6 +111,34 @@ final class HttpAgentProfileFetcherTest extends TestCase
         self::assertSame('2026-04-08', $profile->version);
         self::assertFalse($response->cancelled);
         self::assertCount(1, $cacheRepository->savedProfiles);
+    }
+
+    #[Test]
+    public function itRejectsNonSuccessfulResponsesWhenNoStaleProfileExists(): void
+    {
+        $cacheRepository = new RecordingPlatformProfileCacheRepository();
+        $client = new RecordingHttpClient(
+            new RecordingResponse(500),
+            [new RecordingChunk(content: '{}', offset: 0)],
+        );
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            $cacheRepository,
+            new UrlSafetyValidator(
+                ['platform.example'],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Platform profile fetch failed with a non-200 status code.');
+
+        try {
+            $fetcher->fetch('https://platform.example/.well-known/ucp');
+        } finally {
+            self::assertSame(0.0, $client->streamTimeout);
+            self::assertCount(0, $cacheRepository->savedProfiles);
+        }
     }
 
     #[Test]

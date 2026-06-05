@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ucp\Sdk\Contract\CapabilityInterface;
@@ -23,6 +24,7 @@ use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Controller\A2aController;
+use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 final class A2aControllerTest extends TestCase
@@ -177,9 +179,9 @@ final class A2aControllerTest extends TestCase
         ]));
         $payload = $this->decode($response);
 
-        self::assertSame(404, $response->getStatusCode());
+        self::assertSame(400, $response->getStatusCode());
         self::assertSame('missing-id', $payload['id']);
-        self::assertSame('Cart capability is not registered.', $payload['error']['message']);
+        self::assertSame('cart.get requires a non-empty string id.', $payload['error']['message']);
 
         $response = $controller->invoke($this->jsonRpcRequest([
             'jsonrpc' => '2.0',
@@ -190,7 +192,7 @@ final class A2aControllerTest extends TestCase
         $payload = $this->decode($response);
 
         self::assertSame(400, $response->getStatusCode());
-        self::assertSame('A2A discount.apply requires cart_id and code parameters.', $payload['error']['message']);
+        self::assertSame('discount.apply requires cart_id and code parameters.', $payload['error']['message']);
 
         $response = $controller->invoke($this->jsonRpcRequest([
             'jsonrpc' => '2.0',
@@ -209,8 +211,6 @@ final class A2aControllerTest extends TestCase
         ?ProfileBuilderInterface $profileBuilder = null,
     ): A2aController {
         return new A2aController(
-            new A2aCapabilityRegistryFake(),
-            new A2aProtocolValidatorFake(),
             new HttpPayloadMapper(),
             $profileBuilder ?? new A2aProfileBuilderFake(),
             $resolver ?? new A2aRuntimeConfigurationResolverFake(new RuntimeConfiguration(
@@ -219,6 +219,15 @@ final class A2aControllerTest extends TestCase
                 transports: [Transport::Rest, Transport::A2a],
             )),
             $this->configuration(),
+            new ShoppingOperationExecutor(
+                new A2aCapabilityRegistryFake(),
+                new A2aProtocolValidatorFake(),
+                new HttpPayloadMapper(),
+                [],
+                [],
+                [],
+                new EventDispatcher(),
+            ),
         );
     }
 

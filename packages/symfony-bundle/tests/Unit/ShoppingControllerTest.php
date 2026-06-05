@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CartCapabilityInterface;
@@ -29,6 +30,7 @@ use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\Controller\CartController;
 use Ucp\Sdk\Symfony\Controller\CatalogController;
 use Ucp\Sdk\Symfony\Controller\TokenizationController;
+use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 final class ShoppingControllerTest extends TestCase
@@ -62,7 +64,7 @@ final class ShoppingControllerTest extends TestCase
                 return new Cart($id, [], 'EUR');
             }
         };
-        $controller = new CartController($this->registry($capability), $this->validator(), new HttpPayloadMapper(), $this->responseFactory());
+        $controller = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability));
         $request = $this->jsonRequest('/ucp/v1/carts', [
             'line_items' => [[
                 'item' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
@@ -103,7 +105,7 @@ final class ShoppingControllerTest extends TestCase
                 return new Product($id, 'Product Detail', 12.0);
             }
         };
-        $controller = new CatalogController($this->registry($capability), $this->validator(), new HttpPayloadMapper(), $this->responseFactory());
+        $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability));
 
         $search = $this->payload($controller->search($this->jsonRequest('/ucp/v1/catalog/search', ['query' => 'tent'])));
         self::assertSame('sku-search', $search['items'][0]['id']);
@@ -144,7 +146,7 @@ final class ShoppingControllerTest extends TestCase
     #[Test]
     public function itThrowsWhenShoppingCapabilitiesAreMissing(): void
     {
-        $cartController = new CartController($this->registry(null), $this->validator(), new HttpPayloadMapper(), $this->responseFactory());
+        $cartController = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor(null));
 
         $this->expectException(UnsupportedCapabilityException::class);
         $this->expectExceptionMessage('Cart capability is not registered.');
@@ -185,6 +187,19 @@ final class ShoppingControllerTest extends TestCase
                 return $this->capability instanceof $interface ? $this->capability : null;
             }
         };
+    }
+
+    private function executor(?CapabilityInterface $capability): ShoppingOperationExecutor
+    {
+        return new ShoppingOperationExecutor(
+            $this->registry($capability),
+            $this->validator(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
     }
 
     private function validator(): ProtocolValidatorInterface

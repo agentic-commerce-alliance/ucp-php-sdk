@@ -7,17 +7,31 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Contract\CapabilityInterface;
+use Ucp\Sdk\Contract\CartCapabilityInterface;
+use Ucp\Sdk\Contract\CatalogCapabilityInterface;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Contract\DiscountCapabilityInterface;
+use Ucp\Sdk\Contract\IdentityLinkingCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
+use Ucp\Sdk\Contract\TokenizationCapabilityInterface;
 use Ucp\Sdk\Internal\Negotiation\DefaultCapabilityNegotiator;
 use Ucp\Sdk\Model\Cart\Cart;
+use Ucp\Sdk\Model\Cart\CartCreateRequest;
+use Ucp\Sdk\Model\Cart\CartUpdateRequest;
+use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
+use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
+use Ucp\Sdk\Model\Catalog\CatalogSearchResponse;
+use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
+use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
+use Ucp\Sdk\Model\Identity\OAuthMetadata;
+use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
+use Ucp\Sdk\Model\Identity\OAuthTokenResponse;
 use Ucp\Sdk\Model\Order\OrderView;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
@@ -196,5 +210,196 @@ final class DefaultCapabilityNegotiatorTest extends TestCase
         self::assertSame(['handler-2'], $result->paymentHandlerIds);
         self::assertSame(['dev.ucp.shopping.checkout', 'dev.ucp.shopping.discount'], $result->capabilitiesForOperation('checkout.create'));
         self::assertSame([], $result->capabilitiesForOperation('order.get'));
+    }
+
+    #[Test]
+    public function itBuildsOperationMapsForEverySupportedCapabilityFamily(): void
+    {
+        $negotiator = new DefaultCapabilityNegotiator(
+            new class () implements CapabilityRegistryInterface {
+                public function all(): array
+                {
+                    return [
+                        new class () implements CatalogCapabilityInterface {
+                            public function describe(): CapabilityDescriptor
+                            {
+                                return new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', 'https://example.test/spec/catalog', 'https://example.test/schema/catalog');
+                            }
+
+                            public function search(CatalogSearchRequest $request, RequestContext $context): CatalogSearchResponse
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function lookup(CatalogLookupRequest $request, RequestContext $context): array
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function getProduct(string $id, RequestContext $context): Product
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+                        },
+                        new class () implements CartCapabilityInterface {
+                            public function describe(): CapabilityDescriptor
+                            {
+                                return new CapabilityDescriptor('dev.ucp.shopping.cart', '2026-04-08', 'https://example.test/spec/cart', 'https://example.test/schema/cart');
+                            }
+
+                            public function createCart(CartCreateRequest $request, RequestContext $context): Cart
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function getCart(string $id, RequestContext $context): Cart
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function updateCart(CartUpdateRequest $request, RequestContext $context): Cart
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function cancelCart(string $id, RequestContext $context): Cart
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+                        },
+                        new class () implements CheckoutCapabilityInterface {
+                            public function describe(): CapabilityDescriptor
+                            {
+                                return new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://example.test/spec/checkout', 'https://example.test/schema/checkout');
+                            }
+
+                            public function createCheckout(CheckoutCreateRequest $request, RequestContext $context): Checkout
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function getCheckout(string $id, RequestContext $context): Checkout
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function updateCheckout(CheckoutUpdateRequest $request, RequestContext $context): Checkout
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function completeCheckout(string $id, RequestContext $context): Checkout
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function cancelCheckout(string $id, RequestContext $context): Checkout
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+                        },
+                        new class () implements DiscountCapabilityInterface {
+                            public function describe(): CapabilityDescriptor
+                            {
+                                return new CapabilityDescriptor('dev.ucp.shopping.discount', '2026-04-08', 'https://example.test/spec/discount', 'https://example.test/schema/discount');
+                            }
+
+                            public function applyCartDiscount(string $cartId, DiscountCode $discount, RequestContext $context): Cart
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+                        },
+                        new class () implements IdentityLinkingCapabilityInterface {
+                            public function describe(): CapabilityDescriptor
+                            {
+                                return new CapabilityDescriptor('dev.ucp.identity.oauth', '2026-04-08', 'https://example.test/spec/oauth', 'https://example.test/schema/oauth');
+                            }
+
+                            public function getMetadata(RequestContext $context): OAuthMetadata
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function authorize(OAuthAuthorizationRequest $request, RequestContext $context): array
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+
+                            public function issueToken(OAuthTokenRequest $request, RequestContext $context): OAuthTokenResponse
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+                        },
+                        new class () implements TokenizationCapabilityInterface {
+                            public function describe(): CapabilityDescriptor
+                            {
+                                return new CapabilityDescriptor('dev.ucp.payment.tokenization', '2026-04-08', 'https://example.test/spec/tokenization', 'https://example.test/schema/tokenization');
+                            }
+
+                            public function tokenize(PaymentInstrument $instrument, RequestContext $context): array
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+                        },
+                        new class () implements OrderCapabilityInterface {
+                            public function describe(): CapabilityDescriptor
+                            {
+                                return new CapabilityDescriptor('dev.ucp.shopping.order', '2026-04-08', 'https://example.test/spec/order', 'https://example.test/schema/order');
+                            }
+
+                            public function getOrder(string $id, RequestContext $context): OrderView
+                            {
+                                throw new \LogicException('Not used in this test.');
+                            }
+                        },
+                    ];
+                }
+
+                public function find(string $name): ?CapabilityInterface
+                {
+                    return null;
+                }
+
+                public function firstImplementing(string $interface): ?CapabilityInterface
+                {
+                    return null;
+                }
+            },
+            new class () implements PaymentHandlerRegistryInterface {
+                public function all(): array
+                {
+                    return [];
+                }
+
+                public function find(string $name): ?PaymentHandlerInterface
+                {
+                    return null;
+                }
+            },
+        );
+
+        $platformProfile = new PlatformProfile(
+            '2026-04-08',
+            [],
+            [
+                'dev.ucp.shopping.catalog' => [new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', 'https://platform.example/spec/catalog', 'https://platform.example/schema/catalog')],
+                'dev.ucp.shopping.cart' => [new CapabilityDescriptor('dev.ucp.shopping.cart', '2026-04-08', 'https://platform.example/spec/cart', 'https://platform.example/schema/cart')],
+                'dev.ucp.shopping.checkout' => [new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://platform.example/spec/checkout', 'https://platform.example/schema/checkout')],
+                'dev.ucp.shopping.discount' => [new CapabilityDescriptor('dev.ucp.shopping.discount', '2026-04-08', 'https://platform.example/spec/discount', 'https://platform.example/schema/discount')],
+                'dev.ucp.identity.oauth' => [new CapabilityDescriptor('dev.ucp.identity.oauth', '2026-04-08', 'https://platform.example/spec/oauth', 'https://platform.example/schema/oauth')],
+                'dev.ucp.payment.tokenization' => [new CapabilityDescriptor('dev.ucp.payment.tokenization', '2026-04-08', 'https://platform.example/spec/tokenization', 'https://platform.example/schema/tokenization')],
+                'dev.ucp.shopping.order' => [new CapabilityDescriptor('dev.ucp.shopping.order', '2026-04-08', 'https://platform.example/spec/order', 'https://platform.example/schema/order')],
+            ],
+            [],
+        );
+
+        $result = $negotiator->negotiate($platformProfile, new RequestContext('merchant.example'));
+
+        self::assertSame(['dev.ucp.shopping.catalog'], $result->capabilitiesForOperation('catalog.search'));
+        self::assertSame(['dev.ucp.shopping.cart', 'dev.ucp.shopping.discount'], $result->capabilitiesForOperation('cart.create'));
+        self::assertSame(['dev.ucp.shopping.checkout', 'dev.ucp.shopping.discount'], $result->capabilitiesForOperation('checkout.update'));
+        self::assertSame(['dev.ucp.identity.oauth'], $result->capabilitiesForOperation('oauth.token'));
+        self::assertSame(['dev.ucp.payment.tokenization'], $result->capabilitiesForOperation('tokenization'));
+        self::assertSame(['dev.ucp.shopping.order'], $result->capabilitiesForOperation('order.get'));
     }
 }

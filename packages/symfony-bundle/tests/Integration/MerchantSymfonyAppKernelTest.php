@@ -156,6 +156,12 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         ]);
         self::assertSame('tent-4p', $search['items'][0]['id']);
 
+        $product = $this->a2a($client, 'catalog.product', [
+            'id' => $search['items'][0]['id'],
+        ]);
+        self::assertSame('tent-4p', $product['id']);
+        self::assertSame('Summit 4P Tent', $product['title']);
+
         $cart = $this->a2a($client, 'cart.create', [
             'line_items' => [[
                 'item' => ['id' => 'tent-4p', 'title' => 'Placeholder', 'price' => 1.0],

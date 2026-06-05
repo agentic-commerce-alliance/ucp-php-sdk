@@ -103,6 +103,7 @@ use Ucp\Sdk\Symfony\Controller\TokenizationController;
 use Ucp\Sdk\Symfony\EventListener\ExceptionListener;
 use Ucp\Sdk\Symfony\EventListener\IdempotencyResponseListener;
 use Ucp\Sdk\Symfony\EventListener\RequestContextListener;
+use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 final class UcpSdkExtension extends Extension
@@ -343,15 +344,15 @@ final class UcpSdkExtension extends Extension
         $container->autowire(HttpPayloadMapper::class);
         $container->autowire(UcpResponseFactory::class)
             ->setArgument('$configuration', new Reference(UcpSdkConfiguration::class));
+        $container->autowire(ShoppingOperationExecutor::class)
+            ->setArgument('$requestValidators', new TaggedIteratorArgument('ucp_sdk.checkout_request_validator'))
+            ->setArgument('$responseAugmenters', new TaggedIteratorArgument('ucp_sdk.checkout_response_augmenter'))
+            ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'));
 
         $container->autowire(ProfileController::class)->addTag('controller.service_arguments');
         $container->autowire(CatalogController::class)->addTag('controller.service_arguments');
         $container->autowire(CartController::class)->addTag('controller.service_arguments');
-        $container->autowire(CheckoutController::class)
-            ->setArgument('$requestValidators', new TaggedIteratorArgument('ucp_sdk.checkout_request_validator'))
-            ->setArgument('$responseAugmenters', new TaggedIteratorArgument('ucp_sdk.checkout_response_augmenter'))
-            ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'))
-            ->addTag('controller.service_arguments');
+        $container->autowire(CheckoutController::class)->addTag('controller.service_arguments');
         $container->autowire(TokenizationController::class)->addTag('controller.service_arguments');
         $container->autowire(OrderController::class)->addTag('controller.service_arguments');
         $container->autowire(OAuthController::class)->addTag('controller.service_arguments');
