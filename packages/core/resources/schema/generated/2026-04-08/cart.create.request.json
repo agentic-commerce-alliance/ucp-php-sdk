@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "required": ["line_items"],
+  "properties": {
+    "line_items": { "type": "array" },
+    "signals": { "type": "object" }
+  }
+}
+

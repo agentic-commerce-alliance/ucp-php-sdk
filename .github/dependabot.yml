@@ -1,0 +1,38 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - github-actions
+
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - composer
+    ignore:
+      - dependency-name: shopware/ucp-php-sdk-core
+      - dependency-name: ucp-php-sdk/symfony-bundle
+
+  - package-ecosystem: composer
+    directory: /packages/core
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - composer
+      - core
+
+  - package-ecosystem: composer
+    directory: /packages/symfony-bundle
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - composer
+      - symfony-bundle

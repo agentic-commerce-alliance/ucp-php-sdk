@@ -1,0 +1,11 @@
+parameters:
+    level: 7
+    paths:
+        - packages/core/src
+        - packages/core/tests
+        - packages/symfony-bundle/src
+        - packages/symfony-bundle/tests
+        - examples/bootstrap-symfony-app/src
+        - examples/merchant-symfony-app/src
+    tmpDir: var/phpstan
+    treatPhpDocTypesAsCertain: true

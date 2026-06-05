@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["query"],
+  "properties": {
+    "query": { "type": "string" },
+    "limit": { "type": "integer" },
+    "cursor": { "type": "string" },
+    "filters": { "type": "object" }
+  }
+}
+

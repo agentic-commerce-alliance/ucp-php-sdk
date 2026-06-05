@@ -1,0 +1,190 @@
+# Release Process
+
+This repo should use GitHub's built-in release features for version-specific release notes.
+
+Do not keep a separate root `RELEASE_INFO.md` file for per-version notes. That creates two sources of truth.
+
+## Source Of Truth
+
+- Git tag:
+  - the version identifier
+- GitHub Release:
+  - the canonical release notes for that tag
+- Release Drafter:
+  - the helper that keeps the next draft release current between tags
+- `CHANGELOG.md`:
+  - a short repo-local summary of released versions
+- docs in `docs/`:
+  - evergreen release policy and process only
+
+## Why
+
+- release notes are inherently version-specific
+- GitHub Releases already model tags, titles, notes, and attached artifacts
+- consumers expect to read release notes in the GitHub UI
+- a release drafter workflow reduces manual note assembly before tagging
+- the repo docs should explain process and support boundaries, not duplicate every release note
+
+## Versioning Shape
+
+Current package line:
+
+- `shopware/ucp-php-sdk-core`
+- `ucp-php-sdk/symfony-bundle`
+
+Current maturity:
+
+- pre-`1.0`
+- alpha or beta tags are acceptable
+
+Recommended tag examples:
+
+- `0.0.1-alpha1`
+- `0.0.1-alpha2`
+- `0.0.1-beta1`
+- `0.0.1`
+
+## Before Tagging
+
+1. Run the full QA gate:
+
+```bash
+docker compose run --rm php composer qa
+```
+
+2. Confirm package metadata is correct:
+
+```bash
+docker compose run --rm php composer validate --strict
+docker compose run --rm php composer validate --strict -d packages/core
+docker compose run --rm php composer validate --strict -d packages/symfony-bundle
+```
+
+3. Make sure the public API snapshot is current:
+
+```bash
+docker compose run --rm php composer public-api:check
+```
+
+4. Update `CHANGELOG.md` with a short summary entry for the version being tagged.
+
+5. Confirm the release posture is accurate in the main docs:
+   - install commands in [README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/README.md)
+   - current scope and boundaries in [docs/extension-contract.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/extension-contract.md), [docs/security-model.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/security-model.md), and [docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
+   - contributor workflow in [CONTRIBUTING.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/CONTRIBUTING.md)
+
+## Tag And Release Flow
+
+1. Create the tag locally:
+
+```bash
+git tag 0.0.1-alpha1
+```
+
+2. Push the tag:
+
+```bash
+git push origin 0.0.1-alpha1
+```
+
+3. Create a GitHub Release from that tag.
+
+4. Start from the existing Release Drafter draft or GitHub's generated notes, then edit them into a short curated note set.
+
+## What A GitHub Release Note Should Contain
+
+Each GitHub Release should include:
+
+- release maturity:
+  - alpha, beta, or stable
+- package install targets:
+  - `shopware/ucp-php-sdk-core`
+  - `ucp-php-sdk/symfony-bundle`
+- protocol target:
+  - currently UCP `2026-04-08`
+- main included scope:
+  - discovery
+  - catalog
+  - cart
+  - checkout
+  - tokenization
+  - identity linking
+  - order read
+  - outbound order webhooks
+  - MCP
+  - A2A
+  - embedded transport hooks
+- explicit out-of-scope list:
+  - Shopware-specific MCP tools and Store API wiring
+  - Shopware admin UI and DAL definitions
+  - full AP2 credential stack
+- operational defaults or caveats relevant to that release
+- breaking changes or removed pre-release APIs
+- upgrade notes if the previous tag needs manual changes
+
+## Alpha And Pre-1.0 Notes
+
+For pre-`1.0` releases, the GitHub Release should call out the important caveats directly instead of storing them in a permanent repo file.
+
+Examples of caveats that belong in release notes when relevant:
+
+- deterministic JSON versus certified full RFC 8785 JCS
+- schema-validator coverage boundaries
+- intentionally removed pre-release compatibility shims
+- known limitations in current transport or storage support
+
+## What Stays In The Repo
+
+Keep these release-related concerns in the repo:
+
+- `CHANGELOG.md` for compact historical summaries
+- this release-process document
+- install commands in [README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/README.md)
+- evergreen scope, security, adapter, and extension docs
+
+Do not create new files like `RELEASE_INFO.md`, `ALPHA_NOTES.md`, or `CURRENT_RELEASE.md` unless there is a strong reason the information cannot live in GitHub Releases or the existing docs.
+
+## Suggested GitHub Release Template
+
+```md
+## Summary
+
+- short description of the release
+
+## Packages
+
+- `shopware/ucp-php-sdk-core`
+- `ucp-php-sdk/symfony-bundle`
+
+## Included Scope
+
+- discovery
+- catalog
+- cart
+- checkout
+- tokenization
+- identity linking
+- order read
+- outbound order webhooks
+
+## Operational Notes
+
+- any new defaults, commands, or constraints
+
+## Caveats
+
+- pre-1.0 limitations or explicit non-goals
+
+## Upgrade Notes
+
+- anything users must change from the previous tag
+```
+
+## Agent Note
+
+If an AI agent is preparing a release:
+
+- update `CHANGELOG.md`
+- verify `composer qa`
+- do not invent a new release-info file
+- put version-specific notes into the GitHub Release draft

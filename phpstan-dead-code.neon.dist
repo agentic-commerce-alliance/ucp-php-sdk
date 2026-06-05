@@ -1,0 +1,23 @@
+includes:
+    - vendor/shipmonk/dead-code-detector/rules.neon
+
+parameters:
+    level: 7
+    paths:
+        - packages/core/src/Internal/Negotiation/DefaultCapabilityNegotiator.php
+        - packages/core/src/Internal/Security/ContentDigestService.php
+        - packages/core/src/Internal/Security/DefaultSigningKeyManager.php
+        - packages/core/src/Internal/Security/RepositoryBackedSignatureReplayGuard.php
+        - packages/core/src/Internal/Security/Rfc9421RequestSignatureService.php
+        - packages/core/src/Internal/Validation/GeneratedSchemaValidator.php
+        - packages/core/src/Internal/Service/DefaultIdempotencyService.php
+        - packages/core/src/Internal/Service/DefaultProtocolValidator.php
+        - packages/core/tests
+        - packages/symfony-bundle/src/Bridge/DoctrineDbal/DoctrineDbalSignatureNonceRepository.php
+        - packages/symfony-bundle/src/Bridge/DoctrineDbal/DoctrineDbalSigningKeyRepository.php
+        - packages/symfony-bundle/src/Bridge/DoctrineDbal/SchemaBootstrapper.php
+        - packages/symfony-bundle/src/Command/GenerateSigningKeyCommand.php
+        - packages/symfony-bundle/src/Command/PurgeSignatureNoncesCommand.php
+        - packages/symfony-bundle/tests
+    tmpDir: var/phpstan-dead-code
+    treatPhpDocTypesAsCertain: true

@@ -1,0 +1,12 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      COMPOSER_HOME: /tmp/composer
+      XDG_CACHE_HOME: /tmp/cache
+

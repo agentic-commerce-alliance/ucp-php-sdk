@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ucp.dev/schemas/ucp.json",
+  "$defs": {
+    "business_schema": {
+      "type": "object",
+      "required": ["version", "services", "payment_handlers"],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "services": {
+          "type": "object"
+        },
+        "capabilities": {
+          "type": "object"
+        },
+        "payment_handlers": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
+

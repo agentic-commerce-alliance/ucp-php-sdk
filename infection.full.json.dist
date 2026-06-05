@@ -1,0 +1,29 @@
+{
+    "$schema": "https://infection.github.io/schema.json",
+    "minMsi": 79,
+    "minCoveredMsi": 79,
+    "source": {
+        "directories": [
+            "packages/core/src/Internal",
+            "packages/symfony-bundle/src/Bridge",
+            "packages/symfony-bundle/src/EventListener"
+        ],
+        "excludes": [
+            "packages/symfony-bundle/src/DependencyInjection",
+            "packages/symfony-bundle/src/UcpSdkBundle.php",
+            "packages/symfony-bundle/src/UcpSdkConfiguration.php"
+        ]
+    },
+    "logs": {
+        "text": "var/reports/infection-full/summary.log",
+        "html": "var/reports/infection-full/index.html"
+    },
+    "phpUnit": {
+        "configDir": ".",
+        "customPath": "vendor/bin/phpunit"
+    },
+    "mutators": {
+        "@default": true
+    },
+    "tmpDir": "var/infection-full"
+}

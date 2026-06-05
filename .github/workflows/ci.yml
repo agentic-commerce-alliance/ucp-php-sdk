@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MUTATION_THREADS: '4'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build PHP container
+        run: docker compose build php
+      - name: Install dependencies
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh install
+      - name: Validate root Composer manifest
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict
+      - name: Validate core package manifest
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict -d packages/core
+      - name: Validate Symfony bundle manifest
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict -d packages/symfony-bundle
+      - name: Run QA suite
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh qa
+      - name: Run full mutation sweep
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh mutation:full
+  bc:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Resolve BC baseline tag
+        id: baseline
+        run: |
+          tag="$(git tag --merged "origin/${{ github.base_ref }}" --sort=-v:refname | head -n 1)"
+
+          if [ -z "$tag" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "No release tag found yet on origin/${{ github.base_ref }}. Skipping BC check."
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Using BC baseline tag: $tag"
+      - name: Build PHP container
+        if: steps.baseline.outputs.skip != 'true'
+        run: docker compose build php
+      - name: Install dependencies
+        if: steps.baseline.outputs.skip != 'true'
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh install
+      - name: Backward compatibility check
+        if: steps.baseline.outputs.skip != 'true'
+        run: docker compose run --rm php vendor/bin/roave-backward-compatibility-check --from="${{ steps.baseline.outputs.tag }}" --to=HEAD

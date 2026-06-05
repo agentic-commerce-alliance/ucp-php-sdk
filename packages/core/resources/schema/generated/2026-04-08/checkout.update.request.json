@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "line_items": { "type": "array" },
+    "buyer": { "type": "object" },
+    "discounts": { "type": "object" },
+    "fulfillment": { "type": "object" },
+    "buyer_consent": { "type": "object" },
+    "payment": { "type": "object" }
+  }
+}
+

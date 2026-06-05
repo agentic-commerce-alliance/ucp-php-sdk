@@ -1,0 +1,351 @@
+class Ucp\Sdk\Adapter\AdapterBackedCartCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CartAdapterInterface $adapter)
+  - cancelCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - createCart(Ucp\Sdk\Model\Cart\CartCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - updateCart(Ucp\Sdk\Model\Cart\CartUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+class Ucp\Sdk\Adapter\AdapterBackedCatalogCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CatalogAdapterInterface $adapter)
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\CatalogSearchResponse
+class Ucp\Sdk\Adapter\AdapterBackedCheckoutCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CheckoutAdapterInterface $adapter)
+  - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+class Ucp\Sdk\Adapter\AdapterBackedDiscountCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\DiscountAdapterInterface $adapter)
+  - applyCartDiscount(string $cartId, Ucp\Sdk\Model\Checkout\DiscountCode $discount, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+class Ucp\Sdk\Adapter\AdapterBackedIdentityLinkingCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface $adapter)
+  - authorize(Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getMetadata(Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthMetadata
+  - issueToken(Ucp\Sdk\Model\Identity\OAuthTokenRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthTokenResponse
+class Ucp\Sdk\Adapter\AdapterBackedOrderCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\OrderAdapterInterface $adapter)
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - getOrder(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Order\OrderView
+class Ucp\Sdk\Adapter\AdapterBackedTokenizationCapability
+  - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\PaymentAdapterInterface $adapter)
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
+interface Ucp\Sdk\Adapter\CartAdapterInterface
+  - cancelCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - createCart(Ucp\Sdk\Model\Cart\CartCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - getCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - updateCart(Ucp\Sdk\Model\Cart\CartUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+interface Ucp\Sdk\Adapter\CatalogAdapterInterface
+  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+interface Ucp\Sdk\Adapter\CheckoutAdapterInterface
+  - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+interface Ucp\Sdk\Adapter\DiscountAdapterInterface
+  - applyCartDiscount(string $cartId, Ucp\Sdk\Model\Checkout\DiscountCode $discount, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+interface Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface
+  - authorize(Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - getMetadata(Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthMetadata
+  - issueToken(Ucp\Sdk\Model\Identity\OAuthTokenRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthTokenResponse
+interface Ucp\Sdk\Adapter\OrderAdapterInterface
+  - getOrder(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Order\OrderView
+interface Ucp\Sdk\Adapter\PaymentAdapterInterface
+  - prepareInstrument(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
+  - supportsTokenization(): bool
+  - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): ?array
+interface Ucp\Sdk\Contract\CapabilityInterface
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
+interface Ucp\Sdk\Contract\CartCapabilityInterface
+  - cancelCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - createCart(Ucp\Sdk\Model\Cart\CartCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - getCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+  - updateCart(Ucp\Sdk\Model\Cart\CartUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+interface Ucp\Sdk\Contract\CatalogCapabilityInterface
+  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\CatalogSearchResponse
+interface Ucp\Sdk\Contract\CheckoutCapabilityInterface
+  - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+interface Ucp\Sdk\Contract\CheckoutRequestValidatorInterface
+  - validate(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): void
+interface Ucp\Sdk\Contract\CheckoutResponseAugmenterInterface
+  - augment(Ucp\Sdk\Model\Checkout\Checkout $checkout, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+interface Ucp\Sdk\Contract\DiscountCapabilityInterface
+  - applyCartDiscount(string $cartId, Ucp\Sdk\Model\Checkout\DiscountCode $discount, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
+interface Ucp\Sdk\Contract\IdentityLinkingCapabilityInterface
+  - authorize(Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest $request, Ucp\Sdk\Model\RequestContext $context): array
+  - getMetadata(Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthMetadata
+  - issueToken(Ucp\Sdk\Model\Identity\OAuthTokenRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Identity\OAuthTokenResponse
+interface Ucp\Sdk\Contract\OrderCapabilityInterface
+  - getOrder(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Order\OrderView
+interface Ucp\Sdk\Contract\OrderWebhookEnricherInterface
+  - enrich(Ucp\Sdk\Model\Webhook\OrderWebhookPayload $payload, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Webhook\OrderWebhookPayload
+interface Ucp\Sdk\Contract\PaymentHandlerInterface
+  - describe(Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor
+  - id(): string
+  - prepareInstrument(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
+  - supportsTokenization(): bool
+  - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): ?array
+interface Ucp\Sdk\Contract\PaymentMandateVerifierInterface
+  - verify(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): void
+interface Ucp\Sdk\Contract\ProfileContributorInterface
+  - contribute(Ucp\Sdk\Model\Profile\PlatformProfile $profile, Ucp\Sdk\Model\Profile\ProfileBuildInput $input): Ucp\Sdk\Model\Profile\PlatformProfile
+interface Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface
+  - provide(Ucp\Sdk\Model\Profile\ProfileBuildInput $input): array
+interface Ucp\Sdk\Contract\TokenizationCapabilityInterface
+  - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
+enum Ucp\Sdk\Enum\CheckoutStatus
+  - static cases(): array
+  - static from(string|int $value): static
+  - static tryFrom(string|int $value): ?static
+enum Ucp\Sdk\Enum\SignaturePolicy
+  - static cases(): array
+  - static from(string|int $value): static
+  - static tryFrom(string|int $value): ?static
+enum Ucp\Sdk\Enum\Transport
+  - static cases(): array
+  - static from(string|int $value): static
+  - static tryFrom(string|int $value): ?static
+class Ucp\Sdk\Event\CheckoutRequestReceivedEvent
+  - __construct(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context)
+  - getContext(): Ucp\Sdk\Model\RequestContext
+  - getRequest(): Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
+  - replaceRequest(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request): void
+class Ucp\Sdk\Event\CheckoutResponsePreparedEvent
+  - __construct(Ucp\Sdk\Model\Checkout\Checkout $checkout, Ucp\Sdk\Model\RequestContext $context)
+  - getCheckout(): Ucp\Sdk\Model\Checkout\Checkout
+  - getContext(): Ucp\Sdk\Model\RequestContext
+  - replaceCheckout(Ucp\Sdk\Model\Checkout\Checkout $checkout): void
+class Ucp\Sdk\Event\OrderWebhookDispatchEvent
+  - __construct(Ucp\Sdk\Model\Webhook\OrderWebhookPayload $payload, Ucp\Sdk\Model\RequestContext $context, string $targetUrl)
+  - getContext(): Ucp\Sdk\Model\RequestContext
+  - getPayload(): Ucp\Sdk\Model\Webhook\OrderWebhookPayload
+  - getTargetUrl(): string
+  - replacePayload(Ucp\Sdk\Model\Webhook\OrderWebhookPayload $payload): void
+class Ucp\Sdk\Event\PaymentMandateVerificationEvent
+  - __construct(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context)
+  - getContext(): Ucp\Sdk\Model\RequestContext
+  - getInstrument(): Ucp\Sdk\Model\Checkout\PaymentInstrument
+class Ucp\Sdk\Event\ProfileBuiltEvent
+  - __construct(Ucp\Sdk\Model\Profile\PlatformProfile $profile, Ucp\Sdk\Model\Profile\ProfileBuildInput $input)
+  - getInput(): Ucp\Sdk\Model\Profile\ProfileBuildInput
+  - getProfile(): Ucp\Sdk\Model\Profile\PlatformProfile
+  - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
+class Ucp\Sdk\Exception\IdempotencyConflictException
+class Ucp\Sdk\Exception\OAuthException
+class Ucp\Sdk\Exception\ResourceNotFoundException
+class Ucp\Sdk\Exception\SignatureException
+class Ucp\Sdk\Exception\UcpException
+class Ucp\Sdk\Exception\UnsupportedCapabilityException
+class Ucp\Sdk\Exception\ValidationException
+  - __construct(string $message, array $violations = [])
+  - getViolations(): array
+class Ucp\Sdk\Model\Cart\Cart
+  - __construct(string $id, array $lineItems, string $currency, array $totals = [], array $messages = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Cart\CartCreateRequest
+  - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Signals $signals = null)
+class Ucp\Sdk\Model\Cart\CartUpdateRequest
+  - __construct(string $id, array $lineItems)
+class Ucp\Sdk\Model\Catalog\CatalogLookupRequest
+  - __construct(array $ids)
+class Ucp\Sdk\Model\Catalog\CatalogSearchRequest
+  - __construct(string $query, int $limit = 20, ?string $cursor = null, array $filters = [])
+class Ucp\Sdk\Model\Catalog\CatalogSearchResponse
+  - __construct(array $items, ?string $nextCursor = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Catalog\Product
+  - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Checkout\BuyerConsent
+  - __construct(bool $granted, ?string $timestamp = null)
+class Ucp\Sdk\Model\Checkout\Checkout
+  - __construct(string $id, Ucp\Sdk\Enum\CheckoutStatus $status, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $continueUrl = null, ?string $expiresAt = null, ?Ucp\Sdk\Model\Checkout\OrderConfirmation $order = null, array $extra = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
+  - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null)
+class Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest
+  - __construct(string $id, array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
+class Ucp\Sdk\Model\Checkout\DiscountCode
+  - __construct(string $code)
+class Ucp\Sdk\Model\Checkout\FulfillmentSelection
+  - __construct(string $type, ?string $methodId = null, array $extra = [])
+class Ucp\Sdk\Model\Checkout\OrderConfirmation
+  - __construct(string $id, ?string $permalinkUrl = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Checkout\PaymentInstrument
+  - __construct(string $type, string $handlerId, array $credential = [])
+class Ucp\Sdk\Model\Common\Buyer
+  - __construct(?string $email = null, ?string $firstName = null, ?string $lastName = null, ?string $phoneNumber = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Common\LineItem
+  - __construct(string $id, string $title, float $price, int $quantity = 1, ?string $imageUrl = null, array $extra = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Common\Link
+  - __construct(string $type, string $url, ?string $title = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Common\Message
+  - __construct(string $type, string $content, ?string $severity = null, ?string $code = null, ?string $path = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Common\Money
+  - __construct(string $type, float $amount, ?string $displayText = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Common\Signals
+  - __construct(array $values = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Config\RuntimeConfiguration
+  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [])
+class Ucp\Sdk\Model\Http\HttpRequest
+  - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
+class Ucp\Sdk\Model\IdempotencyRecord
+  - __construct(string $key, string $fingerprint, string $status = 'pending', ?array $responseBody = null, ?int $statusCode = null, bool $replayable = true)
+class Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest
+  - __construct(string $clientId, string $redirectUri, string $scope, string $state, ?string $codeChallenge = null, ?string $codeChallengeMethod = null)
+class Ucp\Sdk\Model\Identity\OAuthMetadata
+  - __construct(string $issuer, string $authorizationEndpoint, string $tokenEndpoint, array $scopesSupported = [], array $grantTypesSupported = [], array $tokenEndpointAuthMethodsSupported = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Identity\OAuthTokenRequest
+  - __construct(string $grantType, ?string $code = null, ?string $refreshToken = null, ?string $clientId = null, ?string $clientSecret = null, ?string $codeVerifier = null, ?string $redirectUri = null)
+class Ucp\Sdk\Model\Identity\OAuthTokenResponse
+  - __construct(string $accessToken, string $tokenType = 'Bearer', int $expiresIn = 3600, ?string $refreshToken = null, ?string $scope = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities
+  - __construct(array $capabilities = [], array $paymentHandlerIds = [], array $operationCapabilityMap = [])
+  - capabilitiesForOperation(string $operation): array
+  - capabilityNames(): array
+class Ucp\Sdk\Model\Negotiation\NegotiationSession
+  - __construct(string $id, string $platformProfileUri, string $protocolVersion, array $activeCapabilities, array $paymentHandlerIds = [], ?string $tenantIdentifier = null, ?string $lastUsedAt = null)
+class Ucp\Sdk\Model\OAuthState
+  - __construct(string $code, string $clientId, string $subject, ?string $refreshToken = null, ?int $expiresAt = null)
+class Ucp\Sdk\Model\Order\OrderView
+  - __construct(string $id, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $createdAt = null, array $extra = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Profile\CapabilityDescriptor
+  - __construct(string $name, string $version, string $specUrl, string $schemaUrl, ?array $extends = null, array $config = [])
+  - static fromProfileEntry(string $name, array $entry): self
+  - toProfileEntry(): array
+class Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor
+  - __construct(string $id, string $name, string $version, string $specUrl, string $configSchema, array $instrumentSchemas, array $config = [])
+  - static fromArray(array $entry): self
+  - toArray(): array
+class Ucp\Sdk\Model\Profile\PlatformProfile
+  - __construct(string $version, array $services, array $capabilities, array $paymentHandlers, array $signingKeys = [], array $supportedVersions = [])
+  - static fromArray(array $payload): self
+  - toArray(): array
+class Ucp\Sdk\Model\Profile\ProfileBuildInput
+  - __construct(string $version, string $baseUri, array $transports = [], array $supportedVersions = [], array $transportEndpoints = [], ?string $tenantIdentifier = null)
+class Ucp\Sdk\Model\Profile\ServiceEndpoint
+  - __construct(Ucp\Sdk\Enum\Transport $transport, string $endpoint, string $version, string $specUrl, ?string $schemaUrl = null)
+  - static fromArray(array $entry): self
+  - toArray(): array
+class Ucp\Sdk\Model\RequestContext
+  - __construct(string $host, array $headers = [], ?string $platformProfileUri = null, ?Ucp\Sdk\Model\Profile\PlatformProfile $platformProfile = null, array $negotiatedCapabilities = [], bool $signatureVerified = false, ?string $idempotencyKey = null, ?string $oauthClientId = null, ?Ucp\Sdk\Model\Config\RuntimeConfiguration $runtimeConfiguration = null, ?Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities $negotiation = null, ?Ucp\Sdk\Model\Security\SignatureVerificationResult $requestSignatureVerification = null, ?Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult $merchantAuthorizationVerification = null, ?string $negotiationSessionId = null)
+class Ucp\Sdk\Model\Security\ManagedSigningKey
+  - __construct(string $kid, string $publicKeyPem, string $privateKeyPem, string $algorithm = 'ES256', string $keyType = 'EC', string $use = 'sig', string $status = 'active', ?string $curve = 'P-256', ?string $createdAt = null, ?string $retireAt = null)
+class Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult
+  - __construct(bool $verified, ?string $issuer = null, ?string $algorithm = null, array $claims = [], ?string $failureReason = null)
+class Ucp\Sdk\Model\Security\PublicSigningKey
+  - __construct(string $kid, string $algorithm = 'ES256', string $keyType = 'EC', string $use = 'sig', ?string $curve = null, ?string $x = null, ?string $y = null, ?string $publicKeyPem = null, array $jwk = [])
+  - static fromJwk(array $entry): self
+  - toJwk(): array
+class Ucp\Sdk\Model\Security\SignatureVerificationResult
+  - __construct(bool $verified, ?string $kid = null, ?string $algorithm = null, ?int $created = null, ?int $expires = null, bool $contentDigestVerified = false, bool $replayChecked = false, ?string $failureReason = null)
+class Ucp\Sdk\Model\Webhook\OrderWebhookPayload
+  - __construct(string $event, string $orderId, array $payload = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Webhook\WebhookDispatchResult
+  - __construct(string $targetUrl, int $statusCode, bool $successful, bool $retryable = false, array $responseHeaders = [], ?string $responseBody = null)
+interface Ucp\Sdk\Repository\IdempotencyRepositoryInterface
+  - delete(string $key): void
+  - find(string $key): ?Ucp\Sdk\Model\IdempotencyRecord
+  - purgeExpired(int $olderThanUnixTimestamp): void
+  - save(Ucp\Sdk\Model\IdempotencyRecord $record): void
+interface Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface
+  - active(): array
+  - allManaged(): array
+  - deleteManaged(string $kid): bool
+  - findManaged(string $kid): ?Ucp\Sdk\Model\Security\ManagedSigningKey
+  - purgeRetired(string $olderThanIso8601): void
+  - saveManaged(Ucp\Sdk\Model\Security\ManagedSigningKey $key): void
+interface Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface
+  - find(string $id): ?Ucp\Sdk\Model\Negotiation\NegotiationSession
+  - findByProfileUri(string $platformProfileUri, ?string $tenantIdentifier = null): ?Ucp\Sdk\Model\Negotiation\NegotiationSession
+  - purgeExpired(int $olderThanUnixTimestamp): void
+  - save(Ucp\Sdk\Model\Negotiation\NegotiationSession $session): void
+interface Ucp\Sdk\Repository\OAuthStateRepositoryInterface
+  - consume(string $code): ?Ucp\Sdk\Model\OAuthState
+  - purgeExpired(int $olderThanUnixTimestamp): void
+  - save(Ucp\Sdk\Model\OAuthState $state): void
+interface Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface
+  - all(bool $allowExpired = false): array
+  - delete(string $uri): bool
+  - find(string $uri, bool $allowExpired = false): ?Ucp\Sdk\Model\Profile\PlatformProfile
+  - purgeExpired(int $olderThanUnixTimestamp): void
+  - save(string $uri, Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
+interface Ucp\Sdk\Repository\SignatureNonceRepositoryInterface
+  - has(string $scope, string $kid, string $signatureHash): bool
+  - purgeExpired(int $olderThanUnixTimestamp): void
+  - save(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): void
+  - saveIfNew(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): bool
+interface Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface
+  - activeForTenant(?string $tenantIdentifier): array
+  - allManagedForTenant(?string $tenantIdentifier): array
+  - deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
+  - findManagedForTenant(?string $tenantIdentifier, string $kid): ?Ucp\Sdk\Model\Security\ManagedSigningKey
+  - saveManagedForTenant(?string $tenantIdentifier, Ucp\Sdk\Model\Security\ManagedSigningKey $key): void
+interface Ucp\Sdk\Service\AgentProfileFetcherInterface
+  - fetch(string $uri): Ucp\Sdk\Model\Profile\PlatformProfile
+interface Ucp\Sdk\Service\CapabilityNegotiatorInterface
+  - negotiate(?Ucp\Sdk\Model\Profile\PlatformProfile $platformProfile, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities
+interface Ucp\Sdk\Service\CapabilityRegistryInterface
+  - all(): array
+  - find(string $name): ?Ucp\Sdk\Contract\CapabilityInterface
+  - firstImplementing(string $interface): ?Ucp\Sdk\Contract\CapabilityInterface
+interface Ucp\Sdk\Service\DeterministicJsonInterface
+  - canonicalize(array $payload): string
+interface Ucp\Sdk\Service\HttpRequestContextFactoryInterface
+  - create(Ucp\Sdk\Model\Http\HttpRequest $request): Ucp\Sdk\Model\RequestContext
+interface Ucp\Sdk\Service\IdempotencyServiceInterface
+  - abort(Ucp\Sdk\Model\IdempotencyRecord $record): void
+  - claim(string $key, string $fingerprint): Ucp\Sdk\Model\IdempotencyRecord
+  - complete(Ucp\Sdk\Model\IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
+interface Ucp\Sdk\Service\MerchantAuthorizationServiceInterface
+  - verify(Ucp\Sdk\Model\Http\HttpRequest $request, array $keys, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult
+interface Ucp\Sdk\Service\OrderWebhookPublisherInterface
+  - publish(string $targetUrl, Ucp\Sdk\Model\Webhook\OrderWebhookPayload $payload, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Webhook\WebhookDispatchResult
+interface Ucp\Sdk\Service\PaymentHandlerRegistryInterface
+  - all(): array
+  - find(string $name): ?Ucp\Sdk\Contract\PaymentHandlerInterface
+interface Ucp\Sdk\Service\ProfileBuilderInterface
+  - build(Ucp\Sdk\Model\Profile\ProfileBuildInput $input): Ucp\Sdk\Model\Profile\PlatformProfile
+interface Ucp\Sdk\Service\ProtocolValidatorInterface
+  - validateRequest(string $operation, array $payload, Ucp\Sdk\Model\RequestContext $context): void
+  - validateResponse(string $operation, array $payload, Ucp\Sdk\Model\RequestContext $context): void
+interface Ucp\Sdk\Service\RequestSignatureServiceInterface
+  - sign(Ucp\Sdk\Model\Http\HttpRequest $request, Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
+  - verify(Ucp\Sdk\Model\Http\HttpRequest $request, array $keys): Ucp\Sdk\Model\Security\SignatureVerificationResult
+interface Ucp\Sdk\Service\RuntimeConfigurationResolverInterface
+  - resolve(Ucp\Sdk\Model\Http\HttpRequest $request): Ucp\Sdk\Model\Config\RuntimeConfiguration
+interface Ucp\Sdk\Service\SchemaValidatorInterface
+  - validate(string $schemaName, array $payload): void
+interface Ucp\Sdk\Service\SignatureReplayGuardInterface
+  - rememberOrThrow(string $scope, string $kid, string $signature, ?int $created = null): void
+interface Ucp\Sdk\Service\SigningKeyManagerInterface
+  - generate(string $kid, string $algorithm = 'ES256'): Ucp\Sdk\Model\Security\ManagedSigningKey
+  - publicKeyFromJwk(array $jwk): Ucp\Sdk\Model\Security\PublicSigningKey
+  - toPublicKey(Ucp\Sdk\Model\Security\ManagedSigningKey $key): Ucp\Sdk\Model\Security\PublicSigningKey

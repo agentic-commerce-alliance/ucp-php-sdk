@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Ucp\Sdk\Symfony\Controller;
+
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
+use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
+use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
+use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
+
+final readonly class CartController
+{
+    public function __construct(
+        private HttpPayloadMapper $payloadMapper,
+        private UcpResponseFactory $responseFactory,
+        private ShoppingOperationExecutor $operationExecutor,
+    ) {
+    }
+
+    #[Route(path: '/ucp/v1/carts', methods: ['POST'])]
+    public function create(Request $request): Response
+    {
+        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+            'cart.create',
+            $this->payloadMapper->decode($request),
+            $request->attributes->get('ucp_request_context'),
+        )), 201);
+    }
+
+    #[Route(path: '/ucp/v1/carts/{id}', methods: ['GET'])]
+    public function get(string $id, Request $request): Response
+    {
+        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+            'cart.get',
+            [],
+            $request->attributes->get('ucp_request_context'),
+            $id,
+        )));
+    }
+
+    #[Route(path: '/ucp/v1/carts/{id}', methods: ['PUT', 'PATCH'])]
+    public function update(string $id, Request $request): Response
+    {
+        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+            'cart.update',
+            $this->payloadMapper->decode($request),
+            $request->attributes->get('ucp_request_context'),
+            $id,
+        )));
+    }
+
+    #[Route(path: '/ucp/v1/carts/{id}/cancel', methods: ['POST'])]
+    public function cancel(string $id, Request $request): Response
+    {
+        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+            'cart.cancel',
+            [],
+            $request->attributes->get('ucp_request_context'),
+            $id,
+        )));
+    }
+}
