@@ -55,7 +55,7 @@ flowchart TD
     H -- "Yes" --> I["packages/symfony-bundle/src"]
     H -- "No" --> J{"Is it example-only?"}
     J -- "Yes" --> K["examples/.../src"]
-    J -- "No" --> L["docs, tools, docker, or future plugin repo"]
+    J -- "No" --> L["docs, tools, docker, or platform plugin repo"]
 ```
 
 ## Core Package Structure
@@ -97,7 +97,7 @@ Use these rules:
 
 - `Bridge`: framework or storage adapters, not platform-domain mapping
 - `Command`: operator commands such as signing-key helpers
-- `Controller`: REST endpoints
+- `Controller`: HTTP transport endpoints for REST, A2A, embedded, OAuth, and discovery
 - `DependencyInjection`: bundle registration and service wiring
 - `EventListener`: request or response listeners
 
@@ -111,7 +111,7 @@ flowchart LR
     A -. not here .-> E["Shopware-specific MCP tools"]
 ```
 
-- The future Shopware plugin belongs on top of this SDK, not inside `packages/core`.
+- Shopware plugin code belongs on top of this SDK, not inside `packages/core`.
 - Generic transport metadata and controllers can live in the shared SDK when they stay platform-neutral.
 - Doctrine DBAL bridge code is a default Symfony storage adapter, not the model every adopter must use.
 
@@ -138,4 +138,4 @@ flowchart LR
 - New default RFC 9421 helper: `packages/core/src/Internal/Security`
 - New bundle route: `packages/symfony-bundle/src/Controller`
 - New default DBAL repository: `packages/symfony-bundle/src/Bridge/DoctrineDbal`
-- New Shopware-specific cart mapping: not in this repo area, put it in the future Shopware plugin
+- New Shopware-specific cart mapping: not in this repo area, put it in the Shopware plugin

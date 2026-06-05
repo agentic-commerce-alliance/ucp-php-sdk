@@ -65,7 +65,7 @@ Flow with adapters:
 2. Adapter maps them into public SDK DTOs such as `Product`, `Cart`, `Checkout`, or `OrderView`.
 3. Optional adapter-backed capability wrapper exposes the descriptor and forwards to the adapter.
 
-This is where a future Shopware plugin should live.
+This is where a Shopware plugin such as `SwagAgenticCommerce` should live.
 
 ## 3. Storage Mapping
 

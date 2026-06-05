@@ -1,6 +1,7 @@
 # Shopware Plugin Blueprint
 
-This document describes what a future Shopware plugin should build on top of the shared SDK.
+This document describes what a Shopware plugin such as `SwagAgenticCommerce`
+should build on top of the shared SDK.
 
 ## Shared SDK Responsibilities
 
@@ -23,8 +24,9 @@ Implement these in the Shopware plugin:
   - checkout
   - order
   - identity linking
-  - payment
+- payment handlers or tokenization capabilities
 - Shopware-backed repository replacements where needed
+- plugin-owned tables or DAL state for sales-channel scoped UCP config
 - payment method mapping
 - order event subscribers that call `OrderWebhookPublisherInterface`
 - admin UI, ACL, diagnostics, and operator flows
@@ -38,7 +40,7 @@ flowchart TD
     A --> D["CartAdapterInterface or direct capability"]
     A --> E["CheckoutAdapterInterface or direct capability"]
     A --> F["OrderAdapterInterface or direct capability"]
-    A --> G["PaymentAdapterInterface or direct capability"]
+    A --> G["PaymentHandlerInterface or tokenization capability"]
     A --> H["Shopware storage adapters"]
     B --> I["Shared SDK"]
     C --> I
@@ -54,6 +56,8 @@ flowchart TD
 - Keep Shopware DAL definitions in the plugin, not in the shared SDK.
 - Keep Shopware-specific MCP tools and Store API wiring in the plugin. The shared SDK may advertise MCP endpoints and own generic transport metadata.
 - Keep protocol mapping in the bundle. Do not rewrite that logic in the plugin unless Shopware needs platform-specific routing or authentication around it.
+- Keep sales-channel configuration in plugin-owned state. Do not push Shopware
+  admin UX or DAL assumptions into SDK configuration.
 
 ## Suggested Build Order
 

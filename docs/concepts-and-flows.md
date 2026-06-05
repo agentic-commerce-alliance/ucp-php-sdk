@@ -58,8 +58,8 @@ flowchart TD
 Notes:
 
 - The shared SDK owns signing and delivery behavior.
-- The host app or future platform plugin decides when a webhook should be sent.
-- Transport-specific webhook triggers still belong to the host app or future platform plugin.
+- The host app or platform plugin decides when a webhook should be sent.
+- Transport-specific webhook triggers still belong to the host app or platform plugin.
 
 ## Extension Model
 
@@ -97,4 +97,4 @@ flowchart LR
 
 - Keep transport support generic, configurable, and reusable.
 - Put platform-specific product, cart, order, and payment mapping into platform plugins.
-- For the future Shopware-specific wiring, see [shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md).
+- For Shopware-specific wiring, see [shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md).

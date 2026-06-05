@@ -16,7 +16,8 @@ The following namespaces are part of the curated stable surface:
 
 ## Replaceable services
 
-Host applications and the future Shopware plugin are expected to replace or decorate services behind these interfaces:
+Host applications and platform plugins are expected to replace or decorate
+services behind these interfaces:
 
 - `ProfileBuilderInterface`
 - `RuntimeConfigurationResolverInterface`
@@ -52,6 +53,7 @@ Stable extension hooks are available through:
 - checkout response augmenters
 - payment mandate verifiers
 - order webhook enrichers
+- embedded page renderers
 - domain events in `Ucp\Sdk\Event`
 
 ## Platform Adapter Boundary

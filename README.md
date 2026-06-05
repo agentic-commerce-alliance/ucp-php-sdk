@@ -40,8 +40,9 @@ The Symfony bundle owns HTTP wiring:
 - default storage adapters based on Doctrine DBAL
 - console commands for signing keys
 - one aggregate cleanup command for retained SDK state
+- generic A2A and embedded endpoints when those transports are enabled in runtime configuration
 
-Commerce platforms can either implement the capability contracts directly or add platform adapters on top. The adapter-backed wrappers are convenience helpers, not a required layer. A future Shopware plugin should stay DAL-first and use the shared SDK through the public contracts. The SDK now keeps full UCP transport parity at the generic layer: REST runtime, A2A runtime, embedded transport hooks, and MCP profile metadata. Shopware-specific MCP tooling and DAL wiring still belong in the Shopware plugin.
+Commerce platforms can either implement the capability contracts directly or add platform adapters on top. The adapter-backed wrappers are convenience helpers, not a required layer. A Shopware plugin such as `SwagAgenticCommerce` should stay DAL-first and use the shared SDK through the public contracts. The SDK now keeps full UCP transport parity at the generic layer: REST runtime, A2A runtime, embedded transport hooks/controllers, and MCP profile metadata. Shopware-specific MCP tooling and DAL wiring still belong in the Shopware plugin.
 
 ## Quickstart
 
@@ -110,6 +111,8 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 - Request bodies are capped at `262144` bytes by default.
 - Stored idempotent response bodies are capped at `262144` bytes by default.
 - `signature_policy` accepts `off`, `log`, or `strict`.
+- `transports` defaults to `rest`; valid values are `rest`, `mcp`, `a2a`, and `embedded`.
+- `transport_endpoints` can override generated profile endpoints per transport.
 - Webhook publishing requires an existing active signing key. Generate one before sending live webhooks.
 - Expired SDK state can be purged with `docker compose run --rm php php bin/console ucp:storage:cleanup`.
 - SDK-local canonical JSON is exposed through `DeterministicJsonInterface`.

@@ -6,7 +6,7 @@ For release workflow and where release notes belong, also read [docs/release-pro
 
 ## Fast Path
 
-If the goal is to build or extend a future Shopware plugin, read files in this order:
+If the goal is to build or extend a Shopware plugin, read files in this order:
 
 1. [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/AGENTS.md)
 2. [packages/core/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/AGENTS.md)
@@ -29,9 +29,9 @@ If the goal is to build or extend a future Shopware plugin, read files in this o
 - The shared SDK is shop-agnostic. Do not add Shopware classes or Shopware-only concepts to `packages/core` or `packages/symfony-bundle`.
 - The example apps are plain Symfony apps. Do not add Shopware code there.
 - Protocol target is UCP `2026-04-08`.
-- Scope now targets full UCP parity with the Shopware core UCP foundation: REST, MCP profile metadata, A2A, and embedded transport metadata are shared SDK concerns when they stay shop-agnostic.
+- Scope now targets full UCP parity with the Shopware core UCP foundation: REST, A2A runtime, embedded transport hooks/controllers, and MCP profile metadata are shared SDK concerns when they stay shop-agnostic.
 - Doctrine DBAL is only the default Symfony storage adapter for SDK state. It is not the platform model for Shopware.
-- Future Shopware work should be DAL-first in its own plugin.
+- Shopware work should be DAL-first in its own plugin.
 - The root workspace package is not the main install target for external projects. External consumers should require `shopware/ucp-php-sdk-core` or `ucp-php-sdk/symfony-bundle`.
 - Top-level `ucp` is reserved for the protocol envelope in normal API responses. Do not put business payload data under that key.
 - Discovery is a raw profile document and is not wrapped by the normal success envelope.
@@ -138,6 +138,7 @@ final readonly class ShopwareRuntimeConfigurationResolver implements RuntimeConf
             [$host],
             [$host],
             [],
+            [Transport::Rest, Transport::A2a, Transport::Embedded],
         );
     }
 }

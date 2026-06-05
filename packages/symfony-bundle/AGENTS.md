@@ -22,6 +22,7 @@ This package is the Symfony transport and default storage layer for the SDK.
 - `CheckoutResponseAugmenterInterface` -> `ucp_sdk.checkout_response_augmenter`
 - `PaymentMandateVerifierInterface` -> `ucp_sdk.payment_mandate_verifier`
 - `OrderWebhookEnricherInterface` -> `ucp_sdk.order_webhook_enricher`
+- `EmbeddedPageRendererInterface` -> `ucp_sdk.embedded_renderer`
 
 Adapter tags reserved for platform packages:
 
@@ -32,7 +33,6 @@ Adapter tags reserved for platform packages:
 - `ucp_sdk.adapter.discount`
 - `ucp_sdk.adapter.identity_linking`
 - `ucp_sdk.adapter.payment`
-- `ucp_sdk.adapter.store_context_resolver`
 
 ## Public Service Aliases
 
@@ -58,15 +58,22 @@ Current config keys:
 - `signature_policy`
 - `idempotency_required`
 - `idempotency_ttl`
+- `max_request_body_bytes`
 - `platform_profile_cache_ttl`
+- `negotiation_session_ttl`
 - `signature_max_lifetime_seconds`
+- `oauth.authorization_code_ttl`
 - `supported_versions`
+- `transports`
+- `transport_endpoints`
 - `signing_keys.*`
+- `idempotency.max_stored_response_bytes`
 - `webhooks.timeout`
 - `ap2.enabled`
 - `storage.dsn`
 
 `signature_policy` is restricted to `off`, `log`, or `strict`.
+`transports` is restricted to `rest`, `mcp`, `a2a`, and `embedded`.
 
 ## Storage Boundary
 
@@ -92,6 +99,7 @@ $services->set(ManagedSigningKeyRepositoryInterface::class, ShopwareSigningKeyRe
 - `ucp:signing-keys:generate`
 - `ucp:signing-keys:list`
 - `ucp:signing-keys:show-public`
+- `ucp:storage:cleanup`
 - `ucp:storage:cleanup-signature-nonces`
 
 ## QA Boundary

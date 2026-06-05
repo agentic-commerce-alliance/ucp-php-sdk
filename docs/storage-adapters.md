@@ -56,4 +56,7 @@ The default storage adapter keeps TTL-based records for:
 
 Use `ucp:storage:cleanup` to purge expired rows and old retired signing keys in one run.
 
-For future Shopware work, prefer DAL-backed replacements where SDK state needs to live with other Shopware-managed data.
+For Shopware plugins, prefer plugin-owned tables or DAL-backed replacements
+where SDK state needs to live with other Shopware-managed data. Keep
+sales-channel UCP configuration in the plugin, not in the shared SDK storage
+adapter.

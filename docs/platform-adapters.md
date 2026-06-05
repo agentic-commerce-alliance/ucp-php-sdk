@@ -41,5 +41,7 @@ Per-store or sales-channel resolution should live in `RuntimeConfigurationResolv
 - payment method mapping
 - order event triggers for webhook publishing
 - admin UI and operator tooling
+- Store API MCP proxy/tool wiring and embedded page rendering when those
+  surfaces need Shopware runtime context
 
 See [shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md) for the platform-specific breakdown.
