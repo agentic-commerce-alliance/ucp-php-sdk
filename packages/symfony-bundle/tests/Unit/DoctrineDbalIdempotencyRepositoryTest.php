@@ -21,9 +21,9 @@ final class DoctrineDbalIdempotencyRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalIdempotencyRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
             86400,
             1024,
@@ -50,9 +50,9 @@ final class DoctrineDbalIdempotencyRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalIdempotencyRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
             86400,
             8,

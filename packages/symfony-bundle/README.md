@@ -53,6 +53,32 @@ $container->extension('ucp_sdk', [
 Valid `signature_policy` values are `off`, `log`, and `strict`.
 Valid `transports` values are `rest`, `mcp`, `a2a`, and `embedded`; REST is the default.
 
+## Storage Schema
+
+The default DBAL repositories do not install or migrate tables automatically.
+If you use the bundled DBAL storage adapter, call the schema bootstrapper from
+your install, update, deployment, or startup lifecycle before handling UCP
+traffic:
+
+```php
+use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper;
+
+final readonly class InstallUcpStorage
+{
+    public function __construct(private SchemaBootstrapper $bootstrapper)
+    {
+    }
+
+    public function __invoke(): void
+    {
+        $this->bootstrapper->ensureSchema();
+    }
+}
+```
+
+`SchemaBootstrapper::ensureSchema()` is idempotent and updates only SDK-owned
+tables. It leaves unrelated application tables untouched.
+
 Replace the default storage adapter by binding repository interfaces to your own services.
 
 The default DBAL-backed repositories are only storage adapters for SDK state. They are not the required integration model for Shopware or any other platform.

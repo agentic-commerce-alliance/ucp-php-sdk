@@ -42,6 +42,6 @@ curl http://127.0.0.1:8080/.well-known/ucp
 - `var/ucp_sdk.sqlite` is local SDK infrastructure state.
 - `var/cache` and `var/log` are local Symfony runtime files.
 - The whole `var` directory is ignored by Git for this example app.
-- You can safely delete the generated `var` contents and let the app recreate them.
+- You can safely delete the generated `var` contents; the demo kernel recreates the local SDK schema on boot.
 
 For technical notes about what stays simple here on purpose, see [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/bootstrap-symfony-app/AGENTS.md).

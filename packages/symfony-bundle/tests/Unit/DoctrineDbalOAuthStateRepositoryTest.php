@@ -21,9 +21,9 @@ final class DoctrineDbalOAuthStateRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalOAuthStateRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
             600,
         );
@@ -53,9 +53,9 @@ final class DoctrineDbalOAuthStateRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalOAuthStateRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
             600,
         );

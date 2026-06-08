@@ -20,9 +20,9 @@ final class DoctrineDbalPlatformProfileCacheRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalPlatformProfileCacheRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             600,
         );
         $profile = new PlatformProfile('2026-04-08', [], [], [], [], [
@@ -51,9 +51,9 @@ final class DoctrineDbalPlatformProfileCacheRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalPlatformProfileCacheRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             600,
         );
         $profile = new PlatformProfile('2026-04-08', [], [], [], [], [

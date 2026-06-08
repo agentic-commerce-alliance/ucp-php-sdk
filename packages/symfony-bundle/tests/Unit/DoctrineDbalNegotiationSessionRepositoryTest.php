@@ -20,9 +20,9 @@ final class DoctrineDbalNegotiationSessionRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalNegotiationSessionRepository(
             $connection,
-            new SchemaBootstrapper($connection),
         );
 
         $session = new NegotiationSession(

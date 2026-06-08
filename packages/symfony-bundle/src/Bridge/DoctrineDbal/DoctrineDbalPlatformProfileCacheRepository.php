@@ -13,10 +13,8 @@ final readonly class DoctrineDbalPlatformProfileCacheRepository implements Platf
 {
     public function __construct(
         private Connection $connection,
-        private SchemaBootstrapper $bootstrapper,
         private int $ttlSeconds = 600,
     ) {
-        $this->bootstrapper->ensureSchema();
     }
 
     public function save(string $uri, PlatformProfile $profile): void

@@ -13,10 +13,8 @@ final readonly class DoctrineDbalNegotiationSessionRepository implements Negotia
 {
     public function __construct(
         private Connection $connection,
-        private SchemaBootstrapper $bootstrapper,
         private int $ttlSeconds = 604800,
     ) {
-        $this->bootstrapper->ensureSchema();
     }
 
     public function save(NegotiationSession $session): void

@@ -83,6 +83,7 @@ use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalPlatformProfileCacheReposito
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalSignatureNonceRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalSigningKeyRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper;
+use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\StorageSchemaDefinition;
 use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
@@ -186,9 +187,11 @@ final class UcpSdkExtension extends Extension
             ->setFactory([ConnectionFactory::class, 'create'])
             ->setArguments([$config['storage']['dsn']]));
 
-        $container->setDefinition(SchemaBootstrapper::class, new Definition(SchemaBootstrapper::class, [
+        $container->setDefinition(StorageSchemaDefinition::class, new Definition(StorageSchemaDefinition::class));
+        $container->setDefinition(SchemaBootstrapper::class, (new Definition(SchemaBootstrapper::class, [
             new Reference('ucp_sdk.connection'),
-        ]));
+            new Reference(StorageSchemaDefinition::class),
+        ]))->setPublic(true));
 
         $container->setDefinition(DefaultPrivateKeyEncryptor::class, new Definition(DefaultPrivateKeyEncryptor::class, [
             '%kernel.secret%',
@@ -197,35 +200,29 @@ final class UcpSdkExtension extends Extension
 
         $container->setDefinition(DoctrineDbalSigningKeyRepository::class, new Definition(DoctrineDbalSigningKeyRepository::class, [
             new Reference('ucp_sdk.connection'),
-            new Reference(SchemaBootstrapper::class),
             new Reference(SecretEncryptorInterface::class),
         ]));
         $container->setDefinition(DoctrineDbalIdempotencyRepository::class, new Definition(DoctrineDbalIdempotencyRepository::class, [
             new Reference('ucp_sdk.connection'),
-            new Reference(SchemaBootstrapper::class),
             new Reference(SecretEncryptorInterface::class),
             $config['idempotency_ttl'],
             $config['idempotency']['max_stored_response_bytes'],
         ]));
         $container->setDefinition(DoctrineDbalOAuthStateRepository::class, new Definition(DoctrineDbalOAuthStateRepository::class, [
             new Reference('ucp_sdk.connection'),
-            new Reference(SchemaBootstrapper::class),
             new Reference(SecretEncryptorInterface::class),
             $config['oauth']['authorization_code_ttl'],
         ]));
         $container->setDefinition(DoctrineDbalPlatformProfileCacheRepository::class, new Definition(DoctrineDbalPlatformProfileCacheRepository::class, [
             new Reference('ucp_sdk.connection'),
-            new Reference(SchemaBootstrapper::class),
             $config['platform_profile_cache_ttl'],
         ]));
         $container->setDefinition(DoctrineDbalNegotiationSessionRepository::class, new Definition(DoctrineDbalNegotiationSessionRepository::class, [
             new Reference('ucp_sdk.connection'),
-            new Reference(SchemaBootstrapper::class),
             $config['negotiation_session_ttl'],
         ]));
         $container->setDefinition(DoctrineDbalSignatureNonceRepository::class, new Definition(DoctrineDbalSignatureNonceRepository::class, [
             new Reference('ucp_sdk.connection'),
-            new Reference(SchemaBootstrapper::class),
         ]));
 
         $container->setAlias(ManagedSigningKeyRepositoryInterface::class, new Alias(DoctrineDbalSigningKeyRepository::class, true));

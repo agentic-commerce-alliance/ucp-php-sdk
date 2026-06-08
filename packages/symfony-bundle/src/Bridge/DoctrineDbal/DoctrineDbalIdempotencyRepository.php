@@ -14,12 +14,10 @@ final readonly class DoctrineDbalIdempotencyRepository implements IdempotencyRep
 {
     public function __construct(
         private Connection $connection,
-        private SchemaBootstrapper $bootstrapper,
         private SecretEncryptorInterface $secretEncryptor,
         private int $ttlSeconds = 86400,
         private int $maxStoredResponseBytes = 262144,
     ) {
-        $this->bootstrapper->ensureSchema();
     }
 
     public function find(string $key): ?IdempotencyRecord

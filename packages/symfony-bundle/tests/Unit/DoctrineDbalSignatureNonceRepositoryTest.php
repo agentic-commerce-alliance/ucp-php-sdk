@@ -13,13 +13,28 @@ use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper;
 final class DoctrineDbalSignatureNonceRepositoryTest extends TestCase
 {
     #[Test]
+    public function itDoesNotBootstrapSchemaFromTheRepositoryConstructor(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+
+        $repository = new DoctrineDbalSignatureNonceRepository($connection);
+
+        self::assertInstanceOf(DoctrineDbalSignatureNonceRepository::class, $repository);
+        self::assertNotContains('ucp_signature_nonces', array_map('strtolower', $connection->createSchemaManager()->listTableNames()));
+    }
+
+    #[Test]
     public function itPurgesExpiredSignatureNonces(): void
     {
         $connection = DriverManager::getConnection([
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
-        $repository = new DoctrineDbalSignatureNonceRepository($connection, new SchemaBootstrapper($connection));
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $repository = new DoctrineDbalSignatureNonceRepository($connection);
 
         $repository->save('scope-a', 'kid-1', 'hash-old', 10);
         $repository->save('scope-a', 'kid-1', 'hash-new', 200);
@@ -36,7 +51,8 @@ final class DoctrineDbalSignatureNonceRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
-        $repository = new DoctrineDbalSignatureNonceRepository($connection, new SchemaBootstrapper($connection));
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $repository = new DoctrineDbalSignatureNonceRepository($connection);
 
         self::assertTrue($repository->saveIfNew('scope-a', 'kid-1', 'hash-1', 10));
         self::assertFalse($repository->saveIfNew('scope-a', 'kid-1', 'hash-1', 20));
