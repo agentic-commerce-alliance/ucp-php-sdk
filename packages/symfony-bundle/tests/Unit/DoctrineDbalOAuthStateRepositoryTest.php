@@ -68,4 +68,19 @@ final class DoctrineDbalOAuthStateRepositoryTest extends TestCase
 
         self::assertSame('0', (string) $connection->fetchOne('SELECT COUNT(*) FROM ucp_oauth_state'));
     }
+
+    #[Test]
+    public function itDoesNotCreateRedundantCodeHashIndex(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+
+        (new SchemaBootstrapper($connection))->ensureSchema();
+
+        $indexes = array_change_key_case($connection->createSchemaManager()->listTableIndexes('ucp_oauth_state'), CASE_LOWER);
+
+        self::assertArrayNotHasKey('idx_ucp_oauth_state_code_hash', $indexes);
+    }
 }
