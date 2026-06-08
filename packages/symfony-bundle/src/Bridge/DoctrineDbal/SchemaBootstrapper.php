@@ -32,7 +32,6 @@ final class SchemaBootstrapper
         $this->ensureColumn('ucp_signing_keys', 'tenant_identifier', $this->keyType().' NOT NULL DEFAULT \'\'');
         $this->migrateSigningKeysTenantPrimaryKeyForSqlite();
         $this->ensureColumn('ucp_negotiation_sessions', 'expires_at', $this->integerType().' DEFAULT NULL');
-        $this->ensureIndex('ucp_oauth_state', 'idx_ucp_oauth_state_code_hash', ['code_hash'], true);
         $this->initialized = true;
     }
 
@@ -60,26 +59,6 @@ final class SchemaBootstrapper
         }
 
         $this->connection->executeStatement(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $definition));
-    }
-
-    /**
-     * @param list<string> $columns
-     */
-    private function ensureIndex(string $table, string $indexName, array $columns, bool $unique = false): void
-    {
-        $indexes = array_change_key_case($this->connection->createSchemaManager()->listTableIndexes($table), CASE_LOWER);
-        if (isset($indexes[strtolower($indexName)])) {
-            return;
-        }
-
-        $uniqueSql = $unique ? 'UNIQUE ' : '';
-        $this->connection->executeStatement(\sprintf(
-            'CREATE %sINDEX %s ON %s (%s)',
-            $uniqueSql,
-            $indexName,
-            $table,
-            implode(', ', $columns),
-        ));
     }
 
     private function migrateSigningKeysTenantPrimaryKeyForSqlite(): void
