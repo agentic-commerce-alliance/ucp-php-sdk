@@ -21,9 +21,9 @@ final class DoctrineDbalSigningKeyRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalSigningKeyRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
         );
         $manager = new DefaultSigningKeyManager();
@@ -46,9 +46,9 @@ final class DoctrineDbalSigningKeyRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalSigningKeyRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
         );
         $manager = new DefaultSigningKeyManager();
@@ -68,9 +68,9 @@ final class DoctrineDbalSigningKeyRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalSigningKeyRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
         );
         $manager = new DefaultSigningKeyManager();
@@ -93,9 +93,9 @@ final class DoctrineDbalSigningKeyRepositoryTest extends TestCase
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
         $repository = new DoctrineDbalSigningKeyRepository(
             $connection,
-            new SchemaBootstrapper($connection),
             new DefaultPrivateKeyEncryptor('test-secret'),
         );
 

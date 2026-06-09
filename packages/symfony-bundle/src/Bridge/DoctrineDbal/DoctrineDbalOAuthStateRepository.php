@@ -14,11 +14,9 @@ final readonly class DoctrineDbalOAuthStateRepository implements OAuthStateRepos
 {
     public function __construct(
         private Connection $connection,
-        private SchemaBootstrapper $bootstrapper,
         private SecretEncryptorInterface $secretEncryptor,
         private int $authorizationCodeTtl = 600,
     ) {
-        $this->bootstrapper->ensureSchema();
     }
 
     public function save(OAuthState $state): void

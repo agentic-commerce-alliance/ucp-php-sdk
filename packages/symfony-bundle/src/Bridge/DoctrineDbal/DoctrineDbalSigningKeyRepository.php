@@ -16,10 +16,8 @@ final readonly class DoctrineDbalSigningKeyRepository implements ManagedSigningK
 {
     public function __construct(
         private Connection $connection,
-        private SchemaBootstrapper $bootstrapper,
         private SecretEncryptorInterface $secretEncryptor,
     ) {
-        $this->bootstrapper->ensureSchema();
     }
 
     public function saveManaged(ManagedSigningKey $key): void

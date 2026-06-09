@@ -12,9 +12,7 @@ final readonly class DoctrineDbalSignatureNonceRepository implements SignatureNo
 {
     public function __construct(
         private Connection $connection,
-        private SchemaBootstrapper $bootstrapper,
     ) {
-        $this->bootstrapper->ensureSchema();
     }
 
     public function has(string $scope, string $kid, string $signatureHash): bool

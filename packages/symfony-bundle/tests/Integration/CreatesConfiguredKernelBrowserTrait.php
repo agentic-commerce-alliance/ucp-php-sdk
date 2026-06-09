@@ -43,14 +43,14 @@ trait CreatesConfiguredKernelBrowserTrait
         $restoreEnvironment = $this->applyEnvironmentOverrides($environment);
 
         try {
+            if ($setup !== null) {
+                $setup();
+            }
+
             $client = static::createClient(['debug' => false]);
             restore_exception_handler();
         } finally {
             $restoreEnvironment();
-        }
-
-        if ($setup !== null) {
-            $setup();
         }
 
         /** @var ManagedSigningKeyRepositoryInterface $repository */

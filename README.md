@@ -114,6 +114,7 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 - `transports` defaults to `rest`; valid values are `rest`, `mcp`, `a2a`, and `embedded`.
 - `transport_endpoints` can override generated profile endpoints per transport.
 - Webhook publishing requires an existing active signing key. Generate one before sending live webhooks.
+- The default DBAL storage schema is not created from repository constructors. Call `SchemaBootstrapper::ensureSchema()` from your install, update, deployment, or startup lifecycle before using the default repositories.
 - Expired SDK state can be purged with `docker compose run --rm php php bin/console ucp:storage:cleanup`.
 - SDK-local canonical JSON is exposed through `DeterministicJsonInterface`.
 

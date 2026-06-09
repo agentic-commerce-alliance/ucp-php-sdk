@@ -44,6 +44,35 @@ Examples:
 
 The merchant example app shows this boundary by keeping SDK state in SQLite while merchant state stays in JSON files.
 
+## Schema Lifecycle
+
+The default DBAL repositories expect their tables to exist before they are used.
+They do not install or migrate the schema from request-time repository
+constructors.
+
+If you use the default DBAL storage adapter, run the schema bootstrapper during
+your app install, update, deployment, or startup lifecycle:
+
+```php
+use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper;
+
+final readonly class InstallUcpStorage
+{
+    public function __construct(private SchemaBootstrapper $bootstrapper)
+    {
+    }
+
+    public function __invoke(): void
+    {
+        $this->bootstrapper->ensureSchema();
+    }
+}
+```
+
+`ensureSchema()` compares the current SDK-owned DBAL schema with the desired SDK
+schema and applies the necessary changes. Tables outside the SDK schema are left
+untouched.
+
 ## Retention And Cleanup
 
 The default storage adapter keeps TTL-based records for:

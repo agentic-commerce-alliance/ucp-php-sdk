@@ -11,6 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
+use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper;
 use Ucp\Sdk\Symfony\UcpSdkBundle;
 
 final class Kernel extends BaseKernel
@@ -21,6 +22,17 @@ final class Kernel extends BaseKernel
     {
         yield new FrameworkBundle();
         yield new UcpSdkBundle();
+    }
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        $this->ensureVarDirectory();
+
+        /** @var SchemaBootstrapper $bootstrapper */
+        $bootstrapper = $this->getContainer()->get(SchemaBootstrapper::class);
+        $bootstrapper->ensureSchema();
     }
 
     protected function configureContainer(ContainerConfigurator $container): void
@@ -84,6 +96,18 @@ final class Kernel extends BaseKernel
     public function getLogDir(): string
     {
         return $this->getProjectDir() . '/var/log';
+    }
+
+    private function ensureVarDirectory(): void
+    {
+        $varDirectory = $this->getProjectDir() . '/var';
+        if (is_dir($varDirectory)) {
+            return;
+        }
+
+        if (! mkdir($varDirectory, 0777, true) && ! is_dir($varDirectory)) {
+            throw new \RuntimeException(sprintf('Unable to create "%s".', $varDirectory));
+        }
     }
 
     private function baseUri(): string
