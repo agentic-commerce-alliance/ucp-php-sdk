@@ -8,20 +8,20 @@ use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Signals;
 
-final readonly class CheckoutCreateRequest
+final class CheckoutCreateRequest
 {
     /**
      * @param list<LineItem> $lineItems
      * @param list<DiscountCode> $discounts
      */
     public function __construct(
-        public array $lineItems,
-        public ?Buyer $buyer = null,
-        public ?Signals $signals = null,
-        public array $discounts = [],
-        public ?FulfillmentSelection $fulfillment = null,
-        public ?BuyerConsent $consent = null,
-        public ?string $cartId = null,
+        public readonly array $lineItems,
+        public readonly ?Buyer $buyer = null,
+        public readonly ?Signals $signals = null,
+        public readonly array $discounts = [],
+        public readonly ?FulfillmentSelection $fulfillment = null,
+        public readonly ?BuyerConsent $consent = null,
+        public readonly ?string $cartId = null,
     ) {
     }
 }

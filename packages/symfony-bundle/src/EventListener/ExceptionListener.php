@@ -15,10 +15,10 @@ use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 
-final readonly class ExceptionListener
+final class ExceptionListener
 {
     public function __construct(
-        private UcpResponseFactory $responseFactory,
+        private readonly UcpResponseFactory $responseFactory,
     ) {
     }
 

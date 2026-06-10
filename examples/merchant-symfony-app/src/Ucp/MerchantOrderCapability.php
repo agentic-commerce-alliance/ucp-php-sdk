@@ -13,14 +13,14 @@ use Ucp\Sdk\Model\Order\OrderView;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
-final readonly class MerchantOrderCapability implements OrderCapabilityInterface
+final class MerchantOrderCapability implements OrderCapabilityInterface
 {
     private const COLLECTION = 'merchant_orders';
 
     public function __construct(
-        private JsonStateStore $stateStore,
-        private UcpModelFactory $modelFactory,
-        private MerchantSettings $settings,
+        private readonly JsonStateStore $stateStore,
+        private readonly UcpModelFactory $modelFactory,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

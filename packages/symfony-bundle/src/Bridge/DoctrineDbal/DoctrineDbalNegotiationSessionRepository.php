@@ -9,11 +9,11 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
 
-final readonly class DoctrineDbalNegotiationSessionRepository implements NegotiationSessionRepositoryInterface
+final class DoctrineDbalNegotiationSessionRepository implements NegotiationSessionRepositoryInterface
 {
     public function __construct(
-        private Connection $connection,
-        private int $ttlSeconds = 604800,
+        private readonly Connection $connection,
+        private readonly int $ttlSeconds = 604800,
     ) {
     }
 

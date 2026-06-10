@@ -16,14 +16,14 @@ use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
 
-final readonly class EmbeddedController
+final class EmbeddedController
 {
     /**
      * @param iterable<EmbeddedPageRendererInterface> $renderers
      */
     public function __construct(
-        private RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
-        private iterable $renderers = [],
+        private readonly RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
+        private readonly iterable $renderers = [],
     ) {
     }
 

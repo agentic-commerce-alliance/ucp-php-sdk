@@ -16,11 +16,11 @@ use Ucp\Sdk\Model\RequestContext;
  * and a separate capability descriptor. Projects may implement CheckoutCapabilityInterface
  * directly instead.
  */
-final readonly class AdapterBackedCheckoutCapability implements CheckoutCapabilityInterface
+final class AdapterBackedCheckoutCapability implements CheckoutCapabilityInterface
 {
     public function __construct(
-        private CapabilityDescriptor $descriptor,
-        private CheckoutAdapterInterface $adapter,
+        private readonly CapabilityDescriptor $descriptor,
+        private readonly CheckoutAdapterInterface $adapter,
     ) {
     }
 

@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Profile;
 
-final readonly class CapabilityDescriptor
+final class CapabilityDescriptor
 {
     /**
      * @param array<string, mixed> $config
      * @param list<string>|null $extends
      */
     public function __construct(
-        public string $name,
-        public string $version,
-        public string $specUrl,
-        public string $schemaUrl,
-        public ?array $extends = null,
-        public array $config = [],
+        public readonly string $name,
+        public readonly string $version,
+        public readonly string $specUrl,
+        public readonly string $schemaUrl,
+        public readonly ?array $extends = null,
+        public readonly array $config = [],
     ) {
     }
 

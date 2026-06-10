@@ -8,7 +8,7 @@ use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 
-final readonly class UcpSdkConfiguration
+final class UcpSdkConfiguration
 {
     /**
      * @param list<string> $allowedProfileHosts
@@ -18,30 +18,30 @@ final readonly class UcpSdkConfiguration
      * @param array<string, string> $transportEndpoints
      */
     public function __construct(
-        public string $version,
-        public ?string $baseUri,
-        public array $allowedProfileHosts,
-        public string $signaturePolicy,
-        public array $allowedAgentDomains,
-        public bool $idempotencyRequired,
-        public int $idempotencyTtl,
-        public int $maxRequestBodyBytes,
-        public int $platformProfileCacheTtl,
-        public int $negotiationSessionTtl,
-        public int $signatureMaxLifetimeSeconds,
-        public int $oauthAuthorizationCodeTtl,
-        public array $supportedVersions,
-        public bool $signingKeysAutoGenerate,
-        public string $signingKeysDefaultKid,
-        public string $signingKeysAlgorithm,
-        public string $signingKeysRetireAfter,
-        public string $signingKeysRetiredKeyRetention,
-        public int $idempotencyMaxStoredResponseBytes,
-        public int $webhookTimeout,
-        public bool $ap2Enabled,
-        public string $storageDsn,
-        public array $transports = [Transport::Rest],
-        public array $transportEndpoints = [],
+        public readonly string $version,
+        public readonly ?string $baseUri,
+        public readonly array $allowedProfileHosts,
+        public readonly string $signaturePolicy,
+        public readonly array $allowedAgentDomains,
+        public readonly bool $idempotencyRequired,
+        public readonly int $idempotencyTtl,
+        public readonly int $maxRequestBodyBytes,
+        public readonly int $platformProfileCacheTtl,
+        public readonly int $negotiationSessionTtl,
+        public readonly int $signatureMaxLifetimeSeconds,
+        public readonly int $oauthAuthorizationCodeTtl,
+        public readonly array $supportedVersions,
+        public readonly bool $signingKeysAutoGenerate,
+        public readonly string $signingKeysDefaultKid,
+        public readonly string $signingKeysAlgorithm,
+        public readonly string $signingKeysRetireAfter,
+        public readonly string $signingKeysRetiredKeyRetention,
+        public readonly int $idempotencyMaxStoredResponseBytes,
+        public readonly int $webhookTimeout,
+        public readonly bool $ap2Enabled,
+        public readonly string $storageDsn,
+        public readonly array $transports = [Transport::Rest],
+        public readonly array $transportEndpoints = [],
     ) {
     }
 

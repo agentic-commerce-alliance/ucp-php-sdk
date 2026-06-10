@@ -10,10 +10,10 @@ use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\RequestContext;
 
-final readonly class MerchantCheckoutRequestValidator implements CheckoutRequestValidatorInterface
+final class MerchantCheckoutRequestValidator implements CheckoutRequestValidatorInterface
 {
     public function __construct(
-        private ProductCatalog $catalog,
+        private readonly ProductCatalog $catalog,
     ) {
     }
 

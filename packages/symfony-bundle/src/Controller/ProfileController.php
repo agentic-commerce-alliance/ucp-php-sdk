@@ -14,12 +14,12 @@ use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
-final readonly class ProfileController
+final class ProfileController
 {
     public function __construct(
-        private ProfileBuilderInterface $profileBuilder,
-        private UcpSdkConfiguration $configuration,
-        private RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
+        private readonly ProfileBuilderInterface $profileBuilder,
+        private readonly UcpSdkConfiguration $configuration,
+        private readonly RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
     ) {
     }
 

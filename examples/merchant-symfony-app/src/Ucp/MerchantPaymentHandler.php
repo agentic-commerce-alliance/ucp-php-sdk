@@ -10,10 +10,10 @@ use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
-final readonly class MerchantPaymentHandler implements PaymentHandlerInterface
+final class MerchantPaymentHandler implements PaymentHandlerInterface
 {
     public function __construct(
-        private MerchantSettings $settings,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

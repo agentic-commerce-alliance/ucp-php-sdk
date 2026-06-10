@@ -10,13 +10,13 @@ use Ucp\Sdk\Model\IdempotencyRecord;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\SecretEncryptorInterface;
 
-final readonly class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryInterface
+final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryInterface
 {
     public function __construct(
-        private Connection $connection,
-        private SecretEncryptorInterface $secretEncryptor,
-        private int $ttlSeconds = 86400,
-        private int $maxStoredResponseBytes = 262144,
+        private readonly Connection $connection,
+        private readonly SecretEncryptorInterface $secretEncryptor,
+        private readonly int $ttlSeconds = 86400,
+        private readonly int $maxStoredResponseBytes = 262144,
     ) {
     }
 

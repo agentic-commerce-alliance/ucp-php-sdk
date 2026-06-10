@@ -10,26 +10,26 @@ use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult;
 use Ucp\Sdk\Model\Security\SignatureVerificationResult;
 
-final readonly class RequestContext
+final class RequestContext
 {
     /**
      * @param array<string, string> $headers
      * @param list<string> $negotiatedCapabilities
      */
     public function __construct(
-        public string $host,
-        public array $headers = [],
-        public ?string $platformProfileUri = null,
-        public ?PlatformProfile $platformProfile = null,
-        public array $negotiatedCapabilities = [],
-        public bool $signatureVerified = false,
-        public ?string $idempotencyKey = null,
-        public ?string $oauthClientId = null,
-        public ?RuntimeConfiguration $runtimeConfiguration = null,
-        public ?NegotiatedCapabilities $negotiation = null,
-        public ?SignatureVerificationResult $requestSignatureVerification = null,
-        public ?MerchantAuthorizationVerificationResult $merchantAuthorizationVerification = null,
-        public ?string $negotiationSessionId = null,
+        public readonly string $host,
+        public readonly array $headers = [],
+        public readonly ?string $platformProfileUri = null,
+        public readonly ?PlatformProfile $platformProfile = null,
+        public readonly array $negotiatedCapabilities = [],
+        public readonly bool $signatureVerified = false,
+        public readonly ?string $idempotencyKey = null,
+        public readonly ?string $oauthClientId = null,
+        public readonly ?RuntimeConfiguration $runtimeConfiguration = null,
+        public readonly ?NegotiatedCapabilities $negotiation = null,
+        public readonly ?SignatureVerificationResult $requestSignatureVerification = null,
+        public readonly ?MerchantAuthorizationVerificationResult $merchantAuthorizationVerification = null,
+        public readonly ?string $negotiationSessionId = null,
     ) {
     }
 }

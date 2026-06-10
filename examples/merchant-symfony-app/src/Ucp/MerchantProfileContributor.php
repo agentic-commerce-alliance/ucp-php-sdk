@@ -10,10 +10,10 @@ use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 
-final readonly class MerchantProfileContributor implements ProfileContributorInterface
+final class MerchantProfileContributor implements ProfileContributorInterface
 {
     public function __construct(
-        private MerchantSettings $settings,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

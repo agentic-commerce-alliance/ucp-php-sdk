@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class Link
+final class Link
 {
     public function __construct(
-        public string $type,
-        public string $url,
-        public ?string $title = null,
+        public readonly string $type,
+        public readonly string $url,
+        public readonly ?string $title = null,
     ) {
     }
 

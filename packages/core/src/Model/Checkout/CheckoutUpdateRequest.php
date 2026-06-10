@@ -7,20 +7,20 @@ namespace Ucp\Sdk\Model\Checkout;
 use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
 
-final readonly class CheckoutUpdateRequest
+final class CheckoutUpdateRequest
 {
     /**
      * @param list<LineItem> $lineItems
      * @param list<DiscountCode> $discounts
      */
     public function __construct(
-        public string $id,
-        public array $lineItems,
-        public ?Buyer $buyer = null,
-        public array $discounts = [],
-        public ?FulfillmentSelection $fulfillment = null,
-        public ?BuyerConsent $consent = null,
-        public ?PaymentInstrument $payment = null,
+        public readonly string $id,
+        public readonly array $lineItems,
+        public readonly ?Buyer $buyer = null,
+        public readonly array $discounts = [],
+        public readonly ?FulfillmentSelection $fulfillment = null,
+        public readonly ?BuyerConsent $consent = null,
+        public readonly ?PaymentInstrument $payment = null,
     ) {
     }
 }

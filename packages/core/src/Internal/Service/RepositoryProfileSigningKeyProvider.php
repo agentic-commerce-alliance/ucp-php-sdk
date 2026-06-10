@@ -11,15 +11,15 @@ use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 /** @internal */
-final readonly class RepositoryProfileSigningKeyProvider implements ProfileSigningKeyProviderInterface
+final class RepositoryProfileSigningKeyProvider implements ProfileSigningKeyProviderInterface
 {
     public function __construct(
-        private ManagedSigningKeyRepositoryInterface $repository,
-        private SigningKeyManagerInterface $signingKeyManager,
-        private bool $autoGenerate = false,
-        private string $defaultKid = 'default',
-        private string $defaultAlgorithm = 'ES256',
-        private ?string $retireAfter = null,
+        private readonly ManagedSigningKeyRepositoryInterface $repository,
+        private readonly SigningKeyManagerInterface $signingKeyManager,
+        private readonly bool $autoGenerate = false,
+        private readonly string $defaultKid = 'default',
+        private readonly string $defaultAlgorithm = 'ES256',
+        private readonly ?string $retireAfter = null,
     ) {
     }
 

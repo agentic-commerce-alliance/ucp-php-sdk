@@ -14,11 +14,11 @@ use Ucp\Sdk\Model\RequestContext;
  * and a separate capability descriptor. Projects may implement OrderCapabilityInterface
  * directly instead.
  */
-final readonly class AdapterBackedOrderCapability implements OrderCapabilityInterface
+final class AdapterBackedOrderCapability implements OrderCapabilityInterface
 {
     public function __construct(
-        private CapabilityDescriptor $descriptor,
-        private OrderAdapterInterface $adapter,
+        private readonly CapabilityDescriptor $descriptor,
+        private readonly OrderAdapterInterface $adapter,
     ) {
     }
 

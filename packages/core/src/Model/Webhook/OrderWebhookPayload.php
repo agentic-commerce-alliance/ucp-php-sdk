@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Webhook;
 
-final readonly class OrderWebhookPayload
+final class OrderWebhookPayload
 {
     /**
      * @param array<string, mixed> $payload
      */
     public function __construct(
-        public string $event,
-        public string $orderId,
-        public array $payload = [],
+        public readonly string $event,
+        public readonly string $orderId,
+        public readonly array $payload = [],
     ) {
     }
 

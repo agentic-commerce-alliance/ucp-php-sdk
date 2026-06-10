@@ -7,7 +7,7 @@ namespace Ucp\Sdk\Internal\Security;
 use Ucp\Sdk\Service\DeterministicJsonInterface;
 
 /** @internal */
-final readonly class DefaultJsonCanonicalization implements DeterministicJsonInterface
+final class DefaultJsonCanonicalization implements DeterministicJsonInterface
 {
     public function canonicalize(array $payload): string
     {

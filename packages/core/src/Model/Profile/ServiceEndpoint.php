@@ -6,14 +6,14 @@ namespace Ucp\Sdk\Model\Profile;
 
 use Ucp\Sdk\Enum\Transport;
 
-final readonly class ServiceEndpoint
+final class ServiceEndpoint
 {
     public function __construct(
-        public Transport $transport,
-        public string $endpoint,
-        public string $version,
-        public string $specUrl,
-        public ?string $schemaUrl = null,
+        public readonly Transport $transport,
+        public readonly string $endpoint,
+        public readonly string $version,
+        public readonly string $specUrl,
+        public readonly ?string $schemaUrl = null,
     ) {
     }
 

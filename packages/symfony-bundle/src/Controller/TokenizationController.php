@@ -14,13 +14,13 @@ use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 
-final readonly class TokenizationController
+final class TokenizationController
 {
     public function __construct(
-        private CapabilityRegistryInterface $capabilityRegistry,
-        private ProtocolValidatorInterface $protocolValidator,
-        private HttpPayloadMapper $payloadMapper,
-        private UcpResponseFactory $responseFactory,
+        private readonly CapabilityRegistryInterface $capabilityRegistry,
+        private readonly ProtocolValidatorInterface $protocolValidator,
+        private readonly HttpPayloadMapper $payloadMapper,
+        private readonly UcpResponseFactory $responseFactory,
     ) {
     }
 

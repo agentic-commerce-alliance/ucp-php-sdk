@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Identity;
 
-final readonly class OAuthMetadata
+final class OAuthMetadata
 {
     /**
      * @param list<string> $scopesSupported
@@ -12,12 +12,12 @@ final readonly class OAuthMetadata
      * @param list<string> $tokenEndpointAuthMethodsSupported
      */
     public function __construct(
-        public string $issuer,
-        public string $authorizationEndpoint,
-        public string $tokenEndpoint,
-        public array $scopesSupported = [],
-        public array $grantTypesSupported = ['authorization_code', 'refresh_token'],
-        public array $tokenEndpointAuthMethodsSupported = ['client_secret_post', 'private_key_jwt'],
+        public readonly string $issuer,
+        public readonly string $authorizationEndpoint,
+        public readonly string $tokenEndpoint,
+        public readonly array $scopesSupported = [],
+        public readonly array $grantTypesSupported = ['authorization_code', 'refresh_token'],
+        public readonly array $tokenEndpointAuthMethodsSupported = ['client_secret_post', 'private_key_jwt'],
     ) {
     }
 

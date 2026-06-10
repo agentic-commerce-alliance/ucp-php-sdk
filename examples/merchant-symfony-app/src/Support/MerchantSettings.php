@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace MerchantSymfonyApp\Support;
 
-final readonly class MerchantSettings
+final class MerchantSettings
 {
     public function __construct(
-        public string $baseUri,
-        public string $brandName,
-        public string $currency,
-        public string $country,
-        public string $defaultWebhookTarget,
+        public readonly string $baseUri,
+        public readonly string $brandName,
+        public readonly string $currency,
+        public readonly string $country,
+        public readonly string $defaultWebhookTarget,
     ) {
     }
 

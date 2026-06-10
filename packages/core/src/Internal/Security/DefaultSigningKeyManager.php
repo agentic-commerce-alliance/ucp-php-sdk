@@ -10,7 +10,7 @@ use Ucp\Sdk\Model\Security\PublicSigningKey;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 /** @internal */
-final readonly class DefaultSigningKeyManager implements SigningKeyManagerInterface
+final class DefaultSigningKeyManager implements SigningKeyManagerInterface
 {
     public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
     {

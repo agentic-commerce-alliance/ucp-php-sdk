@@ -14,11 +14,11 @@ use Ucp\Sdk\Model\RequestContext;
  * and a separate capability descriptor. Projects may implement TokenizationCapabilityInterface
  * directly instead.
  */
-final readonly class AdapterBackedTokenizationCapability implements TokenizationCapabilityInterface
+final class AdapterBackedTokenizationCapability implements TokenizationCapabilityInterface
 {
     public function __construct(
-        private CapabilityDescriptor $descriptor,
-        private PaymentAdapterInterface $adapter,
+        private readonly CapabilityDescriptor $descriptor,
+        private readonly PaymentAdapterInterface $adapter,
     ) {
     }
 

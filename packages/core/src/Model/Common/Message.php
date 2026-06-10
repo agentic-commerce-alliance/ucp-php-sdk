@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class Message
+final class Message
 {
     public function __construct(
-        public string $type,
-        public string $content,
-        public ?string $severity = null,
-        public ?string $code = null,
-        public ?string $path = null,
+        public readonly string $type,
+        public readonly string $content,
+        public readonly ?string $severity = null,
+        public readonly ?string $code = null,
+        public readonly ?string $path = null,
     ) {
     }
 

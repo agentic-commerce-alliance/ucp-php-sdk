@@ -7,7 +7,7 @@ namespace Ucp\Sdk\Internal\Security;
 use Ucp\Sdk\Exception\SignatureException;
 
 /** @internal */
-final readonly class ContentDigestService
+final class ContentDigestService
 {
     public function create(string $body): string
     {

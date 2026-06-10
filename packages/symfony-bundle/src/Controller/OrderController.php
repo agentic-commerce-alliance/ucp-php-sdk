@@ -11,11 +11,11 @@ use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 
-final readonly class OrderController
+final class OrderController
 {
     public function __construct(
-        private UcpResponseFactory $responseFactory,
-        private ShoppingOperationExecutor $operationExecutor,
+        private readonly UcpResponseFactory $responseFactory,
+        private readonly ShoppingOperationExecutor $operationExecutor,
     ) {
     }
 

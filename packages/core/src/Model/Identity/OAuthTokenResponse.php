@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Identity;
 
-final readonly class OAuthTokenResponse
+final class OAuthTokenResponse
 {
     public function __construct(
-        public string $accessToken,
-        public string $tokenType = 'Bearer',
-        public int $expiresIn = 3600,
-        public ?string $refreshToken = null,
-        public ?string $scope = null,
+        public readonly string $accessToken,
+        public readonly string $tokenType = 'Bearer',
+        public readonly int $expiresIn = 3600,
+        public readonly ?string $refreshToken = null,
+        public readonly ?string $scope = null,
     ) {
     }
 

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Catalog;
 
-final readonly class CatalogSearchResponse
+final class CatalogSearchResponse
 {
     /**
      * @param list<Product> $items
      */
     public function __construct(
-        public array $items,
-        public ?string $nextCursor = null,
+        public readonly array $items,
+        public readonly ?string $nextCursor = null,
     ) {
     }
 

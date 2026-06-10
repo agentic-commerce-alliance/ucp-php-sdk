@@ -15,11 +15,11 @@ use Ucp\Sdk\Model\RequestContext;
  * and a separate capability descriptor. Projects may implement DiscountCapabilityInterface
  * directly instead.
  */
-final readonly class AdapterBackedDiscountCapability implements DiscountCapabilityInterface
+final class AdapterBackedDiscountCapability implements DiscountCapabilityInterface
 {
     public function __construct(
-        private CapabilityDescriptor $descriptor,
-        private DiscountAdapterInterface $adapter,
+        private readonly CapabilityDescriptor $descriptor,
+        private readonly DiscountAdapterInterface $adapter,
     ) {
     }
 

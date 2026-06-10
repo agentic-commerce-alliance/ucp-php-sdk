@@ -12,12 +12,12 @@ use Symfony\Component\Routing\Attribute\Route;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Service\OrderWebhookPublisherInterface;
 
-final readonly class WebhookDemoController
+final class WebhookDemoController
 {
     public function __construct(
-        private OrderWebhookPublisherInterface $dispatcher,
-        private JsonStateStore $stateStore,
-        private MerchantSettings $settings,
+        private readonly OrderWebhookPublisherInterface $dispatcher,
+        private readonly JsonStateStore $stateStore,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

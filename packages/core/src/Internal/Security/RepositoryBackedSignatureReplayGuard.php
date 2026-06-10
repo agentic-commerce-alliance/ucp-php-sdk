@@ -9,10 +9,10 @@ use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
 
 /** @internal */
-final readonly class RepositoryBackedSignatureReplayGuard implements SignatureReplayGuardInterface
+final class RepositoryBackedSignatureReplayGuard implements SignatureReplayGuardInterface
 {
     public function __construct(
-        private SignatureNonceRepositoryInterface $repository,
+        private readonly SignatureNonceRepositoryInterface $repository,
     ) {
     }
 

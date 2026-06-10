@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Service;
 
 /** @internal */
-final readonly class ValidatedProfileUri
+final class ValidatedProfileUri
 {
     public function __construct(
-        public string $uri,
-        public string $host,
-        public int $port,
-        public ?string $resolvedIp = null,
-        public bool $usesDnsResolution = false,
+        public readonly string $uri,
+        public readonly string $host,
+        public readonly int $port,
+        public readonly ?string $resolvedIp = null,
+        public readonly bool $usesDnsResolution = false,
     ) {
     }
 

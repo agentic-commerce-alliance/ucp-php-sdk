@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Catalog;
 
-final readonly class Product
+final class Product
 {
     /**
      * @param array<string, mixed> $extra
      */
     public function __construct(
-        public string $id,
-        public string $title,
-        public float $price,
-        public ?string $imageUrl = null,
-        public array $extra = [],
+        public readonly string $id,
+        public readonly string $title,
+        public readonly float $price,
+        public readonly ?string $imageUrl = null,
+        public readonly array $extra = [],
     ) {
     }
 

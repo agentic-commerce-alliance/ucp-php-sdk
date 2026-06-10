@@ -17,11 +17,11 @@ use Ucp\Sdk\Model\RequestContext;
  * and a separate capability descriptor. Projects may implement
  * IdentityLinkingCapabilityInterface directly instead.
  */
-final readonly class AdapterBackedIdentityLinkingCapability implements IdentityLinkingCapabilityInterface
+final class AdapterBackedIdentityLinkingCapability implements IdentityLinkingCapabilityInterface
 {
     public function __construct(
-        private CapabilityDescriptor $descriptor,
-        private IdentityLinkingAdapterInterface $adapter,
+        private readonly CapabilityDescriptor $descriptor,
+        private readonly IdentityLinkingAdapterInterface $adapter,
     ) {
     }
 

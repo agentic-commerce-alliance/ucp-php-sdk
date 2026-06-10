@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Checkout;
 
-final readonly class OrderConfirmation
+final class OrderConfirmation
 {
     public function __construct(
-        public string $id,
-        public ?string $permalinkUrl = null,
+        public readonly string $id,
+        public readonly ?string $permalinkUrl = null,
     ) {
     }
 

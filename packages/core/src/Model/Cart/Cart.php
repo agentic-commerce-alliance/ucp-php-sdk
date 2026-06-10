@@ -8,7 +8,7 @@ use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Common\Money;
 
-final readonly class Cart
+final class Cart
 {
     /**
      * @param list<LineItem> $lineItems
@@ -16,11 +16,11 @@ final readonly class Cart
      * @param list<Message> $messages
      */
     public function __construct(
-        public string $id,
-        public array $lineItems,
-        public string $currency,
-        public array $totals = [],
-        public array $messages = [],
+        public readonly string $id,
+        public readonly array $lineItems,
+        public readonly string $currency,
+        public readonly array $totals = [],
+        public readonly array $messages = [],
     ) {
     }
 

@@ -9,10 +9,10 @@ use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
 /** @internal */
-final readonly class StaticRuntimeConfigurationResolver implements RuntimeConfigurationResolverInterface
+final class StaticRuntimeConfigurationResolver implements RuntimeConfigurationResolverInterface
 {
     public function __construct(
-        private RuntimeConfiguration $configuration,
+        private readonly RuntimeConfiguration $configuration,
     ) {
     }
 

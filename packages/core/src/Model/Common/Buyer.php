@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class Buyer
+final class Buyer
 {
     public function __construct(
-        public ?string $email = null,
-        public ?string $firstName = null,
-        public ?string $lastName = null,
-        public ?string $phoneNumber = null,
+        public readonly ?string $email = null,
+        public readonly ?string $firstName = null,
+        public readonly ?string $lastName = null,
+        public readonly ?string $phoneNumber = null,
     ) {
     }
 

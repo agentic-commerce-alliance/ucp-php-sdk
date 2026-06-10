@@ -19,18 +19,18 @@ use Ucp\Sdk\Service\OrderWebhookPublisherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 
 /** @internal */
-final readonly class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterface
+final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterface
 {
     /**
      * @param iterable<OrderWebhookEnricherInterface> $enrichers
      */
     public function __construct(
-        private ManagedSigningKeyRepositoryInterface $signingKeyRepository,
-        private RequestSignatureServiceInterface $requestSignatureService,
-        private HttpClientInterface $httpClient,
-        private iterable $enrichers,
-        private EventDispatcherInterface $eventDispatcher,
-        private int $timeoutSeconds = 10,
+        private readonly ManagedSigningKeyRepositoryInterface $signingKeyRepository,
+        private readonly RequestSignatureServiceInterface $requestSignatureService,
+        private readonly HttpClientInterface $httpClient,
+        private readonly iterable $enrichers,
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly int $timeoutSeconds = 10,
     ) {
     }
 

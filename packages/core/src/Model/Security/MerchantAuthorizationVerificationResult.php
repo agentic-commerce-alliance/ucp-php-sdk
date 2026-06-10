@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Security;
 
-final readonly class MerchantAuthorizationVerificationResult
+final class MerchantAuthorizationVerificationResult
 {
     /**
      * @param array<string, mixed> $claims
      */
     public function __construct(
-        public bool $verified,
-        public ?string $issuer = null,
-        public ?string $algorithm = null,
-        public array $claims = [],
-        public ?string $failureReason = null,
+        public readonly bool $verified,
+        public readonly ?string $issuer = null,
+        public readonly ?string $algorithm = null,
+        public readonly array $claims = [],
+        public readonly ?string $failureReason = null,
     ) {
     }
 }

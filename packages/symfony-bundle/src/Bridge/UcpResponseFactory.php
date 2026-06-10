@@ -7,10 +7,10 @@ namespace Ucp\Sdk\Symfony\Bridge;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
-final readonly class UcpResponseFactory
+final class UcpResponseFactory
 {
     public function __construct(
-        private UcpSdkConfiguration $configuration,
+        private readonly UcpSdkConfiguration $configuration,
     ) {
     }
 

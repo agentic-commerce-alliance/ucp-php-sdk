@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Security;
 
-final readonly class PublicSigningKey
+final class PublicSigningKey
 {
     /**
      * @param array<string, string> $jwk
      */
     public function __construct(
-        public string $kid,
-        public string $algorithm = 'ES256',
-        public string $keyType = 'EC',
-        public string $use = 'sig',
-        public ?string $curve = null,
-        public ?string $x = null,
-        public ?string $y = null,
-        public ?string $publicKeyPem = null,
-        public array $jwk = [],
+        public readonly string $kid,
+        public readonly string $algorithm = 'ES256',
+        public readonly string $keyType = 'EC',
+        public readonly string $use = 'sig',
+        public readonly ?string $curve = null,
+        public readonly ?string $x = null,
+        public readonly ?string $y = null,
+        public readonly ?string $publicKeyPem = null,
+        public readonly array $jwk = [],
     ) {
     }
 

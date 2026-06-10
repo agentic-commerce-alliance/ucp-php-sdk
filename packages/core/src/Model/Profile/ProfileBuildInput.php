@@ -6,7 +6,7 @@ namespace Ucp\Sdk\Model\Profile;
 
 use Ucp\Sdk\Enum\Transport;
 
-final readonly class ProfileBuildInput
+final class ProfileBuildInput
 {
     /**
      * @param list<Transport> $transports
@@ -14,12 +14,12 @@ final readonly class ProfileBuildInput
      * @param array<string, string> $transportEndpoints
      */
     public function __construct(
-        public string $version,
-        public string $baseUri,
-        public array $transports = [Transport::Rest],
-        public array $supportedVersions = [],
-        public array $transportEndpoints = [],
-        public ?string $tenantIdentifier = null,
+        public readonly string $version,
+        public readonly string $baseUri,
+        public readonly array $transports = [Transport::Rest],
+        public readonly array $supportedVersions = [],
+        public readonly array $transportEndpoints = [],
+        public readonly ?string $tenantIdentifier = null,
     ) {
     }
 }

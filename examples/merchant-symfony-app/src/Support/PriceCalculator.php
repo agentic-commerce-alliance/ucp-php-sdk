@@ -9,11 +9,11 @@ use Ucp\Sdk\Model\Checkout\FulfillmentSelection;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Money;
 
-final readonly class PriceCalculator
+final class PriceCalculator
 {
     public function __construct(
-        private ProductCatalog $catalog,
-        private MerchantSettings $settings,
+        private readonly ProductCatalog $catalog,
+        private readonly MerchantSettings $settings,
     ) {
     }
 
