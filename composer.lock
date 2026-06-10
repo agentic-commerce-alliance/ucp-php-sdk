@@ -368,10 +368,10 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "f795faea5f2674752f5ba318445628fe3a2ad90a"
+                "reference": "d261829aacdacf9e2d86f5561a40074d26f08949"
             },
             "require": {
-                "php": "^8.2",
+                "php": "^8.1",
                 "symfony/event-dispatcher-contracts": "^3.0",
                 "symfony/http-client": "^6.4 || ^7.0",
                 "symfony/http-foundation": "^6.4 || ^7.0"
@@ -2410,11 +2410,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/symfony-bundle",
-                "reference": "25e7571a95373d9aed8659acaa564b0cf744f933"
+                "reference": "2a1ebc1b90ce308ae273ccf758655e8cca1cf964"
             },
             "require": {
                 "doctrine/dbal": "^3.7 || ^4.0",
-                "php": "^8.2",
+                "php": "^8.1",
                 "shopware/ucp-php-sdk-core": "^0.0.1@alpha",
                 "symfony/config": "^6.4 || ^7.0",
                 "symfony/dependency-injection": "^6.4 || ^7.0",
