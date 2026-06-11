@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class Signals
+final class Signals
 {
     /**
      * @param array<string, scalar|null> $values
      */
     public function __construct(
-        public array $values = [],
+        public readonly array $values = [],
     ) {
     }
 

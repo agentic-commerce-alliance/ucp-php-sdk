@@ -9,11 +9,11 @@ use Ucp\Sdk\Model\IdempotencyRecord;
 use Ucp\Sdk\Service\IdempotencyServiceInterface;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
-final readonly class IdempotencyResponseListener
+final class IdempotencyResponseListener
 {
     public function __construct(
-        private IdempotencyServiceInterface $idempotencyService,
-        private UcpSdkConfiguration $configuration,
+        private readonly IdempotencyServiceInterface $idempotencyService,
+        private readonly UcpSdkConfiguration $configuration,
     ) {
     }
 

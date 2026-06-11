@@ -17,11 +17,11 @@ use Ucp\Sdk\Model\RequestContext;
  * and a separate capability descriptor. Projects may implement CatalogCapabilityInterface
  * directly instead.
  */
-final readonly class AdapterBackedCatalogCapability implements CatalogCapabilityInterface
+final class AdapterBackedCatalogCapability implements CatalogCapabilityInterface
 {
     public function __construct(
-        private CapabilityDescriptor $descriptor,
-        private CatalogAdapterInterface $adapter,
+        private readonly CapabilityDescriptor $descriptor,
+        private readonly CatalogAdapterInterface $adapter,
     ) {
     }
 

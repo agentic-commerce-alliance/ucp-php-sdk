@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace MerchantSymfonyApp\Support;
 
-final readonly class JsonStateStore
+final class JsonStateStore
 {
     public function __construct(
-        private string $projectDir,
+        private readonly string $projectDir,
     ) {
     }
 

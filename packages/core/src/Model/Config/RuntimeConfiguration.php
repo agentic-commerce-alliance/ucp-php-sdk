@@ -7,7 +7,7 @@ namespace Ucp\Sdk\Model\Config;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 
-final readonly class RuntimeConfiguration
+final class RuntimeConfiguration
 {
     /**
      * @param list<string> $allowedProfileHosts
@@ -18,17 +18,17 @@ final readonly class RuntimeConfiguration
      * @param array<string, string> $transportEndpoints
      */
     public function __construct(
-        public string $version,
-        public string $baseUri,
-        public SignaturePolicy $signaturePolicy = SignaturePolicy::Log,
-        public bool $idempotencyRequired = false,
-        public array $allowedProfileHosts = [],
-        public array $allowedAgentDomains = [],
-        public array $supportedVersions = [],
-        public array $transports = [Transport::Rest],
-        public array $enabledCapabilities = [],
-        public ?string $tenantIdentifier = null,
-        public array $transportEndpoints = [],
+        public readonly string $version,
+        public readonly string $baseUri,
+        public readonly SignaturePolicy $signaturePolicy = SignaturePolicy::Log,
+        public readonly bool $idempotencyRequired = false,
+        public readonly array $allowedProfileHosts = [],
+        public readonly array $allowedAgentDomains = [],
+        public readonly array $supportedVersions = [],
+        public readonly array $transports = [Transport::Rest],
+        public readonly array $enabledCapabilities = [],
+        public readonly ?string $tenantIdentifier = null,
+        public readonly array $transportEndpoints = [],
     ) {
     }
 }

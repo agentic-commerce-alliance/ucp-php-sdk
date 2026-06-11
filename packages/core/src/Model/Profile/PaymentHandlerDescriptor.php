@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Profile;
 
-final readonly class PaymentHandlerDescriptor
+final class PaymentHandlerDescriptor
 {
     /**
      * @param list<string> $instrumentSchemas
      * @param array<string, mixed> $config
      */
     public function __construct(
-        public string $id,
-        public string $name,
-        public string $version,
-        public string $specUrl,
-        public string $configSchema,
-        public array $instrumentSchemas,
-        public array $config = [],
+        public readonly string $id,
+        public readonly string $name,
+        public readonly string $version,
+        public readonly string $specUrl,
+        public readonly string $configSchema,
+        public readonly array $instrumentSchemas,
+        public readonly array $config = [],
     ) {
     }
 

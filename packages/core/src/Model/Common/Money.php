@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class Money
+final class Money
 {
     public function __construct(
-        public string $type,
-        public float $amount,
-        public ?string $displayText = null,
+        public readonly string $type,
+        public readonly float $amount,
+        public readonly ?string $displayText = null,
     ) {
     }
 

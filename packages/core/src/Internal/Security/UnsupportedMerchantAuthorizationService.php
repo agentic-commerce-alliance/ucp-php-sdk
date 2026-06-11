@@ -10,7 +10,7 @@ use Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
 
 /** @internal */
-final readonly class UnsupportedMerchantAuthorizationService implements MerchantAuthorizationServiceInterface
+final class UnsupportedMerchantAuthorizationService implements MerchantAuthorizationServiceInterface
 {
     public function verify(HttpRequest $request, array $keys, RequestContext $context): MerchantAuthorizationVerificationResult
     {

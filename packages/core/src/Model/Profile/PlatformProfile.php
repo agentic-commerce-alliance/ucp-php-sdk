@@ -6,7 +6,7 @@ namespace Ucp\Sdk\Model\Profile;
 
 use Ucp\Sdk\Model\Security\PublicSigningKey;
 
-final readonly class PlatformProfile
+final class PlatformProfile
 {
     /**
      * @param array<string, list<ServiceEndpoint>> $services
@@ -16,12 +16,12 @@ final readonly class PlatformProfile
      * @param array<string, string> $supportedVersions
      */
     public function __construct(
-        public string $version,
-        public array $services,
-        public array $capabilities,
-        public array $paymentHandlers,
-        public array $signingKeys = [],
-        public array $supportedVersions = [],
+        public readonly string $version,
+        public readonly array $services,
+        public readonly array $capabilities,
+        public readonly array $paymentHandlers,
+        public readonly array $signingKeys = [],
+        public readonly array $supportedVersions = [],
     ) {
     }
 

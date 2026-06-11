@@ -11,17 +11,17 @@ use Ucp\Sdk\Repository\OAuthStateRepositoryInterface;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
 
-final readonly class StorageCleanupService
+final class StorageCleanupService
 {
     public function __construct(
-        private OAuthStateRepositoryInterface $oauthStateRepository,
-        private IdempotencyRepositoryInterface $idempotencyRepository,
-        private NegotiationSessionRepositoryInterface $negotiationSessionRepository,
-        private PlatformProfileCacheRepositoryInterface $platformProfileCacheRepository,
-        private SignatureNonceRepositoryInterface $signatureNonceRepository,
-        private ManagedSigningKeyRepositoryInterface $managedSigningKeyRepository,
-        private int $signatureNonceRetentionSeconds,
-        private string $retiredKeyRetention,
+        private readonly OAuthStateRepositoryInterface $oauthStateRepository,
+        private readonly IdempotencyRepositoryInterface $idempotencyRepository,
+        private readonly NegotiationSessionRepositoryInterface $negotiationSessionRepository,
+        private readonly PlatformProfileCacheRepositoryInterface $platformProfileCacheRepository,
+        private readonly SignatureNonceRepositoryInterface $signatureNonceRepository,
+        private readonly ManagedSigningKeyRepositoryInterface $managedSigningKeyRepository,
+        private readonly int $signatureNonceRetentionSeconds,
+        private readonly string $retiredKeyRetention,
     ) {
     }
 

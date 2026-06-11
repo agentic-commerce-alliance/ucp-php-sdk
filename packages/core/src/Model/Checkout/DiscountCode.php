@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Checkout;
 
-final readonly class DiscountCode
+final class DiscountCode
 {
     public function __construct(
-        public string $code,
+        public readonly string $code,
     ) {
     }
 }

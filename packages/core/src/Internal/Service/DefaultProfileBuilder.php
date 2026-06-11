@@ -17,18 +17,18 @@ use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 
 /** @internal */
-final readonly class DefaultProfileBuilder implements ProfileBuilderInterface
+final class DefaultProfileBuilder implements ProfileBuilderInterface
 {
     /**
      * @param iterable<ProfileContributorInterface> $contributors
      * @param iterable<ProfileSigningKeyProviderInterface> $signingKeyProviders
      */
     public function __construct(
-        private CapabilityRegistryInterface $capabilityRegistry,
-        private PaymentHandlerRegistryInterface $paymentHandlerRegistry,
-        private iterable $contributors,
-        private iterable $signingKeyProviders,
-        private EventDispatcherInterface $eventDispatcher,
+        private readonly CapabilityRegistryInterface $capabilityRegistry,
+        private readonly PaymentHandlerRegistryInterface $paymentHandlerRegistry,
+        private readonly iterable $contributors,
+        private readonly iterable $signingKeyProviders,
+        private readonly EventDispatcherInterface $eventDispatcher,
     ) {
     }
 

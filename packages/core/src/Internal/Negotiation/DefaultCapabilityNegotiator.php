@@ -21,11 +21,11 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 
 /** @internal */
-final readonly class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
+final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
 {
     public function __construct(
-        private CapabilityRegistryInterface $capabilityRegistry,
-        private PaymentHandlerRegistryInterface $paymentHandlerRegistry,
+        private readonly CapabilityRegistryInterface $capabilityRegistry,
+        private readonly PaymentHandlerRegistryInterface $paymentHandlerRegistry,
     ) {
     }
 

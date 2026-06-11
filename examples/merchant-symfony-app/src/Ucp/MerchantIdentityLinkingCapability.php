@@ -16,11 +16,11 @@ use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Repository\OAuthStateRepositoryInterface;
 
-final readonly class MerchantIdentityLinkingCapability implements IdentityLinkingCapabilityInterface
+final class MerchantIdentityLinkingCapability implements IdentityLinkingCapabilityInterface
 {
     public function __construct(
-        private OAuthStateRepositoryInterface $oauthStateRepository,
-        private MerchantSettings $settings,
+        private readonly OAuthStateRepositoryInterface $oauthStateRepository,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

@@ -13,12 +13,12 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 
-final readonly class OAuthController
+final class OAuthController
 {
     public function __construct(
-        private CapabilityRegistryInterface $capabilityRegistry,
-        private HttpPayloadMapper $payloadMapper,
-        private UcpResponseFactory $responseFactory,
+        private readonly CapabilityRegistryInterface $capabilityRegistry,
+        private readonly HttpPayloadMapper $payloadMapper,
+        private readonly UcpResponseFactory $responseFactory,
     ) {
     }
 

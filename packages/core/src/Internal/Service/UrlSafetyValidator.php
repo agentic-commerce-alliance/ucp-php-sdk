@@ -7,7 +7,7 @@ namespace Ucp\Sdk\Internal\Service;
 use Ucp\Sdk\Exception\ValidationException;
 
 /** @internal */
-final readonly class UrlSafetyValidator
+final class UrlSafetyValidator
 {
     /** @var list<int> */
     private const REMOTE_ALLOWED_PORTS = [443, 8443];
@@ -23,8 +23,8 @@ final readonly class UrlSafetyValidator
      * @param list<string> $allowedHosts
      */
     public function __construct(
-        private array $allowedHosts = [],
-        private ?\Closure $dnsResolver = null,
+        private readonly array $allowedHosts = [],
+        private readonly ?\Closure $dnsResolver = null,
     ) {
     }
 

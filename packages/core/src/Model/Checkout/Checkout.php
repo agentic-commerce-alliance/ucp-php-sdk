@@ -11,7 +11,7 @@ use Ucp\Sdk\Model\Common\Link;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Common\Money;
 
-final readonly class Checkout
+final class Checkout
 {
     /**
      * @param list<LineItem> $lineItems
@@ -21,18 +21,18 @@ final readonly class Checkout
      * @param array<string, mixed> $extra
      */
     public function __construct(
-        public string $id,
-        public CheckoutStatus $status,
-        public string $currency,
-        public array $lineItems,
-        public array $totals,
-        public array $messages = [],
-        public array $links = [],
-        public ?Buyer $buyer = null,
-        public ?string $continueUrl = null,
-        public ?string $expiresAt = null,
-        public ?OrderConfirmation $order = null,
-        public array $extra = [],
+        public readonly string $id,
+        public readonly CheckoutStatus $status,
+        public readonly string $currency,
+        public readonly array $lineItems,
+        public readonly array $totals,
+        public readonly array $messages = [],
+        public readonly array $links = [],
+        public readonly ?Buyer $buyer = null,
+        public readonly ?string $continueUrl = null,
+        public readonly ?string $expiresAt = null,
+        public readonly ?OrderConfirmation $order = null,
+        public readonly array $extra = [],
     ) {
     }
 

@@ -11,14 +11,14 @@ use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 
 /** @internal */
-final readonly class HttpAgentProfileFetcher implements AgentProfileFetcherInterface
+final class HttpAgentProfileFetcher implements AgentProfileFetcherInterface
 {
     public function __construct(
-        private HttpClientInterface $httpClient,
-        private PlatformProfileCacheRepositoryInterface $cacheRepository,
-        private UrlSafetyValidator $urlSafetyValidator,
-        private int $timeoutSeconds = 5,
-        private int $maxResponseBytes = 1048576,
+        private readonly HttpClientInterface $httpClient,
+        private readonly PlatformProfileCacheRepositoryInterface $cacheRepository,
+        private readonly UrlSafetyValidator $urlSafetyValidator,
+        private readonly int $timeoutSeconds = 5,
+        private readonly int $maxResponseBytes = 1048576,
     ) {
     }
 

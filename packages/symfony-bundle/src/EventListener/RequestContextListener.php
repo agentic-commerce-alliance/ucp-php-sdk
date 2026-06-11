@@ -15,13 +15,13 @@ use Ucp\Sdk\Service\IdempotencyServiceInterface;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
-final readonly class RequestContextListener
+final class RequestContextListener
 {
     public function __construct(
-        private HttpRequestContextFactoryInterface $requestContextFactory,
-        private IdempotencyServiceInterface $idempotencyService,
-        private UcpResponseFactory $responseFactory,
-        private UcpSdkConfiguration $configuration,
+        private readonly HttpRequestContextFactoryInterface $requestContextFactory,
+        private readonly IdempotencyServiceInterface $idempotencyService,
+        private readonly UcpResponseFactory $responseFactory,
+        private readonly UcpSdkConfiguration $configuration,
     ) {
     }
 

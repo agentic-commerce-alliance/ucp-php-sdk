@@ -9,10 +9,10 @@ use Ucp\Sdk\Contract\OrderWebhookEnricherInterface;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 
-final readonly class MerchantOrderWebhookEnricher implements OrderWebhookEnricherInterface
+final class MerchantOrderWebhookEnricher implements OrderWebhookEnricherInterface
 {
     public function __construct(
-        private MerchantSettings $settings,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

@@ -10,10 +10,10 @@ use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Service\IdempotencyServiceInterface;
 
 /** @internal */
-final readonly class DefaultIdempotencyService implements IdempotencyServiceInterface
+final class DefaultIdempotencyService implements IdempotencyServiceInterface
 {
     public function __construct(
-        private IdempotencyRepositoryInterface $repository,
+        private readonly IdempotencyRepositoryInterface $repository,
     ) {
     }
 

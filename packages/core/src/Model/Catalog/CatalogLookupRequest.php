@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Catalog;
 
-final readonly class CatalogLookupRequest
+final class CatalogLookupRequest
 {
     /**
      * @param list<string> $ids
      */
     public function __construct(
-        public array $ids,
+        public readonly array $ids,
     ) {
     }
 }

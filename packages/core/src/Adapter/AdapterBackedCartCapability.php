@@ -16,11 +16,11 @@ use Ucp\Sdk\Model\RequestContext;
  * and a separate capability descriptor. Projects may implement CartCapabilityInterface
  * directly instead.
  */
-final readonly class AdapterBackedCartCapability implements CartCapabilityInterface
+final class AdapterBackedCartCapability implements CartCapabilityInterface
 {
     public function __construct(
-        private CapabilityDescriptor $descriptor,
-        private CartAdapterInterface $adapter,
+        private readonly CapabilityDescriptor $descriptor,
+        private readonly CartAdapterInterface $adapter,
     ) {
     }
 

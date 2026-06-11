@@ -10,7 +10,7 @@ use Ucp\Sdk\Model\Common\Link;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Common\Money;
 
-final readonly class OrderView
+final class OrderView
 {
     /**
      * @param list<LineItem> $lineItems
@@ -20,15 +20,15 @@ final readonly class OrderView
      * @param array<string, mixed> $extra
      */
     public function __construct(
-        public string $id,
-        public string $currency,
-        public array $lineItems,
-        public array $totals,
-        public array $messages = [],
-        public array $links = [],
-        public ?Buyer $buyer = null,
-        public ?string $createdAt = null,
-        public array $extra = [],
+        public readonly string $id,
+        public readonly string $currency,
+        public readonly array $lineItems,
+        public readonly array $totals,
+        public readonly array $messages = [],
+        public readonly array $links = [],
+        public readonly ?Buyer $buyer = null,
+        public readonly ?string $createdAt = null,
+        public readonly array $extra = [],
     ) {
     }
 

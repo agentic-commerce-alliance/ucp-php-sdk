@@ -18,15 +18,15 @@ use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
 /** @internal */
-final readonly class DefaultHttpRequestContextFactory implements HttpRequestContextFactoryInterface
+final class DefaultHttpRequestContextFactory implements HttpRequestContextFactoryInterface
 {
     public function __construct(
-        private RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
-        private AgentProfileFetcherInterface $agentProfileFetcher,
-        private RequestSignatureServiceInterface $requestSignatureService,
-        private CapabilityNegotiatorInterface $capabilityNegotiator,
-        private ?NegotiationSessionRepositoryInterface $negotiationSessionRepository = null,
-        private ?MerchantAuthorizationServiceInterface $merchantAuthorizationService = null,
+        private readonly RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
+        private readonly AgentProfileFetcherInterface $agentProfileFetcher,
+        private readonly RequestSignatureServiceInterface $requestSignatureService,
+        private readonly CapabilityNegotiatorInterface $capabilityNegotiator,
+        private readonly ?NegotiationSessionRepositoryInterface $negotiationSessionRepository = null,
+        private readonly ?MerchantAuthorizationServiceInterface $merchantAuthorizationService = null,
     ) {
     }
 

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Checkout;
 
-final readonly class BuyerConsent
+final class BuyerConsent
 {
     public function __construct(
-        public bool $granted,
-        public ?string $timestamp = null,
+        public readonly bool $granted,
+        public readonly ?string $timestamp = null,
     ) {
     }
 }

@@ -23,7 +23,7 @@ use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
-final readonly class A2aController
+final class A2aController
 {
     private const SUPPORTED_METHODS = [
         'catalog.search' => true,
@@ -43,11 +43,11 @@ final readonly class A2aController
     ];
 
     public function __construct(
-        private HttpPayloadMapper $payloadMapper,
-        private ProfileBuilderInterface $profileBuilder,
-        private RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
-        private UcpSdkConfiguration $configuration,
-        private ShoppingOperationExecutor $operationExecutor,
+        private readonly HttpPayloadMapper $payloadMapper,
+        private readonly ProfileBuilderInterface $profileBuilder,
+        private readonly RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
+        private readonly UcpSdkConfiguration $configuration,
+        private readonly ShoppingOperationExecutor $operationExecutor,
     ) {
     }
 

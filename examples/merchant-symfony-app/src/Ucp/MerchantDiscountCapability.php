@@ -15,15 +15,15 @@ use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
-final readonly class MerchantDiscountCapability implements DiscountCapabilityInterface
+final class MerchantDiscountCapability implements DiscountCapabilityInterface
 {
     private const COLLECTION = 'merchant_carts';
 
     public function __construct(
-        private JsonStateStore $stateStore,
-        private PriceCalculator $priceCalculator,
-        private UcpModelFactory $modelFactory,
-        private MerchantSettings $settings,
+        private readonly JsonStateStore $stateStore,
+        private readonly PriceCalculator $priceCalculator,
+        private readonly UcpModelFactory $modelFactory,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

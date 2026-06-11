@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\Bridge\DefaultStorage;
 
-final readonly class DefaultPrivateKeyEncryptor implements SecretEncryptorInterface
+final class DefaultPrivateKeyEncryptor implements SecretEncryptorInterface
 {
     private const VERSION = "\x01";
     private const SALT_LENGTH = 16;
@@ -13,7 +13,7 @@ final readonly class DefaultPrivateKeyEncryptor implements SecretEncryptorInterf
     private const MIN_PAYLOAD_LENGTH = 46;
 
     public function __construct(
-        private string $secret,
+        private readonly string $secret,
     ) {
     }
 

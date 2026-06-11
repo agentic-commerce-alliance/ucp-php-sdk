@@ -9,10 +9,10 @@ use Ucp\Sdk\Contract\CheckoutResponseAugmenterInterface;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\RequestContext;
 
-final readonly class MerchantCheckoutResponseAugmenter implements CheckoutResponseAugmenterInterface
+final class MerchantCheckoutResponseAugmenter implements CheckoutResponseAugmenterInterface
 {
     public function __construct(
-        private MerchantSettings $settings,
+        private readonly MerchantSettings $settings,
     ) {
     }
 

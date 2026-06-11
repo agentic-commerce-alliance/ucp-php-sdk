@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Identity;
 
-final readonly class OAuthTokenRequest
+final class OAuthTokenRequest
 {
     public function __construct(
-        public string $grantType,
-        public ?string $code = null,
-        public ?string $refreshToken = null,
-        public ?string $clientId = null,
-        public ?string $clientSecret = null,
-        public ?string $codeVerifier = null,
-        public ?string $redirectUri = null,
+        public readonly string $grantType,
+        public readonly ?string $code = null,
+        public readonly ?string $refreshToken = null,
+        public readonly ?string $clientId = null,
+        public readonly ?string $clientSecret = null,
+        public readonly ?string $codeVerifier = null,
+        public readonly ?string $redirectUri = null,
     ) {
     }
 }

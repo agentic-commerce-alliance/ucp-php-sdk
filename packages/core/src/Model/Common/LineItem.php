@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class LineItem
+final class LineItem
 {
     /**
      * @param array<string, mixed> $extra
      */
     public function __construct(
-        public string $id,
-        public string $title,
-        public float $price,
-        public int $quantity = 1,
-        public ?string $imageUrl = null,
-        public array $extra = [],
+        public readonly string $id,
+        public readonly string $title,
+        public readonly float $price,
+        public readonly int $quantity = 1,
+        public readonly ?string $imageUrl = null,
+        public readonly array $extra = [],
     ) {
     }
 

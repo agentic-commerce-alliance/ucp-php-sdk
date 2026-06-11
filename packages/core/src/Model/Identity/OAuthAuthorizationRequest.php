@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Identity;
 
-final readonly class OAuthAuthorizationRequest
+final class OAuthAuthorizationRequest
 {
     public function __construct(
-        public string $clientId,
-        public string $redirectUri,
-        public string $scope,
-        public string $state,
-        public ?string $codeChallenge = null,
-        public ?string $codeChallengeMethod = null,
+        public readonly string $clientId,
+        public readonly string $redirectUri,
+        public readonly string $scope,
+        public readonly string $state,
+        public readonly ?string $codeChallenge = null,
+        public readonly ?string $codeChallengeMethod = null,
     ) {
     }
 }

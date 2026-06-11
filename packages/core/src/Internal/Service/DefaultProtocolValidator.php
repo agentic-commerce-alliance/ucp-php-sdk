@@ -9,10 +9,10 @@ use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Service\SchemaValidatorInterface;
 
 /** @internal */
-final readonly class DefaultProtocolValidator implements ProtocolValidatorInterface
+final class DefaultProtocolValidator implements ProtocolValidatorInterface
 {
     public function __construct(
-        private SchemaValidatorInterface $schemaValidator,
+        private readonly SchemaValidatorInterface $schemaValidator,
     ) {
     }
 

@@ -25,7 +25,7 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
-final readonly class ShoppingOperationExecutor
+final class ShoppingOperationExecutor
 {
     /**
      * @param iterable<CheckoutRequestValidatorInterface> $requestValidators
@@ -33,13 +33,13 @@ final readonly class ShoppingOperationExecutor
      * @param iterable<PaymentMandateVerifierInterface> $mandateVerifiers
      */
     public function __construct(
-        private CapabilityRegistryInterface $capabilityRegistry,
-        private ProtocolValidatorInterface $protocolValidator,
-        private HttpPayloadMapper $payloadMapper,
-        private iterable $requestValidators,
-        private iterable $responseAugmenters,
-        private iterable $mandateVerifiers,
-        private EventDispatcherInterface $eventDispatcher,
+        private readonly CapabilityRegistryInterface $capabilityRegistry,
+        private readonly ProtocolValidatorInterface $protocolValidator,
+        private readonly HttpPayloadMapper $payloadMapper,
+        private readonly iterable $requestValidators,
+        private readonly iterable $responseAugmenters,
+        private readonly iterable $mandateVerifiers,
+        private readonly EventDispatcherInterface $eventDispatcher,
     ) {
     }
 

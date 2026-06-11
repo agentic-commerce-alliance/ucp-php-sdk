@@ -12,12 +12,12 @@ use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 
-final readonly class CheckoutController
+final class CheckoutController
 {
     public function __construct(
-        private HttpPayloadMapper $payloadMapper,
-        private UcpResponseFactory $responseFactory,
-        private ShoppingOperationExecutor $operationExecutor,
+        private readonly HttpPayloadMapper $payloadMapper,
+        private readonly UcpResponseFactory $responseFactory,
+        private readonly ShoppingOperationExecutor $operationExecutor,
     ) {
     }
 

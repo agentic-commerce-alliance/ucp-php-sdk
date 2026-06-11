@@ -6,7 +6,7 @@ namespace Ucp\Sdk\Model\Negotiation;
 
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 
-final readonly class NegotiatedCapabilities
+final class NegotiatedCapabilities
 {
     /**
      * @param array<string, list<CapabilityDescriptor>> $capabilities
@@ -14,9 +14,9 @@ final readonly class NegotiatedCapabilities
      * @param array<string, list<string>> $operationCapabilityMap
      */
     public function __construct(
-        public array $capabilities = [],
-        public array $paymentHandlerIds = [],
-        public array $operationCapabilityMap = [],
+        public readonly array $capabilities = [],
+        public readonly array $paymentHandlerIds = [],
+        public readonly array $operationCapabilityMap = [],
     ) {
     }
 

@@ -13,16 +13,16 @@ use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
 
 /** @internal */
-final readonly class Rfc9421RequestSignatureService implements RequestSignatureServiceInterface
+final class Rfc9421RequestSignatureService implements RequestSignatureServiceInterface
 {
     /** @var list<string> */
     private const SUPPORTED_ALGORITHMS = ['ES256', 'ES384'];
     private const DEFAULT_SIGNATURE_LABEL = 'sig';
 
     public function __construct(
-        private ContentDigestService $contentDigestService,
-        private ?SignatureReplayGuardInterface $replayGuard = null,
-        private int $maxLifetimeSeconds = 300,
+        private readonly ContentDigestService $contentDigestService,
+        private readonly ?SignatureReplayGuardInterface $replayGuard = null,
+        private readonly int $maxLifetimeSeconds = 300,
     ) {
     }
 

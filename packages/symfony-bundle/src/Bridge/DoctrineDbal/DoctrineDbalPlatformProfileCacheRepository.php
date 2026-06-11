@@ -9,11 +9,11 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 
-final readonly class DoctrineDbalPlatformProfileCacheRepository implements PlatformProfileCacheRepositoryInterface
+final class DoctrineDbalPlatformProfileCacheRepository implements PlatformProfileCacheRepositoryInterface
 {
     public function __construct(
-        private Connection $connection,
-        private int $ttlSeconds = 600,
+        private readonly Connection $connection,
+        private readonly int $ttlSeconds = 600,
     ) {
     }
 

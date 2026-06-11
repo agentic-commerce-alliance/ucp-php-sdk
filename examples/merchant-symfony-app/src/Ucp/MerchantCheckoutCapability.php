@@ -19,17 +19,17 @@ use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 
-final readonly class MerchantCheckoutCapability implements CheckoutCapabilityInterface
+final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
 {
     private const COLLECTION = 'merchant_checkouts';
     private const CART_COLLECTION = 'merchant_carts';
     private const ORDER_COLLECTION = 'merchant_orders';
 
     public function __construct(
-        private JsonStateStore $stateStore,
-        private PriceCalculator $priceCalculator,
-        private UcpModelFactory $modelFactory,
-        private MerchantSettings $settings,
+        private readonly JsonStateStore $stateStore,
+        private readonly PriceCalculator $priceCalculator,
+        private readonly UcpModelFactory $modelFactory,
+        private readonly MerchantSettings $settings,
     ) {
     }
 
