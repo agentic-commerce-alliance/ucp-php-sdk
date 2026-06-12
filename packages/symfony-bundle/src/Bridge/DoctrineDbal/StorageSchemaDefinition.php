@@ -77,4 +77,30 @@ final class StorageSchemaDefinition
 
         return $schema;
     }
+
+    /**
+     * Names of the tables owned by this definition, unqualified and lower-cased to match
+     * the form schema introspection returns.
+     *
+     * Read straight from {@see createSchema()} so the list always reflects the real table
+     * definitions. The bootstrapper uses it to introspect only SDK tables and leave every
+     * other table — along with whatever column types it uses — out of reflection.
+     *
+     * @return list<string>
+     */
+    public function tableNames(): array
+    {
+        $names = [];
+        foreach ($this->createSchema(new SchemaConfig(), [])->getTables() as $table) {
+            $name = $table->getName();
+            $separatorPosition = strrpos($name, '.');
+            if ($separatorPosition !== false) {
+                $name = substr($name, $separatorPosition + 1);
+            }
+
+            $names[] = strtolower($name);
+        }
+
+        return $names;
+    }
 }

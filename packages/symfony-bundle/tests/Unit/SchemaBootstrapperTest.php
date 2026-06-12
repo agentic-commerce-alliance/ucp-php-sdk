@@ -76,6 +76,24 @@ final class SchemaBootstrapperTest extends TestCase
         self::assertContains('application_table', $this->tableNames($connection));
     }
 
+    #[Test]
+    public function itIgnoresForeignTablesWithColumnTypesThePlatformCannotMap(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        // Foreign table with a column type the platform cannot reflect (e.g. SwagCommercial's
+        // `b2b_employee.status` ENUM). The bootstrapper must skip it, not throw.
+        $connection->executeStatement('CREATE TABLE foreign_plugin_table (id INTEGER PRIMARY KEY, status enum NOT NULL)');
+
+        $bootstrapper = new SchemaBootstrapper($connection);
+        $bootstrapper->ensureSchema();
+
+        self::assertContains('ucp_signing_keys', $this->tableNames($connection));
+        self::assertContains('foreign_plugin_table', $this->tableNames($connection));
+    }
+
     /**
      * @return list<string>
      */
