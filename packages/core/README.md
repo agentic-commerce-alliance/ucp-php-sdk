@@ -39,7 +39,7 @@ $capability = new AdapterBackedOrderCapability(
 );
 ```
 
-This package must stay shop-agnostic. Do not put Shopware, Sylius, or framework entity classes here.
+This package must stay shop-agnostic. Do not put Shopware or other platform entity classes here.
 
 Use `ManagedSigningKey`, `PublicSigningKey`, and `ManagedSigningKeyRepositoryInterface` for signing-key lifecycle work.
 

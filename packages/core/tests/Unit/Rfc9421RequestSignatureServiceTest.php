@@ -11,6 +11,7 @@ use Ucp\Sdk\Internal\Security\ContentDigestService;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Security\Rfc9421RequestSignatureService;
 use Ucp\Sdk\Model\Http\HttpRequest;
+use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
 
@@ -42,6 +43,27 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         self::assertTrue($result->contentDigestVerified);
         self::assertTrue($result->replayChecked);
         self::assertTrue($replayGuard->called);
+    }
+
+    #[Test]
+    public function itVerifiesRequestsWithSigningKeysParsedFromDiscoveryProfileJson(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-profile-round-trip');
+        $profile = new PlatformProfile('2026-04-08', [], [], [], [$manager->toPublicKey($managedKey)]);
+        $profilePayload = json_decode(json_encode($profile->toArray(), \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($profilePayload);
+        $parsedProfile = PlatformProfile::fromArray($profilePayload);
+        $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $created = time();
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+
+        $signedHeaders = $service->sign($request, $managedKey, $created, $created + 120);
+        $verifiedRequest = new HttpRequest($request->method, $request->absoluteUri, $signedHeaders, $request->query, $request->body);
+        $result = $service->verify($verifiedRequest, $parsedProfile->signingKeys);
+
+        self::assertTrue($result->verified, $result->failureReason ?? '');
+        self::assertSame('kid-profile-round-trip', $result->kid);
     }
 
     #[Test]
