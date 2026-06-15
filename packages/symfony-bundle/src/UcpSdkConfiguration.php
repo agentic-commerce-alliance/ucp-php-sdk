@@ -43,6 +43,7 @@ final class UcpSdkConfiguration
         public readonly string $storageDsn,
         public readonly array $transports = [Transport::Rest],
         public readonly array $transportEndpoints = [],
+        public readonly int $webhookMaxResponseBodyBytes = 262144,
         public readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }

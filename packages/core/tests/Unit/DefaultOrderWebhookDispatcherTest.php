@@ -11,12 +11,16 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Ucp\Sdk\Contract\OrderWebhookEnricherInterface;
 use Ucp\Sdk\Exception\UcpException;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
+use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
+use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 
 final class DefaultOrderWebhookDispatcherTest extends TestCase
@@ -91,6 +95,8 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                 },
             ],
             new EventDispatcher(),
+            10,
+            self::safeWebhookUrlValidator(),
         );
 
         $result = $dispatcher->publish(
@@ -157,6 +163,8 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
             new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['error' => 'network down'])),
             [],
             new EventDispatcher(),
+            10,
+            self::safeWebhookUrlValidator(),
         );
 
         $result = $dispatcher->publish(
@@ -217,6 +225,8 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
             new MockHttpClient(),
             [],
             new EventDispatcher(),
+            10,
+            self::safeWebhookUrlValidator(),
         );
 
         $this->expectException(UcpException::class);
@@ -228,6 +238,105 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
             new RequestContext('merchant.example'),
         );
     }
+
+    #[Test]
+    public function itRejectsUnsafeWebhookTargetUrlsBeforeDispatching(): void
+    {
+        $requestAttempted = false;
+        $dispatcher = new DefaultOrderWebhookDispatcher(
+            new WebhookSigningKeyRepository(new ManagedSigningKey('active', 'public', 'private')),
+            new RecordingSignatureService(new WebhookDispatcherState()),
+            new MockHttpClient(static function () use (&$requestAttempted): MockResponse {
+                $requestAttempted = true;
+
+                return new MockResponse('', ['http_code' => 204]);
+            }),
+            [],
+            new EventDispatcher(),
+            10,
+            self::safeWebhookUrlValidator(),
+        );
+
+        $this->expectException(ValidationException::class);
+
+        try {
+            $dispatcher->publish(
+                'http://169.254.169.254/latest/meta-data',
+                new OrderWebhookPayload('order.created', 'order-5'),
+                new RequestContext('merchant.example'),
+            );
+        } finally {
+            self::assertFalse($requestAttempted);
+        }
+    }
+
+    #[Test]
+    public function itDoesNotStoreOversizedWebhookResponseBodies(): void
+    {
+        $dispatcher = new DefaultOrderWebhookDispatcher(
+            new WebhookSigningKeyRepository(new ManagedSigningKey('active', 'public', 'private')),
+            new RecordingSignatureService(new WebhookDispatcherState()),
+            new MockHttpClient(static fn (): MockResponse => new MockResponse(str_repeat('x', 262145), [
+                'http_code' => 202,
+                'response_headers' => ['Content-Length: 262145'],
+            ])),
+            [],
+            new EventDispatcher(),
+            10,
+            self::safeWebhookUrlValidator(),
+        );
+
+        $result = $dispatcher->publish(
+            'https://platform.example/webhooks/orders',
+            new OrderWebhookPayload('order.created', 'order-6'),
+            new RequestContext('merchant.example'),
+        );
+
+        self::assertSame(202, $result->statusCode);
+        self::assertTrue($result->successful);
+        self::assertNull($result->responseBody);
+    }
+
+    #[Test]
+    public function itUsesTenantAwareSigningKeysWhenAvailable(): void
+    {
+        $state = new WebhookDispatcherState();
+        $tenantKey = new ManagedSigningKey('tenant-key', 'public', 'private');
+        $globalKey = new ManagedSigningKey('global-key', 'public', 'private');
+        $dispatcher = new DefaultOrderWebhookDispatcher(
+            new TenantAwareWebhookSigningKeyRepository($globalKey, $tenantKey),
+            new RecordingSignatureService($state),
+            new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 204])),
+            [],
+            new EventDispatcher(),
+            10,
+            self::safeWebhookUrlValidator(),
+        );
+
+        $dispatcher->publish(
+            'https://platform.example/webhooks/orders',
+            new OrderWebhookPayload('order.created', 'order-7'),
+            new RequestContext(
+                'merchant.example',
+                runtimeConfiguration: new RuntimeConfiguration(
+                    '2026-04-08',
+                    'https://merchant.example',
+                    tenantIdentifier: 'tenant-a',
+                ),
+            ),
+        );
+
+        self::assertNotNull($state->capturedKey);
+        self::assertSame('tenant-key', $state->capturedKey->kid);
+    }
+
+    private static function safeWebhookUrlValidator(): UrlSafetyValidator
+    {
+        return new UrlSafetyValidator(
+            ['platform.example'],
+            static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+        );
+    }
 }
 
 final class WebhookDispatcherState
@@ -235,4 +344,93 @@ final class WebhookDispatcherState
     public ?HttpRequest $capturedRequest = null;
 
     public ?ManagedSigningKey $capturedKey = null;
+}
+
+final class RecordingSignatureService implements RequestSignatureServiceInterface
+{
+    public function __construct(private readonly WebhookDispatcherState $state)
+    {
+    }
+
+    public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
+    {
+        $this->state->capturedRequest = $request;
+        $this->state->capturedKey = $key;
+
+        return ['Signature' => 'signed'];
+    }
+
+    public function verify(HttpRequest $request, array $keys): \Ucp\Sdk\Model\Security\SignatureVerificationResult
+    {
+        throw new \RuntimeException('Not used in this test.');
+    }
+}
+
+class WebhookSigningKeyRepository implements ManagedSigningKeyRepositoryInterface
+{
+    public function __construct(private readonly ManagedSigningKey $activeKey)
+    {
+    }
+
+    public function saveManaged(ManagedSigningKey $key): void
+    {
+    }
+
+    public function findManaged(string $kid): ?ManagedSigningKey
+    {
+        return $kid === $this->activeKey->kid ? $this->activeKey : null;
+    }
+
+    public function deleteManaged(string $kid): bool
+    {
+        return false;
+    }
+
+    public function allManaged(): array
+    {
+        return [$this->activeKey];
+    }
+
+    public function active(): array
+    {
+        return [$this->activeKey];
+    }
+
+    public function purgeRetired(string $olderThanIso8601): void
+    {
+    }
+}
+
+final class TenantAwareWebhookSigningKeyRepository extends WebhookSigningKeyRepository implements TenantAwareManagedSigningKeyRepositoryInterface
+{
+    public function __construct(
+        ManagedSigningKey $activeKey,
+        private readonly ManagedSigningKey $tenantKey,
+    ) {
+        parent::__construct($activeKey);
+    }
+
+    public function saveManagedForTenant(?string $tenantIdentifier, ManagedSigningKey $key): void
+    {
+    }
+
+    public function findManagedForTenant(?string $tenantIdentifier, string $kid): ?ManagedSigningKey
+    {
+        return $tenantIdentifier === 'tenant-a' && $kid === $this->tenantKey->kid ? $this->tenantKey : null;
+    }
+
+    public function deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
+    {
+        return false;
+    }
+
+    public function allManagedForTenant(?string $tenantIdentifier): array
+    {
+        return $tenantIdentifier === 'tenant-a' ? [$this->tenantKey] : [];
+    }
+
+    public function activeForTenant(?string $tenantIdentifier): array
+    {
+        return $tenantIdentifier === 'tenant-a' ? [$this->tenantKey] : [];
+    }
 }

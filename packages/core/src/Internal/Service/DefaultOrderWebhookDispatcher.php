@@ -15,6 +15,7 @@ use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Model\Webhook\WebhookDispatchResult;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\OrderWebhookPublisherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 
@@ -31,11 +32,18 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         private readonly iterable $enrichers,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly int $timeoutSeconds = 10,
+        ?UrlSafetyValidator $urlSafetyValidator = null,
+        private readonly int $maxResponseBodyBytes = 262144,
     ) {
+        $this->urlSafetyValidator = $urlSafetyValidator ?? new UrlSafetyValidator();
     }
+
+    private readonly UrlSafetyValidator $urlSafetyValidator;
 
     public function publish(string $targetUrl, OrderWebhookPayload $payload, RequestContext $context): WebhookDispatchResult
     {
+        $validatedUrl = $this->urlSafetyValidator->validateAndResolve($targetUrl);
+
         foreach ($this->enrichers as $enricher) {
             $payload = $enricher->enrich($payload, $context);
         }
@@ -44,7 +52,7 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         $this->eventDispatcher->dispatch($event);
         $payload = $event->getPayload();
 
-        $key = $this->resolveSigningKey();
+        $key = $this->resolveSigningKey($context);
         if ($key === null) {
             throw new UcpException('No signing key available for webhook dispatch.');
         }
@@ -60,6 +68,8 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
                 'body' => $body,
                 'timeout' => $this->timeoutSeconds,
                 'max_redirects' => 0,
+                'buffer' => false,
+                'resolve' => $validatedUrl->resolveMap(),
             ]);
         } catch (\Throwable) {
             return new WebhookDispatchResult($targetUrl, 0, false, true);
@@ -89,13 +99,43 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
             $successful,
             $retryable,
             $headers,
-            $response->getContent(false),
+            $this->responseBody($response),
         );
     }
 
-    private function resolveSigningKey(): ?\Ucp\Sdk\Model\Security\ManagedSigningKey
+    private function responseBody(ResponseInterface $response): ?string
     {
-        $active = $this->signingKeyRepository->active();
+        $headers = $response->getHeaders(false);
+        $contentLength = isset($headers['content-length'][0]) ? (int) $headers['content-length'][0] : null;
+        if ($contentLength !== null && $contentLength > $this->maxResponseBodyBytes) {
+            $response->cancel();
+
+            return null;
+        }
+
+        $content = '';
+        foreach ($this->httpClient->stream($response, $this->timeoutSeconds) as $chunk) {
+            if ($chunk->isTimeout() || $chunk->isFirst()) {
+                continue;
+            }
+
+            $content .= $chunk->getContent();
+            if (strlen($content) > $this->maxResponseBodyBytes) {
+                $response->cancel();
+
+                return null;
+            }
+        }
+
+        return $content;
+    }
+
+    private function resolveSigningKey(RequestContext $context): ?\Ucp\Sdk\Model\Security\ManagedSigningKey
+    {
+        $active = $this->signingKeyRepository instanceof TenantAwareManagedSigningKeyRepositoryInterface
+            ? $this->signingKeyRepository->activeForTenant($context->runtimeConfiguration?->tenantIdentifier)
+            : $this->signingKeyRepository->active();
+
         return $active[0] ?? null;
     }
 }

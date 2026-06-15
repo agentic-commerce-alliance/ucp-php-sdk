@@ -73,6 +73,7 @@ final class Configuration implements ConfigurationInterface
                     ->addDefaultsIfNotSet()
                     ->children()
                         ->integerNode('timeout')->defaultValue(10)->min(1)->end()
+                        ->integerNode('max_response_body_bytes')->defaultValue(262144)->min(1)->end()
                     ->end()
                 ->end()
                 ->arrayNode('ap2')

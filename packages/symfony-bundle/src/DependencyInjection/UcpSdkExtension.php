@@ -159,6 +159,7 @@ final class UcpSdkExtension extends Extension
             $config['storage']['dsn'],
             $transports,
             $config['transport_endpoints'],
+            $config['webhooks']['max_response_body_bytes'],
             $config['profile_fetching_development_mode'],
         ]));
 
@@ -339,6 +340,8 @@ final class UcpSdkExtension extends Extension
             new TaggedIteratorArgument('ucp_sdk.order_webhook_enricher'),
             new Reference(EventDispatcherInterface::class),
             $config['webhooks']['timeout'],
+            new Reference(UrlSafetyValidator::class),
+            $config['webhooks']['max_response_body_bytes'],
         ]));
         $container->setAlias(OrderWebhookPublisherInterface::class, new Alias(DefaultOrderWebhookDispatcher::class, true));
 
