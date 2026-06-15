@@ -75,4 +75,29 @@ final class DoctrineDbalIdempotencyRepositoryTest extends TestCase
 
         self::assertNull($repository->find('idem-2'));
     }
+
+    #[Test]
+    public function itReportsDuplicatePendingClaimsWithoutUpdatingTheExistingRecord(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $repository = new DoctrineDbalIdempotencyRepository(
+            $connection,
+            new DefaultPrivateKeyEncryptor('test-secret'),
+            86400,
+            1024,
+        );
+
+        self::assertTrue($repository->claimPending('idem-3', 'fp-1'));
+        self::assertFalse($repository->claimPending('idem-3', 'fp-2'));
+
+        $loaded = $repository->find('idem-3');
+
+        self::assertNotNull($loaded);
+        self::assertSame('fp-1', $loaded->fingerprint);
+        self::assertSame('pending', $loaded->status);
+    }
 }

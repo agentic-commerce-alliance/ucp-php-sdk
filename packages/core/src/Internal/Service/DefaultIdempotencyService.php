@@ -19,13 +19,14 @@ final class DefaultIdempotencyService implements IdempotencyServiceInterface
 
     public function claim(string $key, string $fingerprint): IdempotencyRecord
     {
+        if ($this->repository->claimPending($key, $fingerprint)) {
+            return new IdempotencyRecord($key, $fingerprint);
+        }
+
         $record = $this->repository->find($key);
 
         if ($record === null) {
-            $record = new IdempotencyRecord($key, $fingerprint);
-            $this->repository->save($record);
-
-            return $record;
+            throw new IdempotencyConflictException('Idempotency key is already being processed.');
         }
 
         if ($record->fingerprint !== $fingerprint) {

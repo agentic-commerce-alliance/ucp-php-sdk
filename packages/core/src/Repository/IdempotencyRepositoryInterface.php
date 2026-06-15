@@ -8,6 +8,8 @@ use Ucp\Sdk\Model\IdempotencyRecord;
 
 interface IdempotencyRepositoryInterface
 {
+    public function claimPending(string $key, string $fingerprint): bool;
+
     public function find(string $key): ?IdempotencyRecord;
 
     public function save(IdempotencyRecord $record): void;

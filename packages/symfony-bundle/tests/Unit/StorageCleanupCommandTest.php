@@ -116,6 +116,11 @@ final class StorageCleanupIdempotencyRepository implements IdempotencyRepository
     {
     }
 
+    public function claimPending(string $key, string $fingerprint): bool
+    {
+        return false;
+    }
+
     public function find(string $key): ?\Ucp\Sdk\Model\IdempotencyRecord
     {
         return null;
