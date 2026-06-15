@@ -29,6 +29,7 @@ final class RuntimeConfiguration
         public readonly array $enabledCapabilities = [],
         public readonly ?string $tenantIdentifier = null,
         public readonly array $transportEndpoints = [],
+        public readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }
 }

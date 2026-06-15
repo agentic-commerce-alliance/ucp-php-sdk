@@ -25,6 +25,7 @@ final class UrlSafetyValidator
     public function __construct(
         private readonly array $allowedHosts = [],
         private readonly ?\Closure $dnsResolver = null,
+        private readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }
 
@@ -56,8 +57,14 @@ final class UrlSafetyValidator
             throw new ValidationException(sprintf('Profile host "%s" is blocked.', $host));
         }
 
-        if ($scheme === 'http' && ! $this->isLocalHost($host)) {
-            throw new ValidationException('Plain http is only allowed for local development hosts.');
+        if ($scheme === 'http') {
+            if (! $this->isLocalHost($host)) {
+                throw new ValidationException('Plain http is only allowed for local development hosts.');
+            }
+
+            if (! $this->profileFetchingDevelopmentMode) {
+                throw new ValidationException('Plain http is only allowed when profile fetching development mode is enabled.');
+            }
         }
 
         if (! $this->isLocalHost($host) && ! in_array($port, self::REMOTE_ALLOWED_PORTS, true)) {
@@ -66,8 +73,12 @@ final class UrlSafetyValidator
 
         $resolution = $this->assertHostDoesNotResolveToBlockedAddress($host);
 
-        if ($this->allowedHosts === []) {
+        if ($this->allowedHosts === [] && $this->profileFetchingDevelopmentMode && $this->isLocalHost($host)) {
             return new ValidatedProfileUri($uri, $host, $port, $resolution['resolved_ip'], $resolution['uses_dns']);
+        }
+
+        if ($this->allowedHosts === []) {
+            throw new ValidationException(sprintf('Profile host "%s" is not allowed.', $host));
         }
 
         foreach ($this->allowedHosts as $allowedHost) {

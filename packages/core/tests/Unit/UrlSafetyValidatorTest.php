@@ -22,13 +22,35 @@ final class UrlSafetyValidatorTest extends TestCase
     }
 
     #[Test]
-    public function itAllowsPlainHttpForLocalDevelopmentHosts(): void
+    public function itRejectsPlainHttpForLocalDevelopmentHostsByDefault(): void
+    {
+        $validator = new UrlSafetyValidator();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Plain http is only allowed when profile fetching development mode is enabled.');
+
+        $validator->assertAllowed('http://localhost/.well-known/ucp');
+    }
+
+    #[Test]
+    public function itAllowsPlainHttpForLocalDevelopmentHostsWhenDevelopmentModeIsEnabled(): void
     {
         self::expectNotToPerformAssertions();
 
-        $validator = new UrlSafetyValidator();
+        $validator = new UrlSafetyValidator([], null, true);
 
         $validator->assertAllowed('http://localhost/.well-known/ucp');
+    }
+
+    #[Test]
+    public function itRejectsPublicHostsWhenNoAllowlistIsConfigured(): void
+    {
+        $validator = new UrlSafetyValidator();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Profile host "8.8.8.8" is not allowed.');
+
+        $validator->assertAllowed('https://8.8.8.8/.well-known/ucp');
     }
 
     #[Test]

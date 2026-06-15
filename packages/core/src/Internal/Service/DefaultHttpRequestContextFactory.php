@@ -41,7 +41,12 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         $profileUri = $this->extractProfileUri($headers['ucp-agent'] ?? null);
 
         if ($profileUri !== null) {
-            $this->assertSafeProfileUri($profileUri, $configuration->allowedProfileHosts, $configuration->allowedAgentDomains);
+            $this->assertSafeProfileUri(
+                $profileUri,
+                $configuration->allowedProfileHosts,
+                $configuration->allowedAgentDomains,
+                $configuration->profileFetchingDevelopmentMode,
+            );
         }
 
         $platformProfile = $profileUri !== null ? $this->agentProfileFetcher->fetch($profileUri) : null;
@@ -131,9 +136,14 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
      * @param list<string> $allowedProfileHosts
      * @param list<string> $allowedAgentDomains
      */
-    private function assertSafeProfileUri(string $profileUri, array $allowedProfileHosts, array $allowedAgentDomains): void
-    {
+    private function assertSafeProfileUri(
+        string $profileUri,
+        array $allowedProfileHosts,
+        array $allowedAgentDomains,
+        bool $profileFetchingDevelopmentMode,
+    ): void {
         $parts = parse_url($profileUri);
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
         $host = strtolower((string) ($parts['host'] ?? ''));
 
         if ($host === '') {
@@ -144,19 +154,25 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             throw new SignatureException('Platform profile URI must not include userinfo.');
         }
 
-        if ($allowedProfileHosts !== []) {
-            $allowed = false;
-            foreach ($allowedProfileHosts as $allowedHost) {
-                $allowedHost = strtolower($allowedHost);
-                if ($host === $allowedHost || str_ends_with($host, '.' . $allowedHost)) {
-                    $allowed = true;
-                    break;
-                }
+        if ($allowedProfileHosts === []) {
+            if ($profileFetchingDevelopmentMode && $this->isLocalDevelopmentProfileUri($scheme, $host)) {
+                return;
             }
 
-            if (! $allowed) {
-                throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
+            throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
+        }
+
+        $allowed = false;
+        foreach ($allowedProfileHosts as $allowedHost) {
+            $allowedHost = strtolower($allowedHost);
+            if ($host === $allowedHost || str_ends_with($host, '.' . $allowedHost)) {
+                $allowed = true;
+                break;
             }
+        }
+
+        if (! $allowed) {
+            throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
         }
 
         if ($allowedAgentDomains !== []) {
@@ -173,5 +189,10 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
                 throw new SignatureException('Platform agent domain is not allowed for the current runtime configuration.');
             }
         }
+    }
+
+    private function isLocalDevelopmentProfileUri(string $scheme, string $host): bool
+    {
+        return ($scheme === 'http' || $scheme === 'https') && in_array($host, ['localhost', '127.0.0.1', '::1'], true);
     }
 }

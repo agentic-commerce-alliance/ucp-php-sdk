@@ -55,6 +55,7 @@ Current config keys:
 - `base_uri`
 - `allowed_profile_hosts`
 - `allowed_agent_domains`
+- `profile_fetching_development_mode`
 - `signature_policy`
 - `idempotency_required`
 - `idempotency_ttl`
