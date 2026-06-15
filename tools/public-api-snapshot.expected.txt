@@ -209,7 +209,7 @@ class Ucp\Sdk\Model\Common\Signals
   - __construct(array $values = [])
   - toArray(): array
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
-  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [])
+  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false)
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
 class Ucp\Sdk\Model\IdempotencyRecord
