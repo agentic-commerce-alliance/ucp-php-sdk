@@ -38,6 +38,17 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $validator->validate('catalog.search.request', []);
     }
 
+    public function testItProvidesSchemasForEveryShoppingOperation(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        foreach ($this->shoppingOperationPayloads() as $schemaName => $payload) {
+            $validator->validate($schemaName, $payload);
+        }
+
+        $this->expectNotToPerformAssertions();
+    }
+
     public function testItValidatesAdditionalSchemaKeywords(): void
     {
         $directory = $this->createTemporarySchemaDirectory();
@@ -163,5 +174,72 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $this->temporarySchemaDirectories[] = $directory;
 
         return $directory;
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function shoppingOperationPayloads(): array
+    {
+        $cart = [
+            'id' => 'cart-1',
+            'line_items' => [],
+            'currency' => 'EUR',
+            'totals' => [],
+            'messages' => [],
+        ];
+        $checkout = [
+            'id' => 'checkout-1',
+            'status' => 'incomplete',
+            'currency' => 'EUR',
+            'line_items' => [],
+            'totals' => [],
+            'messages' => [],
+            'links' => [],
+        ];
+
+        return [
+            'catalog.search.request' => ['query' => 'tent'],
+            'catalog.search.response' => ['items' => []],
+            'catalog.lookup.request' => ['ids' => ['sku-1']],
+            'catalog.lookup.response' => ['items' => []],
+            'catalog.product.request' => ['id' => 'sku-1'],
+            'catalog.product.response' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
+            'cart.create.request' => ['line_items' => []],
+            'cart.create.response' => $cart,
+            'cart.get.request' => ['id' => 'cart-1'],
+            'cart.get.response' => $cart,
+            'cart.update.request' => ['line_items' => []],
+            'cart.update.response' => $cart,
+            'cart.cancel.request' => ['id' => 'cart-1'],
+            'cart.cancel.response' => $cart,
+            'discount.apply.request' => ['cart_id' => 'cart-1', 'code' => 'SAVE10'],
+            'discount.apply.response' => $cart,
+            'checkout.create.request' => ['line_items' => []],
+            'checkout.create.response' => $checkout,
+            'checkout.get.request' => ['id' => 'checkout-1'],
+            'checkout.get.response' => $checkout,
+            'checkout.update.request' => ['line_items' => []],
+            'checkout.update.response' => $checkout,
+            'checkout.complete.request' => ['id' => 'checkout-1'],
+            'checkout.complete.response' => [
+                ...$checkout,
+                'status' => 'completed',
+            ],
+            'checkout.cancel.request' => ['id' => 'checkout-1'],
+            'checkout.cancel.response' => [
+                ...$checkout,
+                'status' => 'canceled',
+            ],
+            'order.get.request' => ['id' => 'order-1'],
+            'order.get.response' => [
+                'id' => 'order-1',
+                'currency' => 'EUR',
+                'line_items' => [],
+                'totals' => [],
+                'messages' => [],
+                'links' => [],
+            ],
+        ];
     }
 }
