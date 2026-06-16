@@ -1,12 +1,51 @@
+x-php-base: &php-base
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+  environment: &php-environment
+    COMPOSER_HOME: /tmp/composer
+    XDG_CACHE_HOME: /tmp/cache
+
 services:
   php:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-    working_dir: /workspace
-    volumes:
-      - .:/workspace
-    environment:
-      COMPOSER_HOME: /tmp/composer
-      XDG_CACHE_HOME: /tmp/cache
+    <<: *php-base
 
+  php-storage:
+    <<: *php-base
+    depends_on:
+      mysql:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *php-environment
+      UCP_SDK_TEST_MYSQL_DSN: mysql://ucp:ucp@mysql:3306/ucp
+      UCP_SDK_TEST_POSTGRES_DSN: postgres://ucp:ucp@postgres:5432/ucp
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ucp
+      MYSQL_USER: ucp
+      MYSQL_PASSWORD: ucp
+      MYSQL_ROOT_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uucp", "-pucp"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ucp
+      POSTGRES_USER: ucp
+      POSTGRES_PASSWORD: ucp
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ucp -d ucp"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

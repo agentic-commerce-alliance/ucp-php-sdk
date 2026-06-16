@@ -108,6 +108,7 @@
         ],
         "test:core": "vendor/bin/phpunit --testsuite core",
         "test:symfony": "vendor/bin/phpunit --testsuite symfony",
+        "test:storage-platforms": "vendor/bin/phpunit packages/symfony-bundle/tests/Integration/DoctrineDbalSchemaPortabilityTest.php",
         "qa": [
             "@cs:check",
             "@phpstan",
