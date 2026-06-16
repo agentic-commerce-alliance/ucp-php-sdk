@@ -9,7 +9,8 @@ The SDK provides the shared transport/profile contract for `SwagAgenticCommerce`
 - `Transport` supports `rest`, `mcp`, `a2a`, and `embedded`.
 - `RuntimeConfiguration` and `ProfileBuildInput` carry the enabled transports.
 - `transportEndpoints` can override default endpoint generation per transport.
-- Default endpoint generation remains generic: `/ucp/v1`, `/ucp/mcp`, `/ucp/a2a`, and `/ucp/embedded`.
+- Default endpoint generation remains generic for SDK-owned runtime transports: `/ucp/v1`, `/ucp/a2a`, and `/ucp/embedded`.
+- MCP is metadata-only in the shared SDK and requires an explicit `mcp` transport endpoint supplied by the adopter.
 - REST remains the default enabled transport. A2A and embedded routes must return not found unless the transport is explicitly enabled in bundle config.
 - Embedded responses must only allow configured agent origins.
 - The Shopware plugin advertises client-facing MCP at `/ucp/mcp` on 6.7 once

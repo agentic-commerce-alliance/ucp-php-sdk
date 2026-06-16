@@ -146,6 +146,7 @@ class Ucp\Sdk\Event\ProfileBuiltEvent
   - getInput(): Ucp\Sdk\Model\Profile\ProfileBuildInput
   - getProfile(): Ucp\Sdk\Model\Profile\PlatformProfile
   - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
+class Ucp\Sdk\Exception\ConfigurationException
 class Ucp\Sdk\Exception\IdempotencyConflictException
 class Ucp\Sdk\Exception\OAuthException
 class Ucp\Sdk\Exception\ResourceNotFoundException

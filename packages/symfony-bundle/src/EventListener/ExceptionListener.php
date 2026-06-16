@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\EventListener;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\OAuthException;
 use Ucp\Sdk\Exception\ResourceNotFoundException;
@@ -65,6 +66,12 @@ final class ExceptionListener
 
         if ($throwable instanceof ResourceNotFoundException) {
             $event->setResponse($this->responseFactory->error($throwable->getMessage(), 404));
+
+            return;
+        }
+
+        if ($throwable instanceof ConfigurationException) {
+            $event->setResponse($this->responseFactory->error($throwable->getMessage(), 500));
 
             return;
         }

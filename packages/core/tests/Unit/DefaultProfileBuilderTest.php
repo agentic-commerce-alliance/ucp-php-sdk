@@ -9,6 +9,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
 use Ucp\Sdk\Internal\Service\DefaultProfileBuilder;
@@ -105,5 +106,48 @@ final class DefaultProfileBuilderTest extends TestCase
         self::assertNull($endpoints[2]->schemaUrl);
         self::assertArrayNotHasKey('schema', $endpoints[2]->toArray());
         self::assertSame('https://ucp.dev/2026-04-08/services/shopping/embedded.openrpc.json', $endpoints[3]->schemaUrl);
+    }
+
+    public function testItRequiresExplicitMcpEndpoint(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage('MCP transport requires an explicit "mcp" transport endpoint.');
+
+        $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            [Transport::Rest, Transport::Mcp],
+        ));
+    }
+
+    public function testItRejectsEmptyMcpEndpoint(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage('MCP transport requires an explicit "mcp" transport endpoint.');
+
+        $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            [Transport::Mcp],
+            transportEndpoints: [
+                Transport::Mcp->value => '',
+            ],
+        ));
     }
 }

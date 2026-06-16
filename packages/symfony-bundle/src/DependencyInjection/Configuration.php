@@ -86,6 +86,10 @@ final class Configuration implements ConfigurationInterface
                         ->scalarNode('dsn')->defaultValue('sqlite:///%kernel.project_dir%/var/ucp_sdk.sqlite')->end()
                     ->end()
                 ->end()
+            ->end()
+            ->validate()
+                ->ifTrue(static fn (array $config): bool => in_array('mcp', $config['transports'] ?? [], true) && (($config['transport_endpoints']['mcp'] ?? '') === ''))
+                ->thenInvalid('MCP transport requires an explicit "mcp" transport endpoint.')
             ->end();
 
         return $treeBuilder;
