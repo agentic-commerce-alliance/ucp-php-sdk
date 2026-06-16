@@ -38,32 +38,7 @@ final class ShoppingControllerTest extends TestCase
     #[Test]
     public function itRunsCartControllerOperations(): void
     {
-        $capability = new class () implements CartCapabilityInterface {
-            public function describe(): CapabilityDescriptor
-            {
-                return new CapabilityDescriptor('dev.ucp.shopping.cart', '2026-04-08', 'spec', 'schema');
-            }
-
-            public function createCart(CartCreateRequest $request, RequestContext $context): Cart
-            {
-                return new Cart('cart-created', $request->lineItems, 'EUR');
-            }
-
-            public function getCart(string $id, RequestContext $context): Cart
-            {
-                return new Cart($id, [], 'EUR');
-            }
-
-            public function updateCart(CartUpdateRequest $request, RequestContext $context): Cart
-            {
-                return new Cart($request->id, $request->lineItems, 'EUR');
-            }
-
-            public function cancelCart(string $id, RequestContext $context): Cart
-            {
-                return new Cart($id, [], 'EUR');
-            }
-        };
+        $capability = new ControllerCartCapability();
         $controller = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability));
         $request = $this->jsonRequest('/ucp/v1/carts', [
             'line_items' => [[
@@ -84,27 +59,7 @@ final class ShoppingControllerTest extends TestCase
     #[Test]
     public function itRunsCatalogControllerOperations(): void
     {
-        $capability = new class () implements CatalogCapabilityInterface {
-            public function describe(): CapabilityDescriptor
-            {
-                return new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', 'spec', 'schema');
-            }
-
-            public function search(CatalogSearchRequest $request, RequestContext $context): CatalogSearchResponse
-            {
-                return new CatalogSearchResponse([new Product('sku-search', 'Search Result', 10.0)], 'next');
-            }
-
-            public function lookup(CatalogLookupRequest $request, RequestContext $context): array
-            {
-                return [new Product($request->ids[0] ?? 'sku-lookup', 'Lookup Result', 11.0)];
-            }
-
-            public function getProduct(string $id, RequestContext $context): Product
-            {
-                return new Product($id, 'Product Detail', 12.0);
-            }
-        };
+        $capability = new ControllerCatalogCapability();
         $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability));
 
         $search = $this->payload($controller->search($this->jsonRequest('/ucp/v1/catalog/search', ['query' => 'tent'])));
@@ -121,17 +76,7 @@ final class ShoppingControllerTest extends TestCase
     #[Test]
     public function itRunsTokenizationController(): void
     {
-        $capability = new class () implements TokenizationCapabilityInterface {
-            public function describe(): CapabilityDescriptor
-            {
-                return new CapabilityDescriptor('dev.ucp.payment.tokenization', '2026-04-08', 'spec', 'schema');
-            }
-
-            public function tokenize(PaymentInstrument $instrument, RequestContext $context): array
-            {
-                return ['token' => 'tok_' . $instrument->handlerId];
-            }
-        };
+        $capability = new ControllerTokenizationCapability();
         $controller = new TokenizationController($this->registry($capability), $this->validator(), new HttpPayloadMapper(), $this->responseFactory());
 
         $payload = $this->payload($controller($this->jsonRequest('/ucp/v1/tokenize', [
@@ -167,26 +112,7 @@ final class ShoppingControllerTest extends TestCase
 
     private function registry(?CapabilityInterface $capability): CapabilityRegistryInterface
     {
-        return new class ($capability) implements CapabilityRegistryInterface {
-            public function __construct(private ?CapabilityInterface $capability)
-            {
-            }
-
-            public function all(): array
-            {
-                return $this->capability === null ? [] : [$this->capability];
-            }
-
-            public function find(string $name): ?CapabilityInterface
-            {
-                return $this->capability?->describe()->name === $name ? $this->capability : null;
-            }
-
-            public function firstImplementing(string $interface): ?CapabilityInterface
-            {
-                return $this->capability instanceof $interface ? $this->capability : null;
-            }
-        };
+        return new SingleCapabilityRegistry($capability);
     }
 
     private function executor(?CapabilityInterface $capability): ShoppingOperationExecutor
@@ -204,15 +130,7 @@ final class ShoppingControllerTest extends TestCase
 
     private function validator(): ProtocolValidatorInterface
     {
-        return new class () implements ProtocolValidatorInterface {
-            public function validateRequest(string $operation, array $payload, RequestContext $context): void
-            {
-            }
-
-            public function validateResponse(string $operation, array $payload, RequestContext $context): void
-            {
-            }
-        };
+        return $this->createMock(ProtocolValidatorInterface::class);
     }
 
     private function responseFactory(): UcpResponseFactory
@@ -249,5 +167,91 @@ final class ShoppingControllerTest extends TestCase
     private function payload(\Symfony\Component\HttpFoundation\Response $response): array
     {
         return json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+    }
+}
+
+final class ControllerCartCapability implements CartCapabilityInterface
+{
+    public function describe(): CapabilityDescriptor
+    {
+        return new CapabilityDescriptor('dev.ucp.shopping.cart', '2026-04-08', 'spec', 'schema');
+    }
+
+    public function createCart(CartCreateRequest $request, RequestContext $context): Cart
+    {
+        return new Cart('cart-created', $request->lineItems, 'EUR');
+    }
+
+    public function getCart(string $id, RequestContext $context): Cart
+    {
+        return new Cart($id, [], 'EUR');
+    }
+
+    public function updateCart(CartUpdateRequest $request, RequestContext $context): Cart
+    {
+        return new Cart($request->id, $request->lineItems, 'EUR');
+    }
+
+    public function cancelCart(string $id, RequestContext $context): Cart
+    {
+        return new Cart($id, [], 'EUR');
+    }
+}
+
+final class ControllerCatalogCapability implements CatalogCapabilityInterface
+{
+    public function describe(): CapabilityDescriptor
+    {
+        return new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', 'spec', 'schema');
+    }
+
+    public function search(CatalogSearchRequest $request, RequestContext $context): CatalogSearchResponse
+    {
+        return new CatalogSearchResponse([new Product('sku-search', 'Search Result', 10.0)], 'next');
+    }
+
+    public function lookup(CatalogLookupRequest $request, RequestContext $context): array
+    {
+        return [new Product($request->ids[0] ?? 'sku-lookup', 'Lookup Result', 11.0)];
+    }
+
+    public function getProduct(string $id, RequestContext $context): Product
+    {
+        return new Product($id, 'Product Detail', 12.0);
+    }
+}
+
+final class ControllerTokenizationCapability implements TokenizationCapabilityInterface
+{
+    public function describe(): CapabilityDescriptor
+    {
+        return new CapabilityDescriptor('dev.ucp.payment.tokenization', '2026-04-08', 'spec', 'schema');
+    }
+
+    public function tokenize(PaymentInstrument $instrument, RequestContext $context): array
+    {
+        return ['token' => 'tok_' . $instrument->handlerId];
+    }
+}
+
+final class SingleCapabilityRegistry implements CapabilityRegistryInterface
+{
+    public function __construct(private ?CapabilityInterface $capability)
+    {
+    }
+
+    public function all(): array
+    {
+        return $this->capability === null ? [] : [$this->capability];
+    }
+
+    public function find(string $name): ?CapabilityInterface
+    {
+        return $this->capability?->describe()->name === $name ? $this->capability : null;
+    }
+
+    public function firstImplementing(string $interface): ?CapabilityInterface
+    {
+        return $this->capability instanceof $interface ? $this->capability : null;
     }
 }

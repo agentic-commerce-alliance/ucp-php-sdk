@@ -14,68 +14,38 @@ final class DefaultIdempotencyServiceTest extends TestCase
 {
     public function testItClaimsAndCompletesRecords(): void
     {
-        $repository = new class () implements IdempotencyRepositoryInterface {
-            public ?IdempotencyRecord $record = null;
-
-            public function find(string $key): ?IdempotencyRecord
-            {
-                return $this->record;
-            }
-
-            public function save(IdempotencyRecord $record): void
-            {
-                $this->record = $record;
-            }
-
-            public function delete(string $key): void
-            {
-                $this->record = null;
-            }
-
-            public function purgeExpired(int $olderThanUnixTimestamp): void
-            {
-            }
-        };
-
+        /** @var list<IdempotencyRecord> $savedRecords */
+        $savedRecords = [];
+        $repository = $this->createMock(IdempotencyRepositoryInterface::class);
+        $repository
+            ->method('find')
+            ->with('abc')
+            ->willReturn(null);
+        $repository
+            ->expects($this->exactly(2))
+            ->method('save')
+            ->willReturnCallback(static function (IdempotencyRecord $record) use (&$savedRecords): void {
+                $savedRecords[] = $record;
+            });
         $service = new DefaultIdempotencyService($repository);
         $record = $service->claim('abc', 'hash');
         $service->complete($record, ['ok' => true], 200);
 
-        self::assertNotNull($repository->record);
-        self::assertSame('completed', $repository->record->status);
-        self::assertSame(['ok' => true], $repository->record->responseBody);
+        self::assertCount(2, $savedRecords);
+        self::assertSame('completed', $savedRecords[1]->status);
+        self::assertSame(['ok' => true], $savedRecords[1]->responseBody);
     }
 
     public function testItRejectsDifferentFingerprints(): void
     {
-        $repository = new class () implements IdempotencyRepositoryInterface {
-            public ?IdempotencyRecord $record = null;
-
-            public function __construct()
-            {
-                $this->record = new IdempotencyRecord('abc', 'hash-1', 'completed', ['ok' => true], 200);
-            }
-
-            public function find(string $key): ?IdempotencyRecord
-            {
-                return $this->record;
-            }
-
-            public function save(IdempotencyRecord $record): void
-            {
-                $this->record = $record;
-            }
-
-            public function delete(string $key): void
-            {
-                $this->record = null;
-            }
-
-            public function purgeExpired(int $olderThanUnixTimestamp): void
-            {
-            }
-        };
-
+        $repository = $this->createMock(IdempotencyRepositoryInterface::class);
+        $repository
+            ->method('find')
+            ->with('abc')
+            ->willReturn(new IdempotencyRecord('abc', 'hash-1', 'completed', ['ok' => true], 200));
+        $repository
+            ->expects($this->never())
+            ->method('save');
         $service = new DefaultIdempotencyService($repository);
 
         $this->expectException(IdempotencyConflictException::class);

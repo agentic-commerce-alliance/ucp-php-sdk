@@ -10,27 +10,14 @@ use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
-use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
-use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
-use Ucp\Sdk\Model\RequestContext;
 
 final class RegistryTest extends TestCase
 {
     #[Test]
     public function itFindsCapabilitiesByNameAndInterface(): void
     {
-        $capability = new class () implements CapabilityInterface, \Countable {
-            public function describe(): CapabilityDescriptor
-            {
-                return new CapabilityDescriptor('demo.capability', '2026-04-08', 'https://example.test/spec', 'https://example.test/schema');
-            }
-
-            public function count(): int
-            {
-                return 1;
-            }
-        };
+        $capability = new CountableTestCapability();
 
         $registry = new CapabilityRegistry([$capability]);
 
@@ -44,37 +31,28 @@ final class RegistryTest extends TestCase
     #[Test]
     public function itFindsPaymentHandlersByIdAndName(): void
     {
-        $handler = new class () implements PaymentHandlerInterface {
-            public function id(): string
-            {
-                return 'demo-handler';
-            }
-
-            public function describe(RequestContext $context): PaymentHandlerDescriptor
-            {
-                return new PaymentHandlerDescriptor($this->id(), 'Demo Handler', '2026-04-08', 'https://example.test/spec', 'https://example.test/schema', []);
-            }
-
-            public function prepareInstrument(PaymentInstrument $instrument, RequestContext $context): array
-            {
-                return ['paymentMethodId' => 'demo', 'token' => 'tok'];
-            }
-
-            public function supportsTokenization(): bool
-            {
-                return false;
-            }
-
-            public function tokenize(PaymentInstrument $instrument, RequestContext $context): ?array
-            {
-                return null;
-            }
-        };
+        $handler = $this->createMock(PaymentHandlerInterface::class);
+        $handler
+            ->method('id')
+            ->willReturn('demo-handler');
 
         $registry = new PaymentHandlerRegistry([$handler]);
 
         self::assertSame([$handler], $registry->all());
         self::assertSame($handler, $registry->find('demo-handler'));
         self::assertNull($registry->find('missing'));
+    }
+}
+
+final class CountableTestCapability implements CapabilityInterface, \Countable
+{
+    public function describe(): CapabilityDescriptor
+    {
+        return new CapabilityDescriptor('demo.capability', '2026-04-08', 'https://example.test/spec', 'https://example.test/schema');
+    }
+
+    public function count(): int
+    {
+        return 1;
     }
 }
