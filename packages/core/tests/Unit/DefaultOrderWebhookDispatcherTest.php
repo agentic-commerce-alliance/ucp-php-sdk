@@ -18,6 +18,7 @@ use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
+use Ucp\Sdk\Model\Security\SignatureVerificationResult;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
@@ -77,7 +78,7 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                     return ['Signature' => 'signed'];
                 }
 
-                public function verify(HttpRequest $request, array $keys): \Ucp\Sdk\Model\Security\SignatureVerificationResult
+                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
                 {
                     throw new \RuntimeException('Not used in this test.');
                 }
@@ -155,7 +156,7 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                     return ['Signature' => 'signed'];
                 }
 
-                public function verify(HttpRequest $request, array $keys): \Ucp\Sdk\Model\Security\SignatureVerificationResult
+                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
                 {
                     throw new \RuntimeException('Not used in this test.');
                 }
@@ -217,7 +218,7 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
                     return [];
                 }
 
-                public function verify(HttpRequest $request, array $keys): \Ucp\Sdk\Model\Security\SignatureVerificationResult
+                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
                 {
                     throw new \RuntimeException('Not used in this test.');
                 }
@@ -302,10 +303,28 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     {
         $state = new WebhookDispatcherState();
         $tenantKey = new ManagedSigningKey('tenant-key', 'public', 'private');
-        $globalKey = new ManagedSigningKey('global-key', 'public', 'private');
+        $signingKeyRepository = $this->createMock(TenantAwareSigningKeyRepositoryMock::class);
+        $signingKeyRepository
+            ->expects(self::once())
+            ->method('activeForTenant')
+            ->with('tenant-a')
+            ->willReturn([$tenantKey]);
+
+        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatureService
+            ->expects(self::once())
+            ->method('sign')
+            ->with(self::isInstanceOf(HttpRequest::class), self::identicalTo($tenantKey))
+            ->willReturnCallback(static function (HttpRequest $request, ManagedSigningKey $key) use ($state): array {
+                $state->capturedRequest = $request;
+                $state->capturedKey = $key;
+
+                return ['Signature' => 'signed'];
+            });
+
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            new TenantAwareWebhookSigningKeyRepository($globalKey, $tenantKey),
-            new RecordingSignatureService($state),
+            $signingKeyRepository,
+            $signatureService,
             new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 204])),
             [],
             new EventDispatcher(),
@@ -360,7 +379,7 @@ final class RecordingSignatureService implements RequestSignatureServiceInterfac
         return ['Signature' => 'signed'];
     }
 
-    public function verify(HttpRequest $request, array $keys): \Ucp\Sdk\Model\Security\SignatureVerificationResult
+    public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
     {
         throw new \RuntimeException('Not used in this test.');
     }
@@ -401,36 +420,6 @@ class WebhookSigningKeyRepository implements ManagedSigningKeyRepositoryInterfac
     }
 }
 
-final class TenantAwareWebhookSigningKeyRepository extends WebhookSigningKeyRepository implements TenantAwareManagedSigningKeyRepositoryInterface
+interface TenantAwareSigningKeyRepositoryMock extends ManagedSigningKeyRepositoryInterface, TenantAwareManagedSigningKeyRepositoryInterface
 {
-    public function __construct(
-        ManagedSigningKey $activeKey,
-        private readonly ManagedSigningKey $tenantKey,
-    ) {
-        parent::__construct($activeKey);
-    }
-
-    public function saveManagedForTenant(?string $tenantIdentifier, ManagedSigningKey $key): void
-    {
-    }
-
-    public function findManagedForTenant(?string $tenantIdentifier, string $kid): ?ManagedSigningKey
-    {
-        return $tenantIdentifier === 'tenant-a' && $kid === $this->tenantKey->kid ? $this->tenantKey : null;
-    }
-
-    public function deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
-    {
-        return false;
-    }
-
-    public function allManagedForTenant(?string $tenantIdentifier): array
-    {
-        return $tenantIdentifier === 'tenant-a' ? [$this->tenantKey] : [];
-    }
-
-    public function activeForTenant(?string $tenantIdentifier): array
-    {
-        return $tenantIdentifier === 'tenant-a' ? [$this->tenantKey] : [];
-    }
 }

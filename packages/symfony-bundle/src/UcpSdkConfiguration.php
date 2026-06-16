@@ -11,6 +11,8 @@ use Ucp\Sdk\Symfony\Internal\OriginMatcher;
 
 final class UcpSdkConfiguration
 {
+    private const DEFAULT_WEBHOOK_MAX_RESPONSE_BODY_BYTES = 256 * 1024;
+
     /**
      * @param list<string> $allowedProfileHosts
      * @param list<string> $allowedAgentDomains
@@ -43,7 +45,7 @@ final class UcpSdkConfiguration
         public readonly string $storageDsn,
         public readonly array $transports = [Transport::Rest],
         public readonly array $transportEndpoints = [],
-        public readonly int $webhookMaxResponseBodyBytes = 262144,
+        public readonly int $webhookMaxResponseBodyBytes = self::DEFAULT_WEBHOOK_MAX_RESPONSE_BODY_BYTES,
         public readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }

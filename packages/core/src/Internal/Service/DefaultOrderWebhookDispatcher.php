@@ -12,6 +12,7 @@ use Ucp\Sdk\Event\OrderWebhookDispatchEvent;
 use Ucp\Sdk\Exception\UcpException;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\RequestContext;
+use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Model\Webhook\WebhookDispatchResult;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
@@ -22,6 +23,8 @@ use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 /** @internal */
 final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterface
 {
+    private const DEFAULT_MAX_RESPONSE_BODY_BYTES = 256 * 1024;
+
     /**
      * @param iterable<OrderWebhookEnricherInterface> $enrichers
      */
@@ -33,7 +36,7 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly int $timeoutSeconds = 10,
         ?UrlSafetyValidator $urlSafetyValidator = null,
-        private readonly int $maxResponseBodyBytes = 262144,
+        private readonly int $maxResponseBodyBytes = self::DEFAULT_MAX_RESPONSE_BODY_BYTES,
     ) {
         $this->urlSafetyValidator = $urlSafetyValidator ?? new UrlSafetyValidator();
     }
@@ -130,7 +133,7 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         return $content;
     }
 
-    private function resolveSigningKey(RequestContext $context): ?\Ucp\Sdk\Model\Security\ManagedSigningKey
+    private function resolveSigningKey(RequestContext $context): ?ManagedSigningKey
     {
         $active = $this->signingKeyRepository instanceof TenantAwareManagedSigningKeyRepositoryInterface
             ? $this->signingKeyRepository->activeForTenant($context->runtimeConfiguration?->tenantIdentifier)

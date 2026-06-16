@@ -9,6 +9,8 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 final class Configuration implements ConfigurationInterface
 {
+    private const DEFAULT_WEBHOOK_MAX_RESPONSE_BODY_BYTES = 256 * 1024;
+
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('ucp_sdk');
@@ -73,7 +75,11 @@ final class Configuration implements ConfigurationInterface
                     ->addDefaultsIfNotSet()
                     ->children()
                         ->integerNode('timeout')->defaultValue(10)->min(1)->end()
-                        ->integerNode('max_response_body_bytes')->defaultValue(262144)->min(1)->end()
+                        ->integerNode('max_response_body_bytes')
+                            ->info('Maximum webhook response body size stored by the SDK in bytes. Defaults to 256 KiB; larger bodies are discarded.')
+                            ->defaultValue(self::DEFAULT_WEBHOOK_MAX_RESPONSE_BODY_BYTES)
+                            ->min(1)
+                        ->end()
                     ->end()
                 ->end()
                 ->arrayNode('ap2')
