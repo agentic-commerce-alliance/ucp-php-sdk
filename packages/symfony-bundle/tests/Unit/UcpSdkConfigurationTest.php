@@ -34,13 +34,21 @@ final class UcpSdkConfigurationTest extends TestCase
     public function itAllowsOnlyConfiguredOrBaseUriOrigins(): void
     {
         $configuration = $this->configuration(
-            baseUri: null,
-            allowedAgentDomains: ['agent.example'],
+            baseUri: 'https://merchant.example',
+            allowedAgentDomains: ['https://agent.example', 'http://localhost:8081'],
         );
 
         self::assertTrue($configuration->allowsOrigin('https://agent.example'));
-        self::assertTrue($configuration->allowsOrigin('https://merchant.example', 'https://merchant.example/base'));
+        self::assertTrue($configuration->allowsOrigin('http://localhost:8081'));
+        self::assertTrue($configuration->allowsOrigin('https://merchant.example'));
+        self::assertTrue($this->configuration(baseUri: null)->allowsOrigin('https://fallback.example', 'https://fallback.example/base'));
         self::assertFalse($configuration->allowsOrigin('not-a-url'));
+        self::assertFalse($configuration->allowsOrigin('http://agent.example'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example:444'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example/path'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example?x=1'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example#frag'));
+        self::assertFalse($configuration->allowsOrigin('http://merchant.example'));
         self::assertFalse($configuration->allowsOrigin('https://evil.example', 'https://merchant.example'));
     }
 
