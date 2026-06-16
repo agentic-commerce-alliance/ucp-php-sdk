@@ -307,6 +307,59 @@ final class EventListenersTest extends TestCase
     }
 
     #[Test]
+    public function itDoesNotBuildRestContextForPublicDiscoveryRoutes(): void
+    {
+        $state = new EventListenerState();
+        $listener = new RequestContextListener(
+            new class () implements HttpRequestContextFactoryInterface {
+                public function create(HttpRequest $request): RequestContext
+                {
+                    throw new \RuntimeException('Public discovery routes must not use the signed UCP request context listener.');
+                }
+            },
+            new class ($state) implements IdempotencyServiceInterface {
+                public function __construct(private readonly EventListenerState $state)
+                {
+                }
+
+                public function claim(string $key, string $fingerprint): IdempotencyRecord
+                {
+                    $this->state->claimedKey = $key;
+
+                    throw new \RuntimeException('Public discovery routes must not claim UCP idempotency records.');
+                }
+
+                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
+                {
+                }
+
+                public function abort(IdempotencyRecord $record): void
+                {
+                }
+            },
+            new UcpResponseFactory($this->configuration()),
+            $this->configuration(),
+        );
+
+        foreach ([
+            '/.well-known/ucp',
+            '/.well-known/oauth-authorization-server',
+            '/.well-known/openid-configuration',
+            '/.well-known/agent-card.json',
+        ] as $path) {
+            $request = Request::create('https://merchant.example' . $path, 'GET');
+            $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+            $listener->onKernelRequest($event);
+
+            self::assertNull($request->attributes->get('ucp_request_context'), $path);
+            self::assertNull($event->getResponse(), $path);
+        }
+
+        self::assertNull($state->claimedKey);
+    }
+
+    #[Test]
     public function itDoesNotBuildRestContextForMcpTransportRequests(): void
     {
         $request = Request::create('https://merchant.example/ucp/mcp', 'POST', [], [], [], [], '{"jsonrpc":"2.0"}');

@@ -153,6 +153,36 @@ final class BootstrapSymfonyAppKernelTest extends WebTestCase
     }
 
     #[Test]
+    public function itServesPublicDiscoveryEndpointsUnderStrictSignaturePolicy(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict']);
+
+        $this->request($client, 'GET', '/.well-known/ucp');
+        self::assertResponseIsSuccessful();
+        $profile = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('2026-04-08', $profile['ucp']['version']);
+
+        $this->request($client, 'GET', '/.well-known/oauth-authorization-server');
+        self::assertResponseIsSuccessful();
+        $metadata = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertArrayHasKey('issuer', $metadata);
+        self::assertArrayHasKey('token_endpoint', $metadata);
+    }
+
+    #[Test]
+    public function itDoesNotRequireSignaturesForDisabledAgentCardDiscovery(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict']);
+
+        $this->request($client, 'GET', '/.well-known/agent-card.json');
+
+        self::assertResponseStatusCodeSame(404);
+        $payload = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('error', $payload['ucp']['status']);
+        self::assertSame('A2A transport is not enabled.', $payload['messages'][0]['content']);
+    }
+
+    #[Test]
     public function itServesOAuthMetadata(): void
     {
         $client = $this->createConfiguredClient();

@@ -106,14 +106,7 @@ final class RequestContextListener
             return false;
         }
 
-        if (str_starts_with($path, '/ucp/')) {
-            return true;
-        }
-
-        return in_array($path, [
-            '/.well-known/oauth-authorization-server',
-            '/.well-known/openid-configuration',
-        ], true);
+        return str_starts_with($path, '/ucp/');
     }
 
     private function requiresUcpIdempotency(Request $request): bool
