@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Symfony\Bridge;
 
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
@@ -44,7 +45,17 @@ final class HttpPayloadMapper
             return $decoded;
         }
 
-        return json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        try {
+            $decoded = json_decode($request->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new BadRequestHttpException('Malformed JSON request body.', $exception);
+        }
+
+        if (! is_array($decoded)) {
+            throw new BadRequestHttpException('JSON request body must be an object.');
+        }
+
+        return $decoded;
     }
 
     /**

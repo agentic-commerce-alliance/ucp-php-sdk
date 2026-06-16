@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "required": ["cart_id", "code"],
+  "properties": {
+    "cart_id": { "type": "string" },
+    "code": { "type": "string" }
+  }
+}

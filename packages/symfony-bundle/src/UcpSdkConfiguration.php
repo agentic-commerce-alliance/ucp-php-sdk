@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
+use Ucp\Sdk\Symfony\Internal\OriginMatcher;
 
 final class UcpSdkConfiguration
 {
@@ -42,6 +43,7 @@ final class UcpSdkConfiguration
         public readonly string $storageDsn,
         public readonly array $transports = [Transport::Rest],
         public readonly array $transportEndpoints = [],
+        public readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }
 
@@ -57,18 +59,7 @@ final class UcpSdkConfiguration
 
     public function allowsOrigin(string $origin, ?string $fallbackBaseUri = null): bool
     {
-        $host = parse_url($origin, PHP_URL_HOST);
-        if (! is_string($host) || $host === '') {
-            return false;
-        }
-
-        $allowedHosts = $this->allowedAgentDomains;
-        $baseHost = parse_url($this->resolvedBaseUri($fallbackBaseUri), PHP_URL_HOST);
-        if (is_string($baseHost) && $baseHost !== '') {
-            $allowedHosts[] = $baseHost;
-        }
-
-        return in_array($host, array_unique($allowedHosts), true);
+        return OriginMatcher::allows($origin, $this->allowedAgentDomains, $this->resolvedBaseUri($fallbackBaseUri));
     }
 
     public function toRuntimeConfiguration(?string $fallbackBaseUri = null): RuntimeConfiguration
@@ -84,6 +75,7 @@ final class UcpSdkConfiguration
             $this->transports,
             [],
             transportEndpoints: $this->transportEndpoints,
+            profileFetchingDevelopmentMode: $this->profileFetchingDevelopmentMode,
         );
     }
 }

@@ -15,6 +15,7 @@ use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
+use Ucp\Sdk\Symfony\Internal\OriginMatcher;
 
 final class EmbeddedController
 {
@@ -126,18 +127,7 @@ final class EmbeddedController
 
     private function allowsOrigin(string $origin, RuntimeConfiguration $runtimeConfiguration, string $fallbackBaseUri): bool
     {
-        $host = parse_url($origin, PHP_URL_HOST);
-        if (! is_string($host) || $host === '') {
-            return false;
-        }
-
-        $allowedHosts = $runtimeConfiguration->allowedAgentDomains;
-        $baseHost = parse_url($runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $fallbackBaseUri, PHP_URL_HOST);
-        if (is_string($baseHost) && $baseHost !== '') {
-            $allowedHosts[] = $baseHost;
-        }
-
-        return in_array($host, array_unique($allowedHosts), true);
+        return OriginMatcher::allows($origin, $runtimeConfiguration->allowedAgentDomains, $runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $fallbackBaseUri);
     }
 
     private function toHttpRequest(Request $request): HttpRequest

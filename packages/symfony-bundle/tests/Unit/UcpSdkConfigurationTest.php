@@ -34,13 +34,21 @@ final class UcpSdkConfigurationTest extends TestCase
     public function itAllowsOnlyConfiguredOrBaseUriOrigins(): void
     {
         $configuration = $this->configuration(
-            baseUri: null,
-            allowedAgentDomains: ['agent.example'],
+            baseUri: 'https://merchant.example',
+            allowedAgentDomains: ['https://agent.example', 'http://localhost:8081'],
         );
 
         self::assertTrue($configuration->allowsOrigin('https://agent.example'));
-        self::assertTrue($configuration->allowsOrigin('https://merchant.example', 'https://merchant.example/base'));
+        self::assertTrue($configuration->allowsOrigin('http://localhost:8081'));
+        self::assertTrue($configuration->allowsOrigin('https://merchant.example'));
+        self::assertTrue($this->configuration(baseUri: null)->allowsOrigin('https://fallback.example', 'https://fallback.example/base'));
         self::assertFalse($configuration->allowsOrigin('not-a-url'));
+        self::assertFalse($configuration->allowsOrigin('http://agent.example'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example:444'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example/path'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example?x=1'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example#frag'));
+        self::assertFalse($configuration->allowsOrigin('http://merchant.example'));
         self::assertFalse($configuration->allowsOrigin('https://evil.example', 'https://merchant.example'));
     }
 
@@ -55,6 +63,7 @@ final class UcpSdkConfigurationTest extends TestCase
             supportedVersions: ['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'],
             transports: [Transport::Rest, Transport::A2a],
             transportEndpoints: ['a2a' => 'https://merchant.example/ucp/a2a'],
+            profileFetchingDevelopmentMode: true,
         );
 
         $runtime = $configuration->toRuntimeConfiguration('https://merchant.example');
@@ -67,6 +76,7 @@ final class UcpSdkConfigurationTest extends TestCase
         self::assertSame(['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'], $runtime->supportedVersions);
         self::assertSame([Transport::Rest, Transport::A2a], $runtime->transports);
         self::assertSame(['a2a' => 'https://merchant.example/ucp/a2a'], $runtime->transportEndpoints);
+        self::assertTrue($runtime->profileFetchingDevelopmentMode);
     }
 
     /**
@@ -84,6 +94,7 @@ final class UcpSdkConfigurationTest extends TestCase
         array $supportedVersions = [],
         array $transports = [Transport::Rest],
         array $transportEndpoints = [],
+        bool $profileFetchingDevelopmentMode = false,
     ): UcpSdkConfiguration {
         return new UcpSdkConfiguration(
             '2026-04-08',
@@ -110,6 +121,7 @@ final class UcpSdkConfigurationTest extends TestCase
             'sqlite:///%kernel.project_dir%/var/ucp_sdk.sqlite',
             $transports,
             $transportEndpoints,
+            $profileFetchingDevelopmentMode,
         );
     }
 }

@@ -98,9 +98,12 @@ final class ShoppingOperationExecutor
      */
     private function productGet(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('catalog.product', $request->payload, $request->context);
         $id = $this->requiredId($request);
+        $result = $this->catalog()->getProduct($id, $request->context)->toArray();
+        $this->protocolValidator->validateResponse('catalog.product', $result, $request->context);
 
-        return $this->catalog()->getProduct($id, $request->context)->toArray();
+        return $result;
     }
 
     /**
@@ -120,9 +123,12 @@ final class ShoppingOperationExecutor
      */
     private function cartGet(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('cart.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
+        $result = $this->cart()->getCart($id, $request->context)->toArray();
+        $this->protocolValidator->validateResponse('cart.get', $result, $request->context);
 
-        return $this->cart()->getCart($id, $request->context)->toArray();
+        return $result;
     }
 
     /**
@@ -142,9 +148,12 @@ final class ShoppingOperationExecutor
      */
     private function cartCancel(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('cart.cancel', $request->payload, $request->context);
         $id = $this->requiredId($request);
+        $result = $this->cart()->cancelCart($id, $request->context)->toArray();
+        $this->protocolValidator->validateResponse('cart.cancel', $result, $request->context);
 
-        return $this->cart()->cancelCart($id, $request->context)->toArray();
+        return $result;
     }
 
     /**
@@ -152,13 +161,16 @@ final class ShoppingOperationExecutor
      */
     private function discountApply(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('discount.apply', $request->payload, $request->context);
         $cartId = (string) ($request->payload['cart_id'] ?? $request->id ?? '');
         $code = (string) ($request->payload['code'] ?? '');
         if ($cartId === '' || $code === '') {
             throw new BadRequestHttpException('discount.apply requires cart_id and code parameters.');
         }
+        $result = $this->discount()->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray();
+        $this->protocolValidator->validateResponse('discount.apply', $result, $request->context);
 
-        return $this->discount()->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray();
+        return $result;
     }
 
     /**
@@ -187,9 +199,12 @@ final class ShoppingOperationExecutor
      */
     private function checkoutGet(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('checkout.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
+        $result = $this->finalizeCheckout($this->checkout()->getCheckout($id, $request->context), $request)->toArray();
+        $this->protocolValidator->validateResponse('checkout.get', $result, $request->context);
 
-        return $this->finalizeCheckout($this->checkout()->getCheckout($id, $request->context), $request)->toArray();
+        return $result;
     }
 
     /**
@@ -219,9 +234,12 @@ final class ShoppingOperationExecutor
      */
     private function checkoutComplete(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $id = $this->requiredId($request);
+        $result = $this->finalizeCheckout($this->checkout()->completeCheckout($id, $request->context), $request)->toArray();
+        $this->protocolValidator->validateResponse('checkout.complete', $result, $request->context);
 
-        return $this->finalizeCheckout($this->checkout()->completeCheckout($id, $request->context), $request)->toArray();
+        return $result;
     }
 
     /**
@@ -229,9 +247,12 @@ final class ShoppingOperationExecutor
      */
     private function checkoutCancel(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('checkout.cancel', $request->payload, $request->context);
         $id = $this->requiredId($request);
+        $result = $this->finalizeCheckout($this->checkout()->cancelCheckout($id, $request->context), $request)->toArray();
+        $this->protocolValidator->validateResponse('checkout.cancel', $result, $request->context);
 
-        return $this->finalizeCheckout($this->checkout()->cancelCheckout($id, $request->context), $request)->toArray();
+        return $result;
     }
 
     /**
@@ -239,9 +260,12 @@ final class ShoppingOperationExecutor
      */
     private function orderGet(ShoppingOperationRequest $request): array
     {
+        $this->protocolValidator->validateRequest('order.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
+        $result = $this->order()->getOrder($id, $request->context)->toArray();
+        $this->protocolValidator->validateResponse('order.get', $result, $request->context);
 
-        return $this->order()->getOrder($id, $request->context)->toArray();
+        return $result;
     }
 
     private function catalog(): CatalogCapabilityInterface

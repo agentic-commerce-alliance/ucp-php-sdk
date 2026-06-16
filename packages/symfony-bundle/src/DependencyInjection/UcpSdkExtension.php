@@ -159,6 +159,7 @@ final class UcpSdkExtension extends Extension
             $config['storage']['dsn'],
             $transports,
             $config['transport_endpoints'],
+            $config['profile_fetching_development_mode'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -173,6 +174,7 @@ final class UcpSdkExtension extends Extension
             [],
             null,
             $config['transport_endpoints'],
+            $config['profile_fetching_development_mode'],
         ]));
 
         $container->setDefinition(StaticRuntimeConfigurationResolver::class, new Definition(StaticRuntimeConfigurationResolver::class, [
@@ -245,6 +247,8 @@ final class UcpSdkExtension extends Extension
 
         $container->setDefinition(UrlSafetyValidator::class, new Definition(UrlSafetyValidator::class, [
             $config['allowed_profile_hosts'],
+            null,
+            $config['profile_fetching_development_mode'],
         ]));
         $container->setDefinition(ContentDigestService::class, new Definition(ContentDigestService::class));
         $container->setDefinition(DefaultJsonCanonicalization::class, new Definition(DefaultJsonCanonicalization::class));
