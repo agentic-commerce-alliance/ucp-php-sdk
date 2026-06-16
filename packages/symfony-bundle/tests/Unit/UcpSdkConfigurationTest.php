@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 final class UcpSdkConfigurationTest extends TestCase
@@ -121,6 +122,7 @@ final class UcpSdkConfigurationTest extends TestCase
             'sqlite:///%kernel.project_dir%/var/ucp_sdk.sqlite',
             $transports,
             $transportEndpoints,
+            DefaultOrderWebhookDispatcher::DEFAULT_MAX_RESPONSE_BODY_BYTES,
             $profileFetchingDevelopmentMode,
         );
     }

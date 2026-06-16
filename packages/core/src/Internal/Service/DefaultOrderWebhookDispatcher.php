@@ -23,7 +23,7 @@ use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 /** @internal */
 final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterface
 {
-    private const DEFAULT_MAX_RESPONSE_BODY_BYTES = 256 * 1024;
+    public const DEFAULT_MAX_RESPONSE_BODY_BYTES = 256 * 1024;
 
     /**
      * @param iterable<OrderWebhookEnricherInterface> $enrichers
