@@ -284,5 +284,3 @@ Pull requests:
   commit unless the user explicitly asks for an amend or force-push.
 - PR descriptions should summarize what changed and why. Do not add validation
   sections; CI owns validation reporting.
-- Never push commits without explicit user approval for that push, even if the
-  user approved a previous push earlier in the same conversation.
