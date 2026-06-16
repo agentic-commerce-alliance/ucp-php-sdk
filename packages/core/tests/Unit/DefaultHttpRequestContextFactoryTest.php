@@ -268,6 +268,45 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
     }
 
     #[Test]
+    public function itRejectsUntrustedProfileHostsBeforeFetchingTheProfile(): void
+    {
+        $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
+        $runtimeConfigurationResolver
+            ->expects($this->once())
+            ->method('resolve')
+            ->willReturn(new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Strict));
+
+        $agentProfileFetcher = $this->createMock(AgentProfileFetcherInterface::class);
+        $agentProfileFetcher
+            ->expects($this->never())
+            ->method('fetch');
+
+        $requestSignatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $requestSignatureService
+            ->expects($this->never())
+            ->method('verify');
+
+        $capabilityNegotiator = $this->createMock(CapabilityNegotiatorInterface::class);
+        $capabilityNegotiator
+            ->expects($this->never())
+            ->method('negotiate');
+
+        $factory = new DefaultHttpRequestContextFactory(
+            $runtimeConfigurationResolver,
+            $agentProfileFetcher,
+            $requestSignatureService,
+            $capabilityNegotiator,
+        );
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform profile host is not allowed by the current runtime configuration.');
+
+        $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://public.example/.well-known/ucp"',
+        ]));
+    }
+
+    #[Test]
     public function itVerifiesMerchantAuthorizationAgainstTheResolvedPublicKeys(): void
     {
         $manager = new DefaultSigningKeyManager();

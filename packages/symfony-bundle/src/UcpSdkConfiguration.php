@@ -42,6 +42,7 @@ final class UcpSdkConfiguration
         public readonly string $storageDsn,
         public readonly array $transports = [Transport::Rest],
         public readonly array $transportEndpoints = [],
+        public readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }
 
@@ -84,6 +85,7 @@ final class UcpSdkConfiguration
             $this->transports,
             [],
             transportEndpoints: $this->transportEndpoints,
+            profileFetchingDevelopmentMode: $this->profileFetchingDevelopmentMode,
         );
     }
 }

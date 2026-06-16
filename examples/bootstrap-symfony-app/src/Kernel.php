@@ -47,6 +47,7 @@ final class Kernel extends BaseKernel
         $container->extension('ucp_sdk', [
             'base_uri' => $baseUri,
             'allowed_profile_hosts' => $this->allowedProfileHosts($baseUri),
+            'profile_fetching_development_mode' => $this->profileFetchingDevelopmentMode(),
             'signature_policy' => $this->signaturePolicy(),
             'storage' => [
                 'dsn' => 'sqlite:///' . dirname(__DIR__) . '/var/ucp_sdk.sqlite',
@@ -98,6 +99,11 @@ final class Kernel extends BaseKernel
     private function signaturePolicy(): string
     {
         return $_ENV['UCP_SIGNATURE_POLICY'] ?? $_SERVER['UCP_SIGNATURE_POLICY'] ?? 'log';
+    }
+
+    private function profileFetchingDevelopmentMode(): bool
+    {
+        return $this->environment === 'dev';
     }
 
     /**
