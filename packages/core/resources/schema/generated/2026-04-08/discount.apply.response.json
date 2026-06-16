@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["id", "line_items", "currency", "totals", "messages"],
+  "properties": {
+    "id": { "type": "string" },
+    "line_items": { "type": "array" },
+    "currency": { "type": "string" },
+    "totals": { "type": "array" },
+    "messages": { "type": "array" }
+  }
+}
