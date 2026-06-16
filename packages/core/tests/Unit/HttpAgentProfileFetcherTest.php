@@ -10,6 +10,7 @@ use Symfony\Contracts\HttpClient\ChunkInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 use Symfony\Contracts\HttpClient\ResponseStreamInterface;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
@@ -197,6 +198,34 @@ final class HttpAgentProfileFetcherTest extends TestCase
         } finally {
             self::assertFalse($response->cancelled);
             self::assertSame(0.0, $client->streamTimeout);
+            self::assertCount(0, $cacheRepository->savedProfiles);
+        }
+    }
+
+    #[Test]
+    public function itRejectsAndDoesNotCacheMalformedRemoteProfiles(): void
+    {
+        $body = '{"ucp":{"services":"bad","capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $response = new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]);
+        $cacheRepository = new RecordingPlatformProfileCacheRepository();
+        $fetcher = new HttpAgentProfileFetcher(
+            new RecordingHttpClient(
+                $response,
+                [new RecordingChunk(content: $body, offset: 0)],
+            ),
+            $cacheRepository,
+            new UrlSafetyValidator(
+                ['platform.example'],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Platform profile section "services" must be an object.');
+
+        try {
+            $fetcher->fetch('https://platform.example/.well-known/ucp');
+        } finally {
             self::assertCount(0, $cacheRepository->savedProfiles);
         }
     }

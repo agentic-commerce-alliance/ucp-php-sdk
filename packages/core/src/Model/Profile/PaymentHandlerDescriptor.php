@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Profile;
 
+use Ucp\Sdk\Exception\ValidationException;
+
 final class PaymentHandlerDescriptor
 {
     /**
@@ -42,14 +44,38 @@ final class PaymentHandlerDescriptor
      */
     public static function fromArray(array $entry): self
     {
+        $instrumentSchemas = $entry['instrument_schemas'] ?? null;
+        if (! is_array($instrumentSchemas) || ! array_is_list($instrumentSchemas)) {
+            throw new ValidationException('Payment handler field "instrument_schemas" must be a list of strings.');
+        }
+
+        foreach ($instrumentSchemas as $schema) {
+            if (! is_string($schema) || trim($schema) === '') {
+                throw new ValidationException('Payment handler field "instrument_schemas" must be a list of strings.');
+            }
+        }
+
         return new self(
-            (string) ($entry['id'] ?? ''),
-            (string) ($entry['name'] ?? ''),
-            (string) ($entry['version'] ?? ''),
-            (string) ($entry['spec'] ?? ''),
-            (string) ($entry['config_schema'] ?? ''),
-            array_values(array_map('strval', is_array($entry['instrument_schemas'] ?? null) ? $entry['instrument_schemas'] : [])),
+            self::requiredString($entry, 'id'),
+            self::requiredString($entry, 'name'),
+            self::requiredString($entry, 'version'),
+            self::requiredString($entry, 'spec'),
+            self::requiredString($entry, 'config_schema'),
+            $instrumentSchemas,
             is_array($entry['config'] ?? null) ? $entry['config'] : [],
         );
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     */
+    private static function requiredString(array $entry, string $field): string
+    {
+        $value = $entry[$field] ?? null;
+        if (! is_string($value) || trim($value) === '') {
+            throw new ValidationException(sprintf('Payment handler field "%s" must be a non-empty string.', $field));
+        }
+
+        return $value;
     }
 }

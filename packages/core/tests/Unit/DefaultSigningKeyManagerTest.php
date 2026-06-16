@@ -31,19 +31,12 @@ final class DefaultSigningKeyManagerTest extends TestCase
     public function itCreatesPublicKeysFromJwks(): void
     {
         $manager = new DefaultSigningKeyManager();
+        $jwk = $manager->toPublicKey($manager->generate('kid-jwk'))->toJwk();
 
-        $publicKey = $manager->publicKeyFromJwk([
-            'kid' => 'kid-jwk',
-            'kty' => 'EC',
-            'alg' => 'ES256',
-            'use' => 'sig',
-            'crv' => 'P-256',
-            'x' => 'demo-x',
-            'y' => 'demo-y',
-        ]);
+        $publicKey = $manager->publicKeyFromJwk($jwk);
 
         self::assertSame('kid-jwk', $publicKey->kid);
-        self::assertSame('demo-x', $publicKey->x);
-        self::assertSame('demo-y', $publicKey->y);
+        self::assertSame($jwk['x'], $publicKey->x);
+        self::assertSame($jwk['y'], $publicKey->y);
     }
 }

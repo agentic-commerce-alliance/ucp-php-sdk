@@ -7,6 +7,8 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ServiceEndpoint;
@@ -121,5 +123,80 @@ final class PlatformProfileTest extends TestCase
         self::assertSame('https://ucp.dev/2026-04-08/services/shopping/rest.openapi.json', $profile->services['dev.ucp.shopping'][0]->schemaUrl);
         self::assertArrayHasKey('dev.ucp.shopping.cart', $profile->capabilities);
         self::assertSame(['2025-10-01' => 'https://shop.example/.well-known/ucp/2025-10-01'], $profile->supportedVersions);
+    }
+
+    #[Test]
+    public function itRejectsProfilesWithoutAProtocolVersion(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Platform profile version must be a non-empty string.');
+
+        PlatformProfile::fromArray([
+            'ucp' => [
+                'services' => [],
+                'capabilities' => [],
+                'payment_handlers' => [],
+            ],
+            'signing_keys' => [],
+        ]);
+    }
+
+    #[Test]
+    public function itRejectsMalformedProfileSectionsInsteadOfDroppingThem(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Platform profile section "services" must be an object.');
+
+        PlatformProfile::fromArray([
+            'ucp' => [
+                'version' => '2026-04-08',
+                'services' => 'bad',
+                'capabilities' => [],
+                'payment_handlers' => [],
+            ],
+            'signing_keys' => [],
+        ]);
+    }
+
+    #[Test]
+    public function itRejectsMalformedEntriesInsideProfileSections(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Platform profile section "capabilities" entry "dev.ucp.shopping.cart" at index 0 must be an object.');
+
+        PlatformProfile::fromArray([
+            'ucp' => [
+                'version' => '2026-04-08',
+                'services' => [],
+                'capabilities' => [
+                    'dev.ucp.shopping.cart' => ['not-an-object'],
+                ],
+                'payment_handlers' => [],
+            ],
+            'signing_keys' => [],
+        ]);
+    }
+
+    #[Test]
+    public function itRejectsDuplicateSigningKeyIdsInProfiles(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $jwk = $manager->toPublicKey($manager->generate('kid-1'))->toJwk();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Platform profile signing key id "kid-1" is duplicated.');
+
+        PlatformProfile::fromArray([
+            'ucp' => [
+                'version' => '2026-04-08',
+                'services' => [],
+                'capabilities' => [],
+                'payment_handlers' => [],
+            ],
+            'signing_keys' => [
+                $jwk,
+                $jwk,
+            ],
+        ]);
     }
 }

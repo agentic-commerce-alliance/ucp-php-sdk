@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Profile;
 
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Security\PublicSigningKey;
 
 final class PlatformProfile
@@ -104,45 +105,136 @@ final class PlatformProfile
      */
     public static function fromArray(array $payload): self
     {
-        $root = is_array($payload['ucp'] ?? null) ? $payload['ucp'] : $payload;
+        $root = self::root($payload);
         $services = [];
         $capabilities = [];
         $paymentHandlers = [];
 
-        foreach (self::section($root, $payload, 'services') as $name => $entries) {
-            $services[(string) $name] = array_values(array_map(
+        foreach (self::entrySection($root, $payload, 'services') as $name => $entries) {
+            $services[$name] = array_map(
                 static fn (array $entry): ServiceEndpoint => ServiceEndpoint::fromArray($entry),
-                is_array($entries) ? array_filter($entries, 'is_array') : [],
-            ));
+                $entries,
+            );
         }
 
-        foreach (self::section($root, $payload, 'capabilities') as $name => $entries) {
-            $capabilities[(string) $name] = array_values(array_map(
-                static fn (array $entry): CapabilityDescriptor => CapabilityDescriptor::fromProfileEntry((string) $name, $entry),
-                is_array($entries) ? array_filter($entries, 'is_array') : [],
-            ));
+        foreach (self::entrySection($root, $payload, 'capabilities') as $name => $entries) {
+            $capabilities[$name] = array_map(
+                static fn (array $entry): CapabilityDescriptor => CapabilityDescriptor::fromProfileEntry($name, $entry),
+                $entries,
+            );
         }
 
-        foreach (self::section($root, $payload, 'payment_handlers') as $name => $entries) {
-            $paymentHandlers[(string) $name] = array_values(array_map(
+        foreach (self::entrySection($root, $payload, 'payment_handlers') as $name => $entries) {
+            $paymentHandlers[$name] = array_map(
                 static fn (array $entry): PaymentHandlerDescriptor => PaymentHandlerDescriptor::fromArray($entry),
-                is_array($entries) ? array_filter($entries, 'is_array') : [],
-            ));
+                $entries,
+            );
         }
-
-        $signingKeys = array_values(array_map(
-            static fn (array $entry): PublicSigningKey => PublicSigningKey::fromJwk($entry),
-            is_array($payload['signing_keys'] ?? null) ? array_filter($payload['signing_keys'], 'is_array') : [],
-        ));
 
         return new self(
-            (string) ($root['version'] ?? ''),
+            self::version($root),
             $services,
             $capabilities,
             $paymentHandlers,
-            $signingKeys,
+            self::signingKeys($payload),
             self::stringMap(self::section($root, $payload, 'supported_versions')),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private static function root(array $payload): array
+    {
+        if (array_key_exists('ucp', $payload) && ! is_array($payload['ucp'])) {
+            throw new ValidationException('Platform profile "ucp" must be an object.');
+        }
+
+        return is_array($payload['ucp'] ?? null) ? $payload['ucp'] : $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $root
+     */
+    private static function version(array $root): string
+    {
+        $version = $root['version'] ?? null;
+        if (! is_string($version) || trim($version) === '') {
+            throw new ValidationException('Platform profile version must be a non-empty string.');
+        }
+
+        return $version;
+    }
+
+    /**
+     * @param array<string, mixed> $root
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private static function entrySection(array $root, array $payload, string $name): array
+    {
+        $section = $root[$name] ?? $payload[$name] ?? [];
+        if (! is_array($section)) {
+            throw new ValidationException(sprintf('Platform profile section "%s" must be an object.', $name));
+        }
+
+        $normalized = [];
+        foreach ($section as $sectionName => $entries) {
+            if (! is_string($sectionName) || trim($sectionName) === '') {
+                throw new ValidationException(sprintf('Platform profile section "%s" keys must be non-empty strings.', $name));
+            }
+
+            if (! is_array($entries) || ! array_is_list($entries)) {
+                throw new ValidationException(sprintf('Platform profile section "%s" entry "%s" must be a list.', $name, $sectionName));
+            }
+
+            $normalizedEntries = [];
+            foreach ($entries as $index => $entry) {
+                if (! is_array($entry)) {
+                    throw new ValidationException(sprintf('Platform profile section "%s" entry "%s" at index %d must be an object.', $name, $sectionName, $index));
+                }
+
+                $normalizedEntries[] = $entry;
+            }
+
+            $normalized[$sectionName] = $normalizedEntries;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return list<PublicSigningKey>
+     */
+    private static function signingKeys(array $payload): array
+    {
+        $entries = $payload['signing_keys'] ?? [];
+        if (! is_array($entries) || ! array_is_list($entries)) {
+            throw new ValidationException('Platform profile "signing_keys" must be a list.');
+        }
+
+        $seen = [];
+        $signingKeys = [];
+        foreach ($entries as $index => $entry) {
+            if (! is_array($entry)) {
+                throw new ValidationException(sprintf('Platform profile signing key at index %d must be an object.', $index));
+            }
+
+            $key = PublicSigningKey::fromJwk($entry);
+            if (isset($seen[$key->kid])) {
+                throw new ValidationException(sprintf('Platform profile signing key id "%s" is duplicated.', $key->kid));
+            }
+
+            $seen[$key->kid] = true;
+            $signingKeys[] = $key;
+        }
+
+        return $signingKeys;
     }
 
     /**
@@ -154,8 +246,11 @@ final class PlatformProfile
     private static function section(array $root, array $payload, string $name): array
     {
         $section = $root[$name] ?? $payload[$name] ?? [];
+        if (! is_array($section)) {
+            throw new ValidationException(sprintf('Platform profile section "%s" must be an object.', $name));
+        }
 
-        return is_array($section) ? $section : [];
+        return $section;
     }
 
     /**
@@ -168,11 +263,11 @@ final class PlatformProfile
         $normalized = [];
 
         foreach ($payload as $key => $value) {
-            if (! is_string($value)) {
-                continue;
+            if (trim($key) === '' || ! is_string($value) || trim($value) === '') {
+                throw new ValidationException('Platform profile supported_versions must be a map of non-empty strings.');
             }
 
-            $normalized[(string) $key] = $value;
+            $normalized[$key] = $value;
         }
 
         return $normalized;
