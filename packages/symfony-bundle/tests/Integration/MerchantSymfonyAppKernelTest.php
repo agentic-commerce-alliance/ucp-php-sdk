@@ -41,6 +41,24 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
     }
 
     #[Test]
+    public function itReturnsBadRequestForInvalidRestJsonBodies(): void
+    {
+        $client = $this->createConfiguredClient($this->clearMerchantState(...));
+
+        $this->request($client, 'POST', '/ucp/v1/catalog/search', ['CONTENT_TYPE' => 'application/json'], '{');
+        self::assertResponseStatusCodeSame(400);
+        $malformed = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('error', $malformed['ucp']['status']);
+        self::assertSame('Malformed JSON request body.', $malformed['messages'][0]['content']);
+
+        $this->request($client, 'POST', '/ucp/v1/catalog/search', ['CONTENT_TYPE' => 'application/json'], '123');
+        self::assertResponseStatusCodeSame(400);
+        $scalar = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('error', $scalar['ucp']['status']);
+        self::assertSame('JSON request body must be an object.', $scalar['messages'][0]['content']);
+    }
+
+    #[Test]
     public function itRunsMerchantCheckoutLifecycle(): void
     {
         $client = $this->createConfiguredClient($this->clearMerchantState(...));
