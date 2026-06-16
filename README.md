@@ -113,6 +113,7 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 - `signature_policy` accepts `off`, `log`, or `strict`.
 - `transports` defaults to `rest`; valid values are `rest`, `mcp`, `a2a`, and `embedded`.
 - `transport_endpoints` can override generated profile endpoints per transport.
+- `mcp` is metadata-only in the shared SDK and must provide `transport_endpoints.mcp`; the SDK does not generate or handle a default `/ucp/mcp` runtime endpoint.
 - Webhook publishing requires an existing active signing key. Generate one before sending live webhooks.
 - The default DBAL storage schema is not created from repository constructors. Call `SchemaBootstrapper::ensureSchema()` from your install, update, deployment, or startup lifecycle before using the default repositories.
 - Expired SDK state can be purged with `docker compose run --rm php php bin/console ucp:storage:cleanup`.
@@ -157,7 +158,7 @@ In scope:
 - outbound order webhooks
 - A2A
 - embedded transport hooks
-- MCP profile metadata and endpoint advertisement
+- MCP profile metadata when an explicit MCP endpoint is provided by the adopter
 
 Out of scope in this shared SDK:
 

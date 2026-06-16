@@ -13,6 +13,7 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\SignatureException;
@@ -82,6 +83,21 @@ final class EventListenersTest extends TestCase
         );
         $listener->onKernelException($notFoundEvent);
         self::assertSame(404, $notFoundEvent->getResponse()?->getStatusCode());
+
+        $configurationEvent = new ExceptionEvent(
+            $kernel,
+            Request::create('/.well-known/ucp', 'GET'),
+            HttpKernelInterface::MAIN_REQUEST,
+            new ConfigurationException('misconfigured'),
+        );
+        $listener->onKernelException($configurationEvent);
+        $configurationResponse = $configurationEvent->getResponse();
+        self::assertNotNull($configurationResponse);
+        self::assertSame(500, $configurationResponse->getStatusCode());
+        self::assertSame(
+            'misconfigured',
+            json_decode((string) $configurationResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR)['messages'][0]['content'],
+        );
 
         $httpEvent = new ExceptionEvent(
             $kernel,

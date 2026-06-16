@@ -53,6 +53,7 @@ $container->extension('ucp_sdk', [
 
 Valid `signature_policy` values are `off`, `log`, and `strict`.
 Valid `transports` values are `rest`, `mcp`, `a2a`, and `embedded`; REST is the default.
+When `mcp` is enabled, `transport_endpoints.mcp` is required because the shared SDK advertises MCP metadata only and does not provide a default `/ucp/mcp` runtime endpoint.
 Remote profile fetching is default-deny until `allowed_profile_hosts` is configured. Set `profile_fetching_development_mode` to `true` only for localhost/plain-HTTP development.
 
 ## Storage Schema
