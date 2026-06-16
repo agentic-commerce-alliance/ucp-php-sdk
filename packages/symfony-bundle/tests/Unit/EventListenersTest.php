@@ -168,7 +168,7 @@ final class EventListenersTest extends TestCase
         self::assertSame(404, $notFoundEvent->getResponse()?->getStatusCode());
 
         $configurationEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/.well-known/ucp', 'GET'),
             HttpKernelInterface::MAIN_REQUEST,
             new ConfigurationException('misconfigured'),

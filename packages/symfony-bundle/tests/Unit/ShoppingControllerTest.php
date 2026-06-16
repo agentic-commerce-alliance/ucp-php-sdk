@@ -39,7 +39,8 @@ final class ShoppingControllerTest extends TestCase
     public function itRunsCartControllerOperations(): void
     {
         $capability = new ControllerCartCapability();
-        $controller = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability));
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $controller = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability, $validator));
         $request = $this->jsonRequest('/ucp/v1/carts', [
             'line_items' => [[
                 'item' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
@@ -60,7 +61,8 @@ final class ShoppingControllerTest extends TestCase
     public function itRunsCatalogControllerOperations(): void
     {
         $capability = new ControllerCatalogCapability();
-        $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability));
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability, $validator));
 
         $search = $this->payload($controller->search($this->jsonRequest('/ucp/v1/catalog/search', ['query' => 'tent'])));
         self::assertSame('sku-search', $search['items'][0]['id']);
@@ -77,7 +79,8 @@ final class ShoppingControllerTest extends TestCase
     public function itRunsTokenizationController(): void
     {
         $capability = new ControllerTokenizationCapability();
-        $controller = new TokenizationController($this->registry($capability), $this->validator(), new HttpPayloadMapper(), $this->responseFactory());
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $controller = new TokenizationController(new SingleCapabilityRegistry($capability), $validator, new HttpPayloadMapper(), $this->responseFactory());
 
         $payload = $this->payload($controller($this->jsonRequest('/ucp/v1/tokenize', [
             'type' => 'card',
@@ -91,7 +94,8 @@ final class ShoppingControllerTest extends TestCase
     #[Test]
     public function itThrowsWhenShoppingCapabilitiesAreMissing(): void
     {
-        $cartController = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor(null));
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $cartController = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor(null, $validator));
 
         $this->expectException(UnsupportedCapabilityException::class);
         $this->expectExceptionMessage('Cart capability is not registered.');
@@ -110,27 +114,17 @@ final class ShoppingControllerTest extends TestCase
         return $request;
     }
 
-    private function registry(?CapabilityInterface $capability): CapabilityRegistryInterface
-    {
-        return new SingleCapabilityRegistry($capability);
-    }
-
-    private function executor(?CapabilityInterface $capability): ShoppingOperationExecutor
+    private function executor(?CapabilityInterface $capability, ProtocolValidatorInterface $validator): ShoppingOperationExecutor
     {
         return new ShoppingOperationExecutor(
-            $this->registry($capability),
-            $this->validator(),
+            new SingleCapabilityRegistry($capability),
+            $validator,
             new HttpPayloadMapper(),
             [],
             [],
             [],
             new EventDispatcher(),
         );
-    }
-
-    private function validator(): ProtocolValidatorInterface
-    {
-        return $this->createMock(ProtocolValidatorInterface::class);
     }
 
     private function responseFactory(): UcpResponseFactory
