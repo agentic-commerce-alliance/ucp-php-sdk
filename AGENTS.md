@@ -282,7 +282,7 @@ Pull requests:
   work, docs, and release changes unless the user asks otherwise.
 - Preserve review history after feedback or CI failures: create a follow-up
   commit unless the user explicitly asks for an amend or force-push.
-- PR descriptions should summarize what changed, why, and what validation was
-  possible. Mention missing validation plainly.
+- PR descriptions should summarize what changed and why. Do not add validation
+  sections; CI owns validation reporting.
 - Never push commits without explicit user approval for that push, even if the
   user approved a previous push earlier in the same conversation.
