@@ -18,7 +18,6 @@ use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
-use Ucp\Sdk\Model\Security\SignatureVerificationResult;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
@@ -32,68 +31,14 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
         $state = new WebhookDispatcherState();
         $activeKey = new ManagedSigningKey('active', 'public', 'private');
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            new class ($activeKey) implements ManagedSigningKeyRepositoryInterface {
-                public function __construct(private readonly ManagedSigningKey $activeKey)
-                {
-                }
-
-                public function saveManaged(ManagedSigningKey $key): void
-                {
-                }
-
-                public function findManaged(string $kid): ?ManagedSigningKey
-                {
-                    return $kid === $this->activeKey->kid ? $this->activeKey : null;
-                }
-
-                public function deleteManaged(string $kid): bool
-                {
-                    return false;
-                }
-
-                public function allManaged(): array
-                {
-                    return [$this->activeKey];
-                }
-
-                public function active(): array
-                {
-                    return [$this->activeKey];
-                }
-
-                public function purgeRetired(string $olderThanIso8601): void
-                {
-                }
-            },
-            new class ($state) implements RequestSignatureServiceInterface {
-                public function __construct(private readonly WebhookDispatcherState $state)
-                {
-                }
-
-                public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    $this->state->capturedRequest = $request;
-                    $this->state->capturedKey = $key;
-
-                    return ['Signature' => 'signed'];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-            },
+            $this->signingKeyRepositoryWithActiveKey($activeKey),
+            $this->recordingSignatureService($state, $activeKey),
             new MockHttpClient(static fn (string $method, string $url, array $options): MockResponse => new MockResponse('accepted', [
                 'http_code' => 202,
                 'response_headers' => ['X-Webhook-Id: demo-1'],
             ])),
             [
-                new class () implements OrderWebhookEnricherInterface {
-                    public function enrich(OrderWebhookPayload $payload, RequestContext $context): OrderWebhookPayload
-                    {
-                        return new OrderWebhookPayload($payload->event, $payload->orderId, $payload->payload + ['enriched' => true]);
-                    }
-                },
+                $this->orderWebhookEnricher(),
             ],
             new EventDispatcher(),
             10,
@@ -120,47 +65,10 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     #[Test]
     public function itReturnsARetryableResultOnTransportFailure(): void
     {
+        $activeKey = new ManagedSigningKey('fallback', 'public', 'private');
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            new class () implements ManagedSigningKeyRepositoryInterface {
-                public function saveManaged(ManagedSigningKey $key): void
-                {
-                }
-
-                public function findManaged(string $kid): ?ManagedSigningKey
-                {
-                    return null;
-                }
-
-                public function deleteManaged(string $kid): bool
-                {
-                    return false;
-                }
-
-                public function allManaged(): array
-                {
-                    return [new ManagedSigningKey('fallback', 'public', 'private')];
-                }
-
-                public function active(): array
-                {
-                    return [new ManagedSigningKey('fallback', 'public', 'private')];
-                }
-
-                public function purgeRetired(string $olderThanIso8601): void
-                {
-                }
-            },
-            new class () implements RequestSignatureServiceInterface {
-                public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return ['Signature' => 'signed'];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-            },
+            $this->signingKeyRepositoryWithActiveKey($activeKey),
+            $this->signatureService(),
             new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['error' => 'network down'])),
             [],
             new EventDispatcher(),
@@ -183,46 +91,8 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     public function itThrowsWhenNoSigningKeyIsAvailable(): void
     {
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            new class () implements ManagedSigningKeyRepositoryInterface {
-                public function saveManaged(ManagedSigningKey $key): void
-                {
-                }
-
-                public function findManaged(string $kid): ?ManagedSigningKey
-                {
-                    return null;
-                }
-
-                public function deleteManaged(string $kid): bool
-                {
-                    return false;
-                }
-
-                public function allManaged(): array
-                {
-                    return [];
-                }
-
-                public function active(): array
-                {
-                    return [];
-                }
-
-                public function purgeRetired(string $olderThanIso8601): void
-                {
-                }
-            },
-            new class () implements RequestSignatureServiceInterface {
-                public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return [];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-            },
+            $this->signingKeyRepositoryWithoutActiveKey(),
+            $this->signatureService(),
             new MockHttpClient(),
             [],
             new EventDispatcher(),
@@ -244,9 +114,18 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     public function itRejectsUnsafeWebhookTargetUrlsBeforeDispatching(): void
     {
         $requestAttempted = false;
+        $signingKeyRepository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $signingKeyRepository
+            ->expects(self::never())
+            ->method('active');
+        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatureService
+            ->expects(self::never())
+            ->method('sign');
+
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            new WebhookSigningKeyRepository(new ManagedSigningKey('active', 'public', 'private')),
-            new RecordingSignatureService(new WebhookDispatcherState()),
+            $signingKeyRepository,
+            $signatureService,
             new MockHttpClient(static function () use (&$requestAttempted): MockResponse {
                 $requestAttempted = true;
 
@@ -274,9 +153,10 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     #[Test]
     public function itDoesNotStoreOversizedWebhookResponseBodies(): void
     {
+        $activeKey = new ManagedSigningKey('active', 'public', 'private');
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            new WebhookSigningKeyRepository(new ManagedSigningKey('active', 'public', 'private')),
-            new RecordingSignatureService(new WebhookDispatcherState()),
+            $this->signingKeyRepositoryWithActiveKey($activeKey),
+            $this->signatureService(),
             new MockHttpClient(static fn (): MockResponse => new MockResponse(str_repeat('x', 262145), [
                 'http_code' => 202,
                 'response_headers' => ['Content-Length: 262145'],
@@ -356,6 +236,64 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
             static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
         );
     }
+
+    private function signingKeyRepositoryWithActiveKey(ManagedSigningKey $activeKey): ManagedSigningKeyRepositoryInterface
+    {
+        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $repository
+            ->method('active')
+            ->willReturn([$activeKey]);
+
+        return $repository;
+    }
+
+    private function signingKeyRepositoryWithoutActiveKey(): ManagedSigningKeyRepositoryInterface
+    {
+        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $repository
+            ->method('active')
+            ->willReturn([]);
+
+        return $repository;
+    }
+
+    private function recordingSignatureService(WebhookDispatcherState $state, ManagedSigningKey $expectedKey): RequestSignatureServiceInterface
+    {
+        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatureService
+            ->expects(self::once())
+            ->method('sign')
+            ->with(self::isInstanceOf(HttpRequest::class), self::identicalTo($expectedKey))
+            ->willReturnCallback(static function (HttpRequest $request, ManagedSigningKey $key) use ($state): array {
+                $state->capturedRequest = $request;
+                $state->capturedKey = $key;
+
+                return ['Signature' => 'signed'];
+            });
+
+        return $signatureService;
+    }
+
+    private function signatureService(): RequestSignatureServiceInterface
+    {
+        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatureService
+            ->method('sign')
+            ->willReturn(['Signature' => 'signed']);
+
+        return $signatureService;
+    }
+
+    private function orderWebhookEnricher(): OrderWebhookEnricherInterface
+    {
+        $enricher = $this->createMock(OrderWebhookEnricherInterface::class);
+        $enricher
+            ->expects(self::once())
+            ->method('enrich')
+            ->willReturnCallback(static fn (OrderWebhookPayload $payload, RequestContext $context): OrderWebhookPayload => new OrderWebhookPayload($payload->event, $payload->orderId, $payload->payload + ['enriched' => true]));
+
+        return $enricher;
+    }
 }
 
 final class WebhookDispatcherState
@@ -363,61 +301,6 @@ final class WebhookDispatcherState
     public ?HttpRequest $capturedRequest = null;
 
     public ?ManagedSigningKey $capturedKey = null;
-}
-
-final class RecordingSignatureService implements RequestSignatureServiceInterface
-{
-    public function __construct(private readonly WebhookDispatcherState $state)
-    {
-    }
-
-    public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-    {
-        $this->state->capturedRequest = $request;
-        $this->state->capturedKey = $key;
-
-        return ['Signature' => 'signed'];
-    }
-
-    public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-    {
-        throw new \RuntimeException('Not used in this test.');
-    }
-}
-
-class WebhookSigningKeyRepository implements ManagedSigningKeyRepositoryInterface
-{
-    public function __construct(private readonly ManagedSigningKey $activeKey)
-    {
-    }
-
-    public function saveManaged(ManagedSigningKey $key): void
-    {
-    }
-
-    public function findManaged(string $kid): ?ManagedSigningKey
-    {
-        return $kid === $this->activeKey->kid ? $this->activeKey : null;
-    }
-
-    public function deleteManaged(string $kid): bool
-    {
-        return false;
-    }
-
-    public function allManaged(): array
-    {
-        return [$this->activeKey];
-    }
-
-    public function active(): array
-    {
-        return [$this->activeKey];
-    }
-
-    public function purgeRetired(string $olderThanIso8601): void
-    {
-    }
 }
 
 interface TenantAwareSigningKeyRepositoryMock extends ManagedSigningKeyRepositoryInterface, TenantAwareManagedSigningKeyRepositoryInterface
