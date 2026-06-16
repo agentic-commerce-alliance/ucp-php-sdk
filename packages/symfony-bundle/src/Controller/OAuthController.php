@@ -62,8 +62,8 @@ final class OAuthController
     private function publicContext(Request $request): RequestContext
     {
         $headers = [];
-        foreach ($request->headers->all() as $name => $value) {
-            $headers[strtolower($name)] = implode(', ', array_map(static fn (?string $entry): string => (string) $entry, $value));
+        foreach ($request->headers->all() as $name => $values) {
+            $headers[strtolower($name)] = implode(', ', $values);
         }
 
         $query = $request->query->all();
