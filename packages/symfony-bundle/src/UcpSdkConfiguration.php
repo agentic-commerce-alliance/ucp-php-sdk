@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony;
 
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Symfony\Internal\OriginMatcher;
 
@@ -43,6 +44,7 @@ final class UcpSdkConfiguration
         public readonly string $storageDsn,
         public readonly array $transports = [Transport::Rest],
         public readonly array $transportEndpoints = [],
+        public readonly int $webhookMaxResponseBodyBytes = DefaultOrderWebhookDispatcher::DEFAULT_MAX_RESPONSE_BODY_BYTES,
         public readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }
