@@ -270,63 +270,40 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
     #[Test]
     public function itRejectsUntrustedProfileHostsBeforeFetchingTheProfile(): void
     {
-        $state = new NoProfileState();
+        $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
+        $runtimeConfigurationResolver
+            ->expects($this->once())
+            ->method('resolve')
+            ->willReturn(new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Strict));
+
+        $agentProfileFetcher = $this->createMock(AgentProfileFetcherInterface::class);
+        $agentProfileFetcher
+            ->expects($this->never())
+            ->method('fetch');
+
+        $requestSignatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $requestSignatureService
+            ->expects($this->never())
+            ->method('verify');
+
+        $capabilityNegotiator = $this->createMock(CapabilityNegotiatorInterface::class);
+        $capabilityNegotiator
+            ->expects($this->never())
+            ->method('negotiate');
+
         $factory = new DefaultHttpRequestContextFactory(
-            new class () implements RuntimeConfigurationResolverInterface {
-                public function resolve(HttpRequest $request): RuntimeConfiguration
-                {
-                    return new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Strict);
-                }
-            },
-            new class ($state) implements AgentProfileFetcherInterface {
-                public function __construct(private NoProfileState $state)
-                {
-                }
-
-                public function fetch(string $uri): PlatformProfile
-                {
-                    ++$this->state->fetchCalls;
-
-                    return new PlatformProfile('2026-04-08', [], [], [], []);
-                }
-            },
-            new class ($state) implements RequestSignatureServiceInterface {
-                public function __construct(private NoProfileState $state)
-                {
-                }
-
-                public function sign(HttpRequest $request, \Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return [];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    ++$this->state->verifyCalls;
-
-                    return new SignatureVerificationResult(false, failureReason: 'bad signature');
-                }
-            },
-            new class () implements CapabilityNegotiatorInterface {
-                public function negotiate(?PlatformProfile $platformProfile, \Ucp\Sdk\Model\RequestContext $context): NegotiatedCapabilities
-                {
-                    return new NegotiatedCapabilities();
-                }
-            },
+            $runtimeConfigurationResolver,
+            $agentProfileFetcher,
+            $requestSignatureService,
+            $capabilityNegotiator,
         );
 
-        try {
-            $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
-                'UCP-Agent' => 'platform; profile="https://public.example/.well-known/ucp"',
-            ]));
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform profile host is not allowed by the current runtime configuration.');
 
-            self::fail('Expected untrusted profile host to be rejected.');
-        } catch (SignatureException $exception) {
-            self::assertSame('Platform profile host is not allowed by the current runtime configuration.', $exception->getMessage());
-        }
-
-        self::assertSame(0, $state->fetchCalls);
-        self::assertSame(0, $state->verifyCalls);
+        $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://public.example/.well-known/ucp"',
+        ]));
     }
 
     #[Test]
