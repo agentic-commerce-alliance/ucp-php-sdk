@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
 final class HttpPayloadMapperTest extends TestCase
@@ -67,5 +68,32 @@ final class HttpPayloadMapperTest extends TestCase
         self::assertSame('buyer@example.test', $checkoutRequest->buyer?->email);
         self::assertSame('shipping', $checkoutRequest->fulfillment?->type);
         self::assertSame('Test Street 1', $checkoutRequest->fulfillment?->extra['shipping_address']['street'] ?? null);
+    }
+
+    #[Test]
+    public function itRejectsMalformedJsonPayloadsAsBadRequests(): void
+    {
+        $mapper = new HttpPayloadMapper();
+        $request = Request::create('/ucp/v1/catalog/search', 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], '{');
+
+        try {
+            $mapper->decode($request);
+            self::fail('Expected malformed JSON to be rejected.');
+        } catch (BadRequestHttpException $exception) {
+            self::assertSame('Malformed JSON request body.', $exception->getMessage());
+            self::assertInstanceOf(\JsonException::class, $exception->getPrevious());
+        }
+    }
+
+    #[Test]
+    public function itRejectsTopLevelScalarJsonPayloadsAsBadRequests(): void
+    {
+        $mapper = new HttpPayloadMapper();
+        $request = Request::create('/ucp/v1/catalog/search', 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], '123');
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('JSON request body must be an object.');
+
+        $mapper->decode($request);
     }
 }

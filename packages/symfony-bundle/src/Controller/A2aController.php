@@ -125,7 +125,13 @@ final class A2aController
             ]);
         } catch (\JsonException $exception) {
             return $this->jsonRpcError($id, -32700, 'Parse error.', Response::HTTP_BAD_REQUEST);
-        } catch (ValidationException|BadRequestHttpException $exception) {
+        } catch (BadRequestHttpException $exception) {
+            if ($exception->getPrevious() instanceof \JsonException) {
+                return $this->jsonRpcError($id, -32700, 'Parse error.', Response::HTTP_BAD_REQUEST);
+            }
+
+            return $this->jsonRpcError($id, -32602, $exception->getMessage(), Response::HTTP_BAD_REQUEST);
+        } catch (ValidationException $exception) {
             return $this->jsonRpcError($id, -32602, $exception->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (UnsupportedCapabilityException $exception) {
             return $this->jsonRpcError($id, -32601, $exception->getMessage(), Response::HTTP_NOT_FOUND);
