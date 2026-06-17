@@ -16,38 +16,14 @@ final class ListSigningKeysCommandTest extends TestCase
     #[Test]
     public function itPrintsManagedSigningKeysAsJson(): void
     {
+        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $repository
+            ->method('allManaged')
+            ->willReturn([
+                new ManagedSigningKey('key-1', 'public', 'private', 'ES256', createdAt: '2026-05-28T00:00:00+00:00'),
+            ]);
         $command = new ListSigningKeysCommand(
-            new class () implements ManagedSigningKeyRepositoryInterface {
-                public function saveManaged(ManagedSigningKey $key): void
-                {
-                }
-
-                public function findManaged(string $kid): ?ManagedSigningKey
-                {
-                    return null;
-                }
-
-                public function deleteManaged(string $kid): bool
-                {
-                    return false;
-                }
-
-                public function allManaged(): array
-                {
-                    return [
-                        new ManagedSigningKey('key-1', 'public', 'private', 'ES256', createdAt: '2026-05-28T00:00:00+00:00'),
-                    ];
-                }
-
-                public function active(): array
-                {
-                    return [];
-                }
-
-                public function purgeRetired(string $olderThanIso8601): void
-                {
-                }
-            },
+            $repository,
         );
 
         $tester = new CommandTester($command);

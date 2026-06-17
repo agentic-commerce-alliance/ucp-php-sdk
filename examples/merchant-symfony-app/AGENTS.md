@@ -34,9 +34,10 @@ This split is intentional. It shows the difference between SDK infrastructure st
 - For first run, install dependencies at the repo root, then start `php -S` with `examples/merchant-symfony-app/public` as the document root.
 - `var/state` data is disposable example state, not fixture data that should be committed.
 
-## Why This Matters For Future Shopware Work
+## Why This Matters For Platform Integrations
 
-- The future Shopware plugin should keep domain state in Shopware, not in the shared SDK.
+- Platform integrations should keep domain state in their own platform, not in
+  the shared SDK.
 - The shared SDK should keep owning protocol orchestration and SDK infrastructure concerns.
 - This example is close to the target architecture, but still plain Symfony and easy to inspect.
 
