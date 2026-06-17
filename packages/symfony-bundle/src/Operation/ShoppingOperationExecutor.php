@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Operation;
 
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CartCapabilityInterface;
 use Ucp\Sdk\Contract\CatalogCapabilityInterface;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
@@ -21,6 +22,7 @@ use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
+use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
@@ -73,7 +75,7 @@ final class ShoppingOperationExecutor
     private function catalogSearch(ShoppingOperationRequest $request): array
     {
         $this->protocolValidator->validateRequest('catalog.search', $request->payload, $request->context);
-        $result = $this->catalog()->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context)->toArray();
+        $result = $this->catalog($request->context)->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context)->toArray();
         $this->protocolValidator->validateResponse('catalog.search', $result, $request->context);
 
         return $result;
@@ -86,7 +88,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('catalog.lookup', $request->payload, $request->context);
         $result = [
-            'items' => array_map(static fn (Product $product): array => $product->toArray(), $this->catalog()->lookup($this->payloadMapper->toCatalogLookupRequest($request->payload), $request->context)),
+            'items' => array_map(static fn (Product $product): array => $product->toArray(), $this->catalog($request->context)->lookup($this->payloadMapper->toCatalogLookupRequest($request->payload), $request->context)),
         ];
         $this->protocolValidator->validateResponse('catalog.lookup', $result, $request->context);
 
@@ -100,7 +102,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('catalog.product', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->catalog()->getProduct($id, $request->context)->toArray();
+        $result = $this->catalog($request->context)->getProduct($id, $request->context)->toArray();
         $this->protocolValidator->validateResponse('catalog.product', $result, $request->context);
 
         return $result;
@@ -112,7 +114,7 @@ final class ShoppingOperationExecutor
     private function cartCreate(ShoppingOperationRequest $request): array
     {
         $this->protocolValidator->validateRequest('cart.create', $request->payload, $request->context);
-        $result = $this->cart()->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context)->toArray();
+        $result = $this->cart($request->context)->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context)->toArray();
         $this->protocolValidator->validateResponse('cart.create', $result, $request->context);
 
         return $result;
@@ -125,7 +127,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('cart.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->cart()->getCart($id, $request->context)->toArray();
+        $result = $this->cart($request->context)->getCart($id, $request->context)->toArray();
         $this->protocolValidator->validateResponse('cart.get', $result, $request->context);
 
         return $result;
@@ -137,7 +139,7 @@ final class ShoppingOperationExecutor
     private function cartUpdate(ShoppingOperationRequest $request): array
     {
         $this->protocolValidator->validateRequest('cart.update', $request->payload, $request->context);
-        $result = $this->cart()->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context)->toArray();
+        $result = $this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context)->toArray();
         $this->protocolValidator->validateResponse('cart.update', $result, $request->context);
 
         return $result;
@@ -150,7 +152,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('cart.cancel', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->cart()->cancelCart($id, $request->context)->toArray();
+        $result = $this->cart($request->context)->cancelCart($id, $request->context)->toArray();
         $this->protocolValidator->validateResponse('cart.cancel', $result, $request->context);
 
         return $result;
@@ -167,7 +169,7 @@ final class ShoppingOperationExecutor
         if ($cartId === '' || $code === '') {
             throw new BadRequestHttpException('discount.apply requires cart_id and code parameters.');
         }
-        $result = $this->discount()->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray();
+        $result = $this->discount($request->context)->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray();
         $this->protocolValidator->validateResponse('discount.apply', $result, $request->context);
 
         return $result;
@@ -188,7 +190,7 @@ final class ShoppingOperationExecutor
         $event = new CheckoutRequestReceivedEvent($checkoutRequest, $request->context);
         $this->eventDispatcher->dispatch($event);
 
-        $result = $this->finalizeCheckout($this->checkout()->createCheckout($event->getRequest(), $request->context), $request)->toArray();
+        $result = $this->finalizeCheckout($this->checkout($request->context)->createCheckout($event->getRequest(), $request->context), $request)->toArray();
         $this->protocolValidator->validateResponse('checkout.create', $result, $request->context);
 
         return $result;
@@ -201,7 +203,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('checkout.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->finalizeCheckout($this->checkout()->getCheckout($id, $request->context), $request)->toArray();
+        $result = $this->finalizeCheckout($this->checkout($request->context)->getCheckout($id, $request->context), $request)->toArray();
         $this->protocolValidator->validateResponse('checkout.get', $result, $request->context);
 
         return $result;
@@ -223,7 +225,7 @@ final class ShoppingOperationExecutor
             $this->eventDispatcher->dispatch(new PaymentMandateVerificationEvent($checkoutRequest->payment, $request->context));
         }
 
-        $result = $this->finalizeCheckout($this->checkout()->updateCheckout($checkoutRequest, $request->context), $request)->toArray();
+        $result = $this->finalizeCheckout($this->checkout($request->context)->updateCheckout($checkoutRequest, $request->context), $request)->toArray();
         $this->protocolValidator->validateResponse('checkout.update', $result, $request->context);
 
         return $result;
@@ -236,7 +238,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->finalizeCheckout($this->checkout()->completeCheckout($id, $request->context), $request)->toArray();
+        $result = $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request)->toArray();
         $this->protocolValidator->validateResponse('checkout.complete', $result, $request->context);
 
         return $result;
@@ -249,7 +251,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('checkout.cancel', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->finalizeCheckout($this->checkout()->cancelCheckout($id, $request->context), $request)->toArray();
+        $result = $this->finalizeCheckout($this->checkout($request->context)->cancelCheckout($id, $request->context), $request)->toArray();
         $this->protocolValidator->validateResponse('checkout.cancel', $result, $request->context);
 
         return $result;
@@ -262,60 +264,80 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('order.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->order()->getOrder($id, $request->context)->toArray();
+        $result = $this->order($request->context)->getOrder($id, $request->context)->toArray();
         $this->protocolValidator->validateResponse('order.get', $result, $request->context);
 
         return $result;
     }
 
-    private function catalog(): CatalogCapabilityInterface
+    private function catalog(RequestContext $context): CatalogCapabilityInterface
     {
         $capability = $this->capabilityRegistry->firstImplementing(CatalogCapabilityInterface::class);
         if (! $capability instanceof CatalogCapabilityInterface) {
             throw new UnsupportedCapabilityException('Catalog capability is not registered.');
         }
 
+        $this->assertCapabilityEnabled($capability, $context, 'Catalog');
+
         return $capability;
     }
 
-    private function cart(): CartCapabilityInterface
+    private function cart(RequestContext $context): CartCapabilityInterface
     {
         $capability = $this->capabilityRegistry->firstImplementing(CartCapabilityInterface::class);
         if (! $capability instanceof CartCapabilityInterface) {
             throw new UnsupportedCapabilityException('Cart capability is not registered.');
         }
 
+        $this->assertCapabilityEnabled($capability, $context, 'Cart');
+
         return $capability;
     }
 
-    private function checkout(): CheckoutCapabilityInterface
+    private function checkout(RequestContext $context): CheckoutCapabilityInterface
     {
         $capability = $this->capabilityRegistry->firstImplementing(CheckoutCapabilityInterface::class);
         if (! $capability instanceof CheckoutCapabilityInterface) {
             throw new UnsupportedCapabilityException('Checkout capability is not registered.');
         }
 
+        $this->assertCapabilityEnabled($capability, $context, 'Checkout');
+
         return $capability;
     }
 
-    private function discount(): DiscountCapabilityInterface
+    private function discount(RequestContext $context): DiscountCapabilityInterface
     {
         $capability = $this->capabilityRegistry->firstImplementing(DiscountCapabilityInterface::class);
         if (! $capability instanceof DiscountCapabilityInterface) {
             throw new UnsupportedCapabilityException('Discount capability is not registered.');
         }
 
+        $this->assertCapabilityEnabled($capability, $context, 'Discount');
+
         return $capability;
     }
 
-    private function order(): OrderCapabilityInterface
+    private function order(RequestContext $context): OrderCapabilityInterface
     {
         $capability = $this->capabilityRegistry->firstImplementing(OrderCapabilityInterface::class);
         if (! $capability instanceof OrderCapabilityInterface) {
             throw new UnsupportedCapabilityException('Order capability is not registered.');
         }
 
+        $this->assertCapabilityEnabled($capability, $context, 'Order');
+
         return $capability;
+    }
+
+    private function assertCapabilityEnabled(CapabilityInterface $capability, RequestContext $context, string $label): void
+    {
+        $enabledCapabilities = $context->runtimeConfiguration->enabledCapabilities ?? [];
+        if ($enabledCapabilities === [] || in_array($capability->describe()->name, $enabledCapabilities, true)) {
+            return;
+        }
+
+        throw new UnsupportedCapabilityException(sprintf('%s capability is disabled by runtime configuration.', $label));
     }
 
     private function finalizeCheckout(Checkout $checkout, ShoppingOperationRequest $request): Checkout

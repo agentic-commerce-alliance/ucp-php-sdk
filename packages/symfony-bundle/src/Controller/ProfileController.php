@@ -37,6 +37,7 @@ final class ProfileController
             supportedVersions: $runtimeConfiguration->supportedVersions,
             transportEndpoints: $runtimeConfiguration->transportEndpoints,
             tenantIdentifier: $runtimeConfiguration->tenantIdentifier,
+            enabledCapabilities: $runtimeConfiguration->enabledCapabilities,
         ));
 
         return new JsonResponse($profile->toArray());

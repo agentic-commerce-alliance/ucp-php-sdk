@@ -21,6 +21,7 @@ use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchResponse;
 use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
+use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
@@ -103,13 +104,58 @@ final class ShoppingControllerTest extends TestCase
         $cartController->get('missing', $this->jsonRequest('/ucp/v1/carts/missing'));
     }
 
+    #[Test]
+    public function itThrowsWhenShoppingCapabilityIsDisabledByRuntimeConfiguration(): void
+    {
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $cartController = new CartController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor(new ControllerCartCapability(), $validator));
+        $context = new RequestContext(
+            'merchant.example',
+            runtimeConfiguration: new RuntimeConfiguration(
+                '2026-04-08',
+                'https://merchant.example',
+                enabledCapabilities: ['dev.ucp.shopping.catalog'],
+            ),
+        );
+
+        $this->expectException(UnsupportedCapabilityException::class);
+        $this->expectExceptionMessage('Cart capability is disabled by runtime configuration.');
+
+        $cartController->get('disabled', $this->jsonRequest('/ucp/v1/carts/disabled', context: $context));
+    }
+
+    #[Test]
+    public function itThrowsWhenTokenizationCapabilityIsDisabledByRuntimeConfiguration(): void
+    {
+        $capability = new ControllerTokenizationCapability();
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $controller = new TokenizationController(new SingleCapabilityRegistry($capability), $validator, new HttpPayloadMapper(), $this->responseFactory());
+        $context = new RequestContext(
+            'merchant.example',
+            runtimeConfiguration: new RuntimeConfiguration(
+                '2026-04-08',
+                'https://merchant.example',
+                enabledCapabilities: ['dev.ucp.shopping.cart'],
+            ),
+        );
+
+        $this->expectException(UnsupportedCapabilityException::class);
+        $this->expectExceptionMessage('Tokenization capability is disabled by runtime configuration.');
+
+        $controller($this->jsonRequest('/ucp/v1/tokenize', [
+            'type' => 'card',
+            'handler_id' => 'demo',
+            'credential' => ['card_last4' => '4242'],
+        ], $context));
+    }
+
     /**
      * @param array<string, mixed> $payload
      */
-    private function jsonRequest(string $path, array $payload = []): Request
+    private function jsonRequest(string $path, array $payload = [], ?RequestContext $context = null): Request
     {
         $request = Request::create($path, 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload, JSON_THROW_ON_ERROR));
-        $request->attributes->set('ucp_request_context', new RequestContext('merchant.example'));
+        $request->attributes->set('ucp_request_context', $context ?? new RequestContext('merchant.example'));
 
         return $request;
     }

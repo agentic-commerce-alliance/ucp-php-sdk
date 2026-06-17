@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\IdentityLinkingCapabilityInterface;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Model\Http\HttpRequest;
@@ -29,13 +30,16 @@ final class OAuthController
     #[Route(path: '/.well-known/oauth-authorization-server', methods: ['GET'])]
     public function metadata(Request $request): Response
     {
-        return $this->responseFactory->success($this->requireCapability()->getMetadata($this->publicContext($request))->toArray());
+        $context = $this->publicContext($request);
+
+        return $this->responseFactory->success($this->requireCapability($context)->getMetadata($context)->toArray());
     }
 
     #[Route(path: '/ucp/v1/oauth/authorize', methods: ['GET'])]
     public function authorize(Request $request): Response
     {
-        $result = $this->requireCapability()->authorize($this->payloadMapper->toOAuthAuthorizationRequest($request), $request->attributes->get('ucp_request_context'));
+        $context = $request->attributes->get('ucp_request_context');
+        $result = $this->requireCapability($context)->authorize($this->payloadMapper->toOAuthAuthorizationRequest($request), $context);
 
         return $this->responseFactory->success($result);
     }
@@ -44,17 +48,20 @@ final class OAuthController
     public function token(Request $request): Response
     {
         $payload = $this->payloadMapper->decode($request);
-        $result = $this->requireCapability()->issueToken($this->payloadMapper->toOAuthTokenRequest($payload), $request->attributes->get('ucp_request_context'));
+        $context = $request->attributes->get('ucp_request_context');
+        $result = $this->requireCapability($context)->issueToken($this->payloadMapper->toOAuthTokenRequest($payload), $context);
 
         return $this->responseFactory->success($result->toArray());
     }
 
-    private function requireCapability(): IdentityLinkingCapabilityInterface
+    private function requireCapability(mixed $context): IdentityLinkingCapabilityInterface
     {
         $capability = $this->capabilityRegistry->firstImplementing(IdentityLinkingCapabilityInterface::class);
         if (! $capability instanceof IdentityLinkingCapabilityInterface) {
             throw new UnsupportedCapabilityException('Identity linking capability is not registered.');
         }
+
+        $this->assertCapabilityEnabled($capability, $context);
 
         return $capability;
     }
@@ -82,5 +89,18 @@ final class OAuthController
             $headers,
             runtimeConfiguration: $this->runtimeConfigurationResolver->resolve($httpRequest),
         );
+    }
+
+    private function assertCapabilityEnabled(CapabilityInterface $capability, mixed $context): void
+    {
+        $enabledCapabilities = $context instanceof RequestContext
+            ? ($context->runtimeConfiguration->enabledCapabilities ?? [])
+            : [];
+
+        if ($enabledCapabilities === [] || in_array($capability->describe()->name, $enabledCapabilities, true)) {
+            return;
+        }
+
+        throw new UnsupportedCapabilityException('Identity linking capability is disabled by runtime configuration.');
     }
 }

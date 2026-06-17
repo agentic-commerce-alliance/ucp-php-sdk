@@ -161,6 +161,7 @@ final class UcpSdkExtension extends Extension
             $config['transport_endpoints'],
             $config['webhooks']['max_response_body_bytes'],
             $config['profile_fetching_development_mode'],
+            $config['enabled_capabilities'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -172,7 +173,7 @@ final class UcpSdkExtension extends Extension
             $config['allowed_agent_domains'],
             $config['supported_versions'],
             $transports,
-            [],
+            $config['enabled_capabilities'],
             null,
             $config['transport_endpoints'],
             $config['profile_fetching_development_mode'],

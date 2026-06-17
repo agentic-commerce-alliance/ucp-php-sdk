@@ -15,6 +15,7 @@ use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
 use Ucp\Sdk\Contract\TokenizationCapabilityInterface;
 use Ucp\Sdk\Internal\Negotiation\DefaultCapabilityNegotiator;
+use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
@@ -147,5 +148,34 @@ final class DefaultCapabilityNegotiatorTest extends TestCase
         self::assertSame(['dev.ucp.identity.oauth'], $result->capabilitiesForOperation('oauth.token'));
         self::assertSame(['dev.ucp.payment.tokenization'], $result->capabilitiesForOperation('tokenization'));
         self::assertSame(['dev.ucp.shopping.order'], $result->capabilitiesForOperation('order.get'));
+    }
+
+    #[Test]
+    public function itOnlyNegotiatesEnabledLocalCapabilitiesWhenAnAllowlistIsConfigured(): void
+    {
+        $platformProfile = new PlatformProfile(
+            '2026-04-08',
+            [],
+            [
+                'dev.ucp.shopping.cart' => [new CapabilityDescriptor('dev.ucp.shopping.cart', '2026-04-08', 'https://platform.example/spec/cart', 'https://platform.example/schema/cart')],
+                'dev.ucp.shopping.checkout' => [new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://platform.example/spec/checkout', 'https://platform.example/schema/checkout')],
+                'dev.ucp.shopping.discount' => [new CapabilityDescriptor('dev.ucp.shopping.discount', '2026-04-08', 'https://platform.example/spec/discount', 'https://platform.example/schema/discount')],
+            ],
+            [],
+        );
+        $context = new RequestContext(
+            'merchant.example',
+            runtimeConfiguration: new RuntimeConfiguration(
+                '2026-04-08',
+                'https://merchant.example',
+                enabledCapabilities: ['dev.ucp.shopping.checkout'],
+            ),
+        );
+
+        $result = $this->negotiator->negotiate($platformProfile, $context);
+
+        self::assertSame(['dev.ucp.shopping.checkout'], $result->capabilityNames());
+        self::assertSame([], $result->capabilitiesForOperation('cart.create'));
+        self::assertSame(['dev.ucp.shopping.checkout'], $result->capabilitiesForOperation('checkout.create'));
     }
 }

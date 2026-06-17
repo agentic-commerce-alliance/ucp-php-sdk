@@ -37,8 +37,13 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
 
         $localCapabilities = [];
         $operationCapabilityMap = [];
+        $enabledCapabilities = $context->runtimeConfiguration->enabledCapabilities ?? [];
         foreach ($this->capabilityRegistry->all() as $capability) {
             $descriptor = $capability->describe();
+            if (! $this->isEnabled($descriptor->name, $enabledCapabilities)) {
+                continue;
+            }
+
             $localCapabilities[$descriptor->name] = $descriptor;
 
             foreach ($this->supportedOperations($capability) as $operation) {
@@ -141,5 +146,13 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
         }
 
         return array_values(array_unique($operations));
+    }
+
+    /**
+     * @param list<string> $enabledCapabilities
+     */
+    private function isEnabled(string $capabilityName, array $enabledCapabilities): bool
+    {
+        return $enabledCapabilities === [] || in_array($capabilityName, $enabledCapabilities, true);
     }
 }
