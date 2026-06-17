@@ -112,14 +112,8 @@ final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryIn
             return null;
         }
 
-        try {
-            $decoded = json_decode($this->secretEncryptor->decrypt($stored, 'idempotency:' . $key), true, 512, JSON_THROW_ON_ERROR);
+        $decoded = json_decode($this->secretEncryptor->decrypt($stored, 'idempotency:' . $key), true, 512, JSON_THROW_ON_ERROR);
 
-            return is_array($decoded) ? $decoded : null;
-        } catch (\Throwable) {
-            $decoded = json_decode($stored, true);
-
-            return is_array($decoded) ? $decoded : null;
-        }
+        return is_array($decoded) ? $decoded : null;
     }
 }

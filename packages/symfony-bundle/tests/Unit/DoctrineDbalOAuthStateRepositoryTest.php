@@ -47,6 +47,71 @@ final class DoctrineDbalOAuthStateRepositoryTest extends TestCase
     }
 
     #[Test]
+    public function itFailsClosedWhenStoredRefreshTokenIsPlaintext(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $repository = new DoctrineDbalOAuthStateRepository(
+            $connection,
+            new DefaultPrivateKeyEncryptor('test-secret'),
+            600,
+        );
+        $code = 'legacy-code';
+        $codeHash = hash('sha256', $code);
+
+        $connection->insert('ucp_oauth_state', [
+            'code_hash' => $codeHash,
+            'client_id' => 'client-1',
+            'subject' => 'subject-1',
+            'refresh_token' => 'plaintext-refresh',
+            'expires_at' => time() + 600,
+            'consumed_at' => null,
+            'created_at' => time(),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Encrypted private key payload is malformed.');
+
+        $repository->consume($code);
+    }
+
+    #[Test]
+    public function itFailsClosedWhenRefreshTokenCannotBeDecryptedWithCurrentSecret(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $code = 'rotated-secret-code';
+        $codeHash = hash('sha256', $code);
+
+        $connection->insert('ucp_oauth_state', [
+            'code_hash' => $codeHash,
+            'client_id' => 'client-1',
+            'subject' => 'subject-1',
+            'refresh_token' => (new DefaultPrivateKeyEncryptor('old-secret'))->encrypt('refresh-1', $codeHash),
+            'expires_at' => time() + 600,
+            'consumed_at' => null,
+            'created_at' => time(),
+        ]);
+
+        $repository = new DoctrineDbalOAuthStateRepository(
+            $connection,
+            new DefaultPrivateKeyEncryptor('new-secret'),
+            600,
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to decrypt private key material.');
+
+        $repository->consume($code);
+    }
+
+    #[Test]
     public function itRejectsExpiredCodesAndPurgesExpiredState(): void
     {
         $connection = DriverManager::getConnection([

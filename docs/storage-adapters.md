@@ -17,6 +17,17 @@ Sensitive default-storage records are protected:
 - OAuth refresh tokens are encrypted at rest
 - stored idempotent response bodies are encrypted at rest
 
+Encrypted values in the default DBAL storage adapter fail closed. If an encrypted
+refresh token, managed private key, or idempotent response body cannot be decoded
+with the current application secret and encryption context, the repository raises
+the decrypt error instead of treating the stored value as plaintext.
+
+The default encryptor derives its key from `%kernel.secret%`. Changing
+`%kernel.secret%` without re-encrypting existing SDK storage rows makes those
+encrypted rows unreadable. Rotate that secret only with an explicit migration
+plan, or purge short-lived SDK state such as OAuth state and idempotency rows
+where losing replay or cache state is acceptable.
+
 ## What It Does Not Store
 
 The default storage adapter is not the commerce-platform model.

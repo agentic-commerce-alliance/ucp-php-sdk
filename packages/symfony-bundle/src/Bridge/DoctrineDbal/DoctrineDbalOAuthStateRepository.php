@@ -73,11 +73,7 @@ final class DoctrineDbalOAuthStateRepository implements OAuthStateRepositoryInte
 
             $refreshToken = null;
             if ($row['refresh_token'] !== null) {
-                try {
-                    $refreshToken = $this->secretEncryptor->decrypt((string) $row['refresh_token'], $codeHash);
-                } catch (\Throwable) {
-                    $refreshToken = (string) $row['refresh_token'];
-                }
+                $refreshToken = $this->secretEncryptor->decrypt((string) $row['refresh_token'], $codeHash);
             }
 
             return new OAuthState(
