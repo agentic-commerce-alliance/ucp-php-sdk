@@ -36,12 +36,16 @@ Operators should create keys ahead of time and rotate them deliberately.
 - request idempotency is only applied to mutating requests
 - the default response listener aborts pending idempotency state on `5xx`
 - idempotent response bodies are encrypted at rest in the default storage adapter
+- unreadable encrypted idempotency response bodies fail closed instead of falling back to plaintext JSON
+- changing `%kernel.secret%` without migrating default storage invalidates encrypted idempotency rows
 - oversized idempotent responses are marked non-replayable instead of being re-executed silently
 
 ## OAuth State
 
 - authorization codes are stored as SHA-256 hashes, not in plaintext
 - refresh tokens are encrypted at rest in the default storage adapter
+- unreadable encrypted refresh tokens fail closed instead of falling back to stored plaintext
+- changing `%kernel.secret%` without migrating default storage invalidates encrypted refresh tokens
 - authorization codes are single-use and short-lived by default
 
 ## Cleanup

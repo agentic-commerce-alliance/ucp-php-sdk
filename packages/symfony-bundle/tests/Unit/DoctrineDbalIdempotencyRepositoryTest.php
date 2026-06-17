@@ -44,6 +44,70 @@ final class DoctrineDbalIdempotencyRepositoryTest extends TestCase
     }
 
     #[Test]
+    public function itFailsClosedWhenStoredReplayableResponseBodyIsPlaintextJson(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $repository = new DoctrineDbalIdempotencyRepository(
+            $connection,
+            new DefaultPrivateKeyEncryptor('test-secret'),
+            86400,
+            1024,
+        );
+
+        $connection->insert('ucp_idempotency', [
+            'idempotency_key' => 'legacy-idem',
+            'fingerprint' => 'fp-1',
+            'status' => 'completed',
+            'response_body' => '{"ok":true}',
+            'status_code' => 201,
+            'replayable' => 1,
+            'expires_at' => time() + 600,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Encrypted private key payload is malformed.');
+
+        $repository->find('legacy-idem');
+    }
+
+    #[Test]
+    public function itFailsClosedWhenReplayableResponseBodyCannotBeDecryptedWithCurrentSecret(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $key = 'rotated-secret-idem';
+
+        $connection->insert('ucp_idempotency', [
+            'idempotency_key' => $key,
+            'fingerprint' => 'fp-1',
+            'status' => 'completed',
+            'response_body' => (new DefaultPrivateKeyEncryptor('old-secret'))->encrypt('{"ok":true}', 'idempotency:' . $key),
+            'status_code' => 201,
+            'replayable' => 1,
+            'expires_at' => time() + 600,
+        ]);
+
+        $repository = new DoctrineDbalIdempotencyRepository(
+            $connection,
+            new DefaultPrivateKeyEncryptor('new-secret'),
+            86400,
+            1024,
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to decrypt private key material.');
+
+        $repository->find($key);
+    }
+
+    #[Test]
     public function itMarksOversizedResponsesAsNonReplayableAndPurgesExpiredRows(): void
     {
         $connection = DriverManager::getConnection([
