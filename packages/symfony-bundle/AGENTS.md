@@ -55,6 +55,7 @@ Current config keys:
 - `base_uri`
 - `allowed_profile_hosts`
 - `allowed_agent_domains`
+- `profile_fetching_development_mode`
 - `signature_policy`
 - `idempotency_required`
 - `idempotency_ttl`
@@ -75,6 +76,19 @@ Current config keys:
 `signature_policy` is restricted to `off`, `log`, or `strict`.
 `transports` is restricted to `rest`, `mcp`, `a2a`, and `embedded`.
 
+## Transport Runtime Rules
+
+- Keep REST, A2A, embedded, and MCP routing generic and configuration-driven.
+- A2A and embedded controllers must reject requests when the transport is not
+  enabled in runtime configuration.
+- Embedded controllers must enforce configured allowed origins and frame
+  ancestors. Missing or non-allowlisted `Origin` headers should receive a
+  controlled `403` when origin validation is required.
+- Generic MCP profile metadata may live here. Platform-specific MCP proxies,
+  tools, and platform API wiring belong in downstream integrations.
+- MCP-facing write schemas should expose object payloads such as `payload` plus
+  `id` where needed, not JSON-string payload arguments.
+
 ## Storage Boundary
 
 The `Bridge/DoctrineDbal` folder is the default Symfony storage adapter for SDK state:
@@ -86,12 +100,13 @@ The `Bridge/DoctrineDbal` folder is the default Symfony storage adapter for SDK 
 - negotiation sessions
 - signature replay nonces
 
-Do not describe this layer as the platform model. Shopware should replace storage pieces as needed in its own plugin.
+Do not describe this layer as the platform model. Downstream integrations can
+replace storage pieces when the default DBAL adapter is not enough.
 
 Example repository replacement:
 
 ```php
-$services->set(ManagedSigningKeyRepositoryInterface::class, ShopwareSigningKeyRepository::class);
+$services->set(ManagedSigningKeyRepositoryInterface::class, PlatformSigningKeyRepository::class);
 ```
 
 ## Commands

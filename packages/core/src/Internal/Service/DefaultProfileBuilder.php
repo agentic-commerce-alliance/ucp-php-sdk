@@ -9,6 +9,7 @@ use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Event\ProfileBuiltEvent;
+use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\Profile\ServiceEndpoint;
@@ -50,12 +51,18 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
         $services = [
             'dev.ucp.shopping' => array_map(
                 static function (Transport $transport) use ($input): ServiceEndpoint {
-                    $endpoint = $input->transportEndpoints[$transport->value] ?? match ($transport) {
-                        Transport::Rest => rtrim($input->baseUri, '/') . '/ucp/v1',
-                        Transport::Mcp => rtrim($input->baseUri, '/') . '/ucp/mcp',
-                        Transport::A2a => rtrim($input->baseUri, '/') . '/ucp/a2a',
-                        Transport::Embedded => rtrim($input->baseUri, '/') . '/ucp/embedded',
-                    };
+                    if ($transport === Transport::Mcp) {
+                        $endpoint = $input->transportEndpoints[$transport->value] ?? '';
+                        if ($endpoint === '') {
+                            throw new ConfigurationException('MCP transport requires an explicit "mcp" transport endpoint.');
+                        }
+                    } else {
+                        $endpoint = $input->transportEndpoints[$transport->value] ?? match ($transport) {
+                            Transport::Rest => rtrim($input->baseUri, '/') . '/ucp/v1',
+                            Transport::A2a => rtrim($input->baseUri, '/') . '/ucp/a2a',
+                            Transport::Embedded => rtrim($input->baseUri, '/') . '/ucp/embedded',
+                        };
+                    }
 
                     return new ServiceEndpoint(
                         $transport,

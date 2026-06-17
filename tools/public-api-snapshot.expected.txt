@@ -146,6 +146,7 @@ class Ucp\Sdk\Event\ProfileBuiltEvent
   - getInput(): Ucp\Sdk\Model\Profile\ProfileBuildInput
   - getProfile(): Ucp\Sdk\Model\Profile\PlatformProfile
   - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
+class Ucp\Sdk\Exception\ConfigurationException
 class Ucp\Sdk\Exception\IdempotencyConflictException
 class Ucp\Sdk\Exception\OAuthException
 class Ucp\Sdk\Exception\ResourceNotFoundException
@@ -209,7 +210,7 @@ class Ucp\Sdk\Model\Common\Signals
   - __construct(array $values = [])
   - toArray(): array
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
-  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [])
+  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false)
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
 class Ucp\Sdk\Model\IdempotencyRecord

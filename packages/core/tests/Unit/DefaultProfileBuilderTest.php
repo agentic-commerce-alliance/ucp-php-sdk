@@ -9,56 +9,29 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
 use Ucp\Sdk\Internal\Service\DefaultProfileBuilder;
-use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
-use Ucp\Sdk\Model\RequestContext;
 
 final class DefaultProfileBuilderTest extends TestCase
 {
     public function testItBuildsDiscoveryProfiles(): void
     {
-        $capability = new class () implements CapabilityInterface {
-            public function describe(): CapabilityDescriptor
-            {
-                return new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://ucp.dev/specification/checkout/', 'https://ucp.dev/schemas/shopping/checkout.json');
-            }
-        };
-
-        $handler = new class () implements PaymentHandlerInterface {
-            public function id(): string
-            {
-                return 'demo';
-            }
-
-            public function describe(RequestContext $context): PaymentHandlerDescriptor
-            {
-                return new PaymentHandlerDescriptor($this->id(), 'com.demo.tokenizer', '2026-04-08', 'https://ucp.dev/specification/payment-handler-guide/', 'https://ucp.dev/schemas/payments/delegate-payment.json', ['schema']);
-            }
-
-            public function prepareInstrument(PaymentInstrument $instrument, RequestContext $context): array
-            {
-                return ['paymentMethodId' => 'demo', 'token' => 'demo'];
-            }
-
-            public function supportsTokenization(): bool
-            {
-                return true;
-            }
-
-            public function tokenize(PaymentInstrument $instrument, RequestContext $context): ?array
-            {
-                if ($instrument->handlerId !== 'demo') {
-                    return null;
-                }
-
-                return ['token' => 'demo'];
-            }
-        };
+        $capability = $this->createMock(CapabilityInterface::class);
+        $capability
+            ->method('describe')
+            ->willReturn(new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://ucp.dev/specification/checkout/', 'https://ucp.dev/schemas/shopping/checkout.json'));
+        $handler = $this->createMock(PaymentHandlerInterface::class);
+        $handler
+            ->method('id')
+            ->willReturn('demo');
+        $handler
+            ->method('describe')
+            ->willReturn(new PaymentHandlerDescriptor('demo', 'com.demo.tokenizer', '2026-04-08', 'https://ucp.dev/specification/payment-handler-guide/', 'https://ucp.dev/schemas/payments/delegate-payment.json', ['schema']));
 
         $builder = new DefaultProfileBuilder(
             new CapabilityRegistry([$capability]),
@@ -105,5 +78,48 @@ final class DefaultProfileBuilderTest extends TestCase
         self::assertNull($endpoints[2]->schemaUrl);
         self::assertArrayNotHasKey('schema', $endpoints[2]->toArray());
         self::assertSame('https://ucp.dev/2026-04-08/services/shopping/embedded.openrpc.json', $endpoints[3]->schemaUrl);
+    }
+
+    public function testItRequiresExplicitMcpEndpoint(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage('MCP transport requires an explicit "mcp" transport endpoint.');
+
+        $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            [Transport::Rest, Transport::Mcp],
+        ));
+    }
+
+    public function testItRejectsEmptyMcpEndpoint(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage('MCP transport requires an explicit "mcp" transport endpoint.');
+
+        $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            [Transport::Mcp],
+            transportEndpoints: [
+                Transport::Mcp->value => '',
+            ],
+        ));
     }
 }

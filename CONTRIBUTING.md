@@ -75,7 +75,9 @@ docker compose run --rm php composer public-api:check
 - Keep `packages/core` framework-free.
 - Keep Shopware-specific code out of the shared SDK and example apps.
 - Treat `packages/symfony-bundle` as HTTP and Symfony wiring only.
-- Keep MCP, A2A, and embedded transport out of this repo.
+- Keep generic MCP profile metadata, A2A runtime, and embedded transport
+  support configuration-driven in this repo. Platform-specific MCP tools,
+  proxies, authentication, and platform API wiring belong downstream.
 - Do not commit generated runtime state from `var/` or `examples/**/var/`.
 
 ## Pull Requests

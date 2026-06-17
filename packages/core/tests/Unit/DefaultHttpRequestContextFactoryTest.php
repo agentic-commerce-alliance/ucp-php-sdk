@@ -16,6 +16,7 @@ use Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
+use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult;
 use Ucp\Sdk\Model\Security\PublicSigningKey;
 use Ucp\Sdk\Model\Security\SignatureVerificationResult;
@@ -28,12 +29,115 @@ use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
 final class DefaultHttpRequestContextFactoryTest extends TestCase
 {
+    private RuntimeConfiguration $runtimeConfiguration;
+
+    private PlatformProfile $platformProfile;
+
+    private SignatureVerificationResult $signatureVerificationResult;
+
+    private NegotiatedCapabilities $negotiatedCapabilities;
+
+    private ?NegotiationSession $savedNegotiationSession = null;
+
+    private ?string $fetchedProfileUri = null;
+
+    private int $profileFetches = 0;
+
+    private int $signatureVerifications = 0;
+
+    private int $negotiations = 0;
+
+    private ?PlatformProfile $negotiatedProfile = null;
+
+    /** @var list<PublicSigningKey> */
+    private array $merchantAuthorizationKeys = [];
+
+    private ?RequestContext $merchantAuthorizationContext = null;
+
+    private DefaultHttpRequestContextFactory $factory;
+
+    private DefaultHttpRequestContextFactory $factoryWithMerchantAuthorization;
+
+    protected function setUp(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Log);
+        $this->platformProfile = new PlatformProfile('2026-04-08', [], [], [], []);
+        $this->signatureVerificationResult = new SignatureVerificationResult(false);
+        $this->negotiatedCapabilities = new NegotiatedCapabilities();
+
+        $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
+        $runtimeConfigurationResolver
+            ->method('resolve')
+            ->willReturnCallback(fn (HttpRequest $request): RuntimeConfiguration => $this->runtimeConfiguration);
+        $agentProfileFetcher = $this->createMock(AgentProfileFetcherInterface::class);
+        $agentProfileFetcher
+            ->method('fetch')
+            ->willReturnCallback(function (string $uri): PlatformProfile {
+                ++$this->profileFetches;
+                $this->fetchedProfileUri = $uri;
+
+                return $this->platformProfile;
+            });
+        $requestSignatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $requestSignatureService
+            ->method('verify')
+            ->willReturnCallback(function (HttpRequest $request, array $keys): SignatureVerificationResult {
+                ++$this->signatureVerifications;
+
+                return $this->signatureVerificationResult;
+            });
+        $capabilityNegotiator = $this->createMock(CapabilityNegotiatorInterface::class);
+        $capabilityNegotiator
+            ->method('negotiate')
+            ->willReturnCallback(function (?PlatformProfile $platformProfile, RequestContext $context): NegotiatedCapabilities {
+                ++$this->negotiations;
+                $this->negotiatedProfile = $platformProfile;
+
+                return $this->negotiatedCapabilities;
+            });
+        $negotiationSessionRepository = $this->createMock(NegotiationSessionRepositoryInterface::class);
+        $negotiationSessionRepository
+            ->method('findByProfileUri')
+            ->willReturn(null);
+        $negotiationSessionRepository
+            ->method('save')
+            ->willReturnCallback(function (NegotiationSession $session): void {
+                $this->savedNegotiationSession = $session;
+            });
+        $merchantAuthorizationService = $this->createMock(MerchantAuthorizationServiceInterface::class);
+        $merchantAuthorizationService
+            ->method('verify')
+            ->willReturnCallback(function (HttpRequest $request, array $keys, RequestContext $context): MerchantAuthorizationVerificationResult {
+                /** @var list<PublicSigningKey> $keys */
+                $this->merchantAuthorizationKeys = $keys;
+                $this->merchantAuthorizationContext = $context;
+
+                return new MerchantAuthorizationVerificationResult(true, 'merchant-auth');
+            });
+
+        $this->factory = new DefaultHttpRequestContextFactory(
+            $runtimeConfigurationResolver,
+            $agentProfileFetcher,
+            $requestSignatureService,
+            $capabilityNegotiator,
+            $negotiationSessionRepository,
+        );
+        $this->factoryWithMerchantAuthorization = new DefaultHttpRequestContextFactory(
+            $runtimeConfigurationResolver,
+            $agentProfileFetcher,
+            $requestSignatureService,
+            $capabilityNegotiator,
+            $negotiationSessionRepository,
+            $merchantAuthorizationService,
+        );
+    }
+
     #[Test]
     public function itBuildsANegotiatedRequestContextAndStoresTheSession(): void
     {
         $manager = new DefaultSigningKeyManager();
         $managedKey = $manager->generate('platform-key');
-        $profile = new PlatformProfile(
+        $this->platformProfile = new PlatformProfile(
             '2026-04-08',
             [],
             [
@@ -44,155 +148,50 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
             [],
             [$manager->toPublicKey($managedKey)],
         );
-        $state = new SavedSessionState();
-
-        $factory = new DefaultHttpRequestContextFactory(
-            new class () implements RuntimeConfigurationResolverInterface {
-                public function resolve(HttpRequest $request): RuntimeConfiguration
-                {
-                    return new RuntimeConfiguration(
-                        '2026-04-08',
-                        'https://merchant.example',
-                        SignaturePolicy::Strict,
-                        false,
-                        ['platform.example'],
-                        ['platform.example'],
-                        ['2026-04-08' => 'https://merchant.example/.well-known/ucp'],
-                        enabledCapabilities: [],
-                        tenantIdentifier: 'tenant-a',
-                    );
-                }
-            },
-            new class ($profile) implements AgentProfileFetcherInterface {
-                public function __construct(private readonly PlatformProfile $profile)
-                {
-                }
-
-                public function fetch(string $uri): PlatformProfile
-                {
-                    return $this->profile;
-                }
-            },
-            new class () implements RequestSignatureServiceInterface {
-                public function sign(HttpRequest $request, \Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return [];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    return new SignatureVerificationResult(true, 'platform-key', 'ES256', 1_700_000_000, 1_700_000_120, true, true);
-                }
-            },
-            new class () implements CapabilityNegotiatorInterface {
-                public function negotiate(?PlatformProfile $platformProfile, \Ucp\Sdk\Model\RequestContext $context): NegotiatedCapabilities
-                {
-                    return new NegotiatedCapabilities([
-                        'dev.ucp.shopping.checkout' => [
-                            new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://example.test/spec', 'https://example.test/schema'),
-                        ],
-                    ], ['handler-demo'], ['checkout.create' => ['dev.ucp.shopping.checkout']]);
-                }
-            },
-            new class ($state) implements NegotiationSessionRepositoryInterface {
-                public function __construct(private SavedSessionState $state)
-                {
-                }
-
-                public function save(NegotiationSession $session): void
-                {
-                    $this->state->savedSession = $session;
-                }
-
-                public function find(string $id): ?NegotiationSession
-                {
-                    return null;
-                }
-
-                public function findByProfileUri(string $platformProfileUri, ?string $tenantIdentifier = null): ?NegotiationSession
-                {
-                    return null;
-                }
-
-                public function purgeExpired(int $olderThanUnixTimestamp): void
-                {
-                }
-            },
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Strict,
+            false,
+            ['platform.example'],
+            ['platform.example'],
+            ['2026-04-08' => 'https://merchant.example/.well-known/ucp'],
+            enabledCapabilities: [],
+            tenantIdentifier: 'tenant-a',
         );
+        $this->signatureVerificationResult = new SignatureVerificationResult(true, 'platform-key', 'ES256', 1_700_000_000, 1_700_000_120, true, true);
+        $this->negotiatedCapabilities = new NegotiatedCapabilities([
+            'dev.ucp.shopping.checkout' => [
+                new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://example.test/spec', 'https://example.test/schema'),
+            ],
+        ], ['handler-demo'], ['checkout.create' => ['dev.ucp.shopping.checkout']]);
 
         $request = new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [
             'UCP-Agent' => 'platform; profile="https://platform.example/.well-known/ucp"',
             'Idempotency-Key' => 'idem-1',
         ], [], '{"ok":true}');
 
-        $context = $factory->create($request);
+        $context = $this->factory->create($request);
 
         self::assertSame('platform.example', parse_url((string) $context->platformProfileUri, PHP_URL_HOST));
         self::assertTrue($context->signatureVerified);
         self::assertSame(['dev.ucp.shopping.checkout'], $context->negotiatedCapabilities);
         self::assertNotNull($context->negotiation);
         self::assertSame(['handler-demo'], $context->negotiation->paymentHandlerIds);
-        self::assertInstanceOf(NegotiationSession::class, $state->savedSession);
+        self::assertSame('https://platform.example/.well-known/ucp', $this->fetchedProfileUri);
+        self::assertSame(1, $this->profileFetches);
+        self::assertSame(1, $this->signatureVerifications);
+        self::assertSame(1, $this->negotiations);
+        self::assertInstanceOf(NegotiationSession::class, $this->savedNegotiationSession);
         self::assertSame('neg_' . substr(hash('sha256', 'https://platform.example/.well-known/ucp|tenant-a'), 0, 16), $context->negotiationSessionId);
-        self::assertSame('tenant-a', $state->savedSession->tenantIdentifier);
-        self::assertSame($context->negotiationSessionId, $state->savedSession->id);
+        self::assertSame('tenant-a', $this->savedNegotiationSession->tenantIdentifier);
+        self::assertSame($context->negotiationSessionId, $this->savedNegotiationSession->id);
     }
 
     #[Test]
     public function itBuildsAContextWithoutFetchingAProfileWhenNoAgentHeaderIsPresent(): void
     {
-        $state = new NoProfileState();
-        $factory = new DefaultHttpRequestContextFactory(
-            new class () implements RuntimeConfigurationResolverInterface {
-                public function resolve(HttpRequest $request): RuntimeConfiguration
-                {
-                    return new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Log);
-                }
-            },
-            new class ($state) implements AgentProfileFetcherInterface {
-                public function __construct(private NoProfileState $state)
-                {
-                }
-
-                public function fetch(string $uri): PlatformProfile
-                {
-                    ++$this->state->fetchCalls;
-
-                    throw new \RuntimeException('Fetcher should not be called without a profile header.');
-                }
-            },
-            new class ($state) implements RequestSignatureServiceInterface {
-                public function __construct(private NoProfileState $state)
-                {
-                }
-
-                public function sign(HttpRequest $request, \Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return [];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    ++$this->state->verifyCalls;
-
-                    return new SignatureVerificationResult(false);
-                }
-            },
-            new class ($state) implements CapabilityNegotiatorInterface {
-                public function __construct(private NoProfileState $state)
-                {
-                }
-
-                public function negotiate(?PlatformProfile $platformProfile, \Ucp\Sdk\Model\RequestContext $context): NegotiatedCapabilities
-                {
-                    $this->state->negotiatedProfile = $platformProfile;
-
-                    return new NegotiatedCapabilities();
-                }
-            },
-        );
-
-        $context = $factory->create(new HttpRequest('GET', 'https://merchant.example/ucp/v1/catalog', [
+        $context = $this->factory->create(new HttpRequest('GET', 'https://merchant.example/ucp/v1/catalog', [
             'Idempotency-Key' => 'idem-42',
             'X-OAuth-Client-Id' => 'client-7',
             'X-Custom-Header' => 'yes',
@@ -207,63 +206,69 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         self::assertFalse($context->signatureVerified);
         self::assertSame([], $context->negotiatedCapabilities);
         self::assertNull($context->negotiationSessionId);
-        self::assertSame(0, $state->fetchCalls);
-        self::assertSame(0, $state->verifyCalls);
-        self::assertNull($state->negotiatedProfile);
+        self::assertSame(0, $this->profileFetches);
+        self::assertSame(0, $this->signatureVerifications);
+        self::assertSame(1, $this->negotiations);
+        self::assertNull($this->negotiatedProfile);
     }
 
     #[Test]
     public function itRejectsStrictRequestsWithoutVerifiedSignatures(): void
     {
-        $profile = new PlatformProfile('2026-04-08', [], [], [], []);
-        $factory = new DefaultHttpRequestContextFactory(
-            new class () implements RuntimeConfigurationResolverInterface {
-                public function resolve(HttpRequest $request): RuntimeConfiguration
-                {
-                    return new RuntimeConfiguration(
-                        '2026-04-08',
-                        'https://merchant.example',
-                        SignaturePolicy::Strict,
-                        false,
-                        ['platform.example'],
-                        ['platform.example'],
-                    );
-                }
-            },
-            new class ($profile) implements AgentProfileFetcherInterface {
-                public function __construct(private readonly PlatformProfile $profile)
-                {
-                }
-
-                public function fetch(string $uri): PlatformProfile
-                {
-                    return $this->profile;
-                }
-            },
-            new class () implements RequestSignatureServiceInterface {
-                public function sign(HttpRequest $request, \Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return [];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    return new SignatureVerificationResult(false, failureReason: 'bad signature');
-                }
-            },
-            new class () implements CapabilityNegotiatorInterface {
-                public function negotiate(?PlatformProfile $platformProfile, \Ucp\Sdk\Model\RequestContext $context): NegotiatedCapabilities
-                {
-                    return new NegotiatedCapabilities();
-                }
-            },
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Strict,
+            false,
+            ['platform.example'],
+            ['platform.example'],
         );
+        $this->signatureVerificationResult = new SignatureVerificationResult(false, failureReason: 'bad signature');
 
         $this->expectException(SignatureException::class);
         $this->expectExceptionMessage('bad signature');
 
-        $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+        $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
             'UCP-Agent' => 'platform; profile="https://platform.example/.well-known/ucp"',
+        ]));
+    }
+
+    #[Test]
+    public function itRejectsUntrustedProfileHostsBeforeFetchingTheProfile(): void
+    {
+        $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
+        $runtimeConfigurationResolver
+            ->expects($this->once())
+            ->method('resolve')
+            ->willReturn(new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Strict));
+
+        $agentProfileFetcher = $this->createMock(AgentProfileFetcherInterface::class);
+        $agentProfileFetcher
+            ->expects($this->never())
+            ->method('fetch');
+
+        $requestSignatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $requestSignatureService
+            ->expects($this->never())
+            ->method('verify');
+
+        $capabilityNegotiator = $this->createMock(CapabilityNegotiatorInterface::class);
+        $capabilityNegotiator
+            ->expects($this->never())
+            ->method('negotiate');
+
+        $factory = new DefaultHttpRequestContextFactory(
+            $runtimeConfigurationResolver,
+            $agentProfileFetcher,
+            $requestSignatureService,
+            $capabilityNegotiator,
+        );
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform profile host is not allowed by the current runtime configuration.');
+
+        $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://public.example/.well-known/ucp"',
         ]));
     }
 
@@ -272,143 +277,44 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
     {
         $manager = new DefaultSigningKeyManager();
         $managedKey = $manager->generate('platform-key-auth');
-        $profile = new PlatformProfile('2026-04-08', [], [], [], [$manager->toPublicKey($managedKey)]);
-        $state = new MerchantAuthorizationState();
-
-        $factory = new DefaultHttpRequestContextFactory(
-            new class () implements RuntimeConfigurationResolverInterface {
-                public function resolve(HttpRequest $request): RuntimeConfiguration
-                {
-                    return new RuntimeConfiguration(
-                        '2026-04-08',
-                        'https://merchant.example',
-                        SignaturePolicy::Log,
-                        false,
-                        ['platform.example'],
-                        ['platform.example'],
-                    );
-                }
-            },
-            new class ($profile) implements AgentProfileFetcherInterface {
-                public function __construct(private readonly PlatformProfile $profile)
-                {
-                }
-
-                public function fetch(string $uri): PlatformProfile
-                {
-                    return $this->profile;
-                }
-            },
-            new class () implements RequestSignatureServiceInterface {
-                public function sign(HttpRequest $request, \Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return [];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    return new SignatureVerificationResult(true, 'platform-key-auth', 'ES256');
-                }
-            },
-            new class () implements CapabilityNegotiatorInterface {
-                public function negotiate(?PlatformProfile $platformProfile, \Ucp\Sdk\Model\RequestContext $context): NegotiatedCapabilities
-                {
-                    return new NegotiatedCapabilities();
-                }
-            },
-            null,
-            new class ($state) implements MerchantAuthorizationServiceInterface {
-                public function __construct(private MerchantAuthorizationState $state)
-                {
-                }
-
-                public function verify(HttpRequest $request, array $keys, \Ucp\Sdk\Model\RequestContext $context): MerchantAuthorizationVerificationResult
-                {
-                    $this->state->keys = $keys;
-                    $this->state->context = $context;
-
-                    return new MerchantAuthorizationVerificationResult(true, 'merchant-auth');
-                }
-            },
+        $this->platformProfile = new PlatformProfile('2026-04-08', [], [], [], [$manager->toPublicKey($managedKey)]);
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['platform.example'],
+            ['platform.example'],
         );
+        $this->signatureVerificationResult = new SignatureVerificationResult(true, 'platform-key-auth', 'ES256');
 
-        $context = $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+        $context = $this->factoryWithMerchantAuthorization->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
             'UCP-Agent' => 'platform; profile="https://platform.example/.well-known/ucp"',
         ]));
 
-        self::assertCount(1, $state->keys);
-        self::assertNotNull($state->context);
-        self::assertSame('https://platform.example/.well-known/ucp', $state->context->platformProfileUri);
+        self::assertCount(1, $this->merchantAuthorizationKeys);
+        self::assertNotNull($this->merchantAuthorizationContext);
+        self::assertSame('https://platform.example/.well-known/ucp', $this->merchantAuthorizationContext->platformProfileUri);
         self::assertTrue($context->merchantAuthorizationVerification->verified);
     }
 
     #[Test]
     public function itRejectsDisallowedPlatformProfileHosts(): void
     {
-        $factory = new DefaultHttpRequestContextFactory(
-            new class () implements RuntimeConfigurationResolverInterface {
-                public function resolve(HttpRequest $request): RuntimeConfiguration
-                {
-                    return new RuntimeConfiguration(
-                        '2026-04-08',
-                        'https://merchant.example',
-                        SignaturePolicy::Log,
-                        false,
-                        ['trusted.example'],
-                        ['trusted.example'],
-                    );
-                }
-            },
-            new class () implements AgentProfileFetcherInterface {
-                public function fetch(string $uri): PlatformProfile
-                {
-                    throw new \RuntimeException('This fetcher should not be called for a blocked host.');
-                }
-            },
-            new class () implements RequestSignatureServiceInterface {
-                public function sign(HttpRequest $request, \Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-                {
-                    return [];
-                }
-
-                public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
-                {
-                    return new SignatureVerificationResult(false);
-                }
-            },
-            new class () implements CapabilityNegotiatorInterface {
-                public function negotiate(?PlatformProfile $platformProfile, \Ucp\Sdk\Model\RequestContext $context): NegotiatedCapabilities
-                {
-                    return new NegotiatedCapabilities();
-                }
-            },
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['trusted.example'],
+            ['trusted.example'],
         );
 
         $this->expectException(SignatureException::class);
         $this->expectExceptionMessage('Platform profile host is not allowed by the current runtime configuration.');
 
-        $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+        $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
             'UCP-Agent' => 'platform; profile="https://bad.example/.well-known/ucp"',
         ]));
     }
-}
-
-final class SavedSessionState
-{
-    public ?NegotiationSession $savedSession = null;
-}
-
-final class NoProfileState
-{
-    public int $fetchCalls = 0;
-    public int $verifyCalls = 0;
-    public ?PlatformProfile $negotiatedProfile = null;
-}
-
-final class MerchantAuthorizationState
-{
-    /** @var list<PublicSigningKey> */
-    public array $keys = [];
-
-    public ?\Ucp\Sdk\Model\RequestContext $context = null;
 }
