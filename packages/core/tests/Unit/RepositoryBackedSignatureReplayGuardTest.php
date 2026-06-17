@@ -15,75 +15,29 @@ final class RepositoryBackedSignatureReplayGuardTest extends TestCase
     #[Test]
     public function itStoresNewSignatureNonces(): void
     {
-        $state = new SavedReplayState();
-        $guard = new RepositoryBackedSignatureReplayGuard(
-            new class ($state) implements SignatureNonceRepositoryInterface {
-                public function __construct(private SavedReplayState $state)
-                {
-                }
-
-                public function has(string $scope, string $kid, string $signatureHash): bool
-                {
-                    return false;
-                }
-
-                public function save(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): void
-                {
-                    $this->state->saved = [$scope, $kid, $signatureHash, $createdAt];
-                }
-
-                public function saveIfNew(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): bool
-                {
-                    $this->state->saved = [$scope, $kid, $signatureHash, $createdAt];
-
-                    return true;
-                }
-
-                public function purgeExpired(int $olderThanUnixTimestamp): void
-                {
-                }
-            },
-        );
+        $repository = $this->createMock(SignatureNonceRepositoryInterface::class);
+        $repository
+            ->expects($this->once())
+            ->method('saveIfNew')
+            ->with('tenant-a', 'kid-1', hash('sha256', 'signature'), 42)
+            ->willReturn(true);
+        $guard = new RepositoryBackedSignatureReplayGuard($repository);
 
         $guard->rememberOrThrow('tenant-a', 'kid-1', 'signature', 42);
-
-        self::assertSame(['tenant-a', 'kid-1', hash('sha256', 'signature'), 42], $state->saved);
     }
 
     #[Test]
     public function itRejectsSignatureReplays(): void
     {
-        $guard = new RepositoryBackedSignatureReplayGuard(
-            new class () implements SignatureNonceRepositoryInterface {
-                public function has(string $scope, string $kid, string $signatureHash): bool
-                {
-                    return true;
-                }
-
-                public function save(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): void
-                {
-                }
-
-                public function saveIfNew(string $scope, string $kid, string $signatureHash, ?int $createdAt = null): bool
-                {
-                    return false;
-                }
-
-                public function purgeExpired(int $olderThanUnixTimestamp): void
-                {
-                }
-            },
-        );
+        $repository = $this->createMock(SignatureNonceRepositoryInterface::class);
+        $repository
+            ->method('saveIfNew')
+            ->willReturn(false);
+        $guard = new RepositoryBackedSignatureReplayGuard($repository);
 
         $this->expectException(SignatureException::class);
         $this->expectExceptionMessage('Request signature replay detected.');
 
         $guard->rememberOrThrow('tenant-a', 'kid-1', 'signature', 42);
     }
-}
-
-final class SavedReplayState
-{
-    /** @var list<int|string|null> */
-    public array $saved = [];
 }

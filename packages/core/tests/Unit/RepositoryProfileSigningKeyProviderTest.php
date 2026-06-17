@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Internal\Service\RepositoryProfileSigningKeyProvider;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
@@ -16,124 +17,63 @@ use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 final class RepositoryProfileSigningKeyProviderTest extends TestCase
 {
+    private SigningKeyManagerInterface $signingKeyManager;
+
+    private int $generatedKeys = 0;
+
+    protected function setUp(): void
+    {
+        $this->signingKeyManager = $this->createMock(SigningKeyManagerInterface::class);
+        $this->signingKeyManager
+            ->method('toPublicKey')
+            ->willReturnCallback(static fn (ManagedSigningKey $key): PublicSigningKey => new PublicSigningKey($key->kid, $key->algorithm, publicKeyPem: $key->publicKeyPem));
+        $this->signingKeyManager
+            ->method('generate')
+            ->willReturnCallback(function (string $kid, string $algorithm = 'ES256'): ManagedSigningKey {
+                ++$this->generatedKeys;
+
+                return new ManagedSigningKey($kid, 'public', 'private', $algorithm);
+            });
+    }
+
     #[Test]
     public function itReturnsExistingActiveKeys(): void
     {
         $existing = new ManagedSigningKey('existing', 'public', 'private');
+        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $repository
+            ->method('active')
+            ->willReturn([$existing]);
         $provider = new RepositoryProfileSigningKeyProvider(
-            new class ($existing) implements ManagedSigningKeyRepositoryInterface {
-                public function __construct(private readonly ManagedSigningKey $existing)
-                {
-                }
-
-                public function saveManaged(ManagedSigningKey $key): void
-                {
-                    throw new \RuntimeException('saveManaged should not be called when active keys already exist.');
-                }
-
-                public function findManaged(string $kid): ?ManagedSigningKey
-                {
-                    return null;
-                }
-
-                public function deleteManaged(string $kid): bool
-                {
-                    return false;
-                }
-
-                public function allManaged(): array
-                {
-                    return [$this->existing];
-                }
-
-                public function active(): array
-                {
-                    return [$this->existing];
-                }
-
-                public function purgeRetired(string $olderThanIso8601): void
-                {
-                }
-            },
-            new class () implements SigningKeyManagerInterface {
-                public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
-                {
-                    throw new \RuntimeException('generate should not be called when active keys already exist.');
-                }
-
-                public function toPublicKey(ManagedSigningKey $key): PublicSigningKey
-                {
-                    return new PublicSigningKey($key->kid, publicKeyPem: $key->publicKeyPem);
-                }
-
-                public function publicKeyFromJwk(array $jwk): PublicSigningKey
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-            },
+            $repository,
+            $this->signingKeyManager,
         );
 
         $keys = $provider->provide(new ProfileBuildInput('2026-04-08', 'https://merchant.example'));
 
         self::assertCount(1, $keys);
         self::assertSame('existing', $keys[0]->kid);
+        self::assertSame(0, $this->generatedKeys);
     }
 
     #[Test]
     public function itAutoGeneratesAndStoresASigningKeyWhenConfigured(): void
     {
-        $state = new RepositoryProfileSigningKeyProviderState();
+        /** @var ManagedSigningKey|null $saved */
+        $saved = null;
+        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $repository
+            ->method('active')
+            ->willReturn([]);
+        $repository
+            ->expects($this->once())
+            ->method('saveManaged')
+            ->willReturnCallback(static function (ManagedSigningKey $key) use (&$saved): void {
+                $saved = $key;
+            });
         $provider = new RepositoryProfileSigningKeyProvider(
-            new class ($state) implements ManagedSigningKeyRepositoryInterface {
-                public function __construct(private readonly RepositoryProfileSigningKeyProviderState $state)
-                {
-                }
-
-                public function saveManaged(ManagedSigningKey $key): void
-                {
-                    $this->state->saved = $key;
-                }
-
-                public function findManaged(string $kid): ?ManagedSigningKey
-                {
-                    return null;
-                }
-
-                public function deleteManaged(string $kid): bool
-                {
-                    return false;
-                }
-
-                public function allManaged(): array
-                {
-                    return [];
-                }
-
-                public function active(): array
-                {
-                    return [];
-                }
-
-                public function purgeRetired(string $olderThanIso8601): void
-                {
-                }
-            },
-            new class () implements SigningKeyManagerInterface {
-                public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
-                {
-                    return new ManagedSigningKey($kid, 'public', 'private', $algorithm);
-                }
-
-                public function toPublicKey(ManagedSigningKey $key): PublicSigningKey
-                {
-                    return new PublicSigningKey($key->kid, $key->algorithm, publicKeyPem: $key->publicKeyPem);
-                }
-
-                public function publicKeyFromJwk(array $jwk): PublicSigningKey
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-            },
+            $repository,
+            $this->signingKeyManager,
             true,
             'generated-key',
             'ES384',
@@ -144,112 +84,51 @@ final class RepositoryProfileSigningKeyProviderTest extends TestCase
 
         self::assertCount(1, $keys);
         self::assertSame('generated-key', $keys[0]->kid);
-        self::assertNotNull($state->saved);
-        self::assertSame('generated-key', $state->saved->kid);
-        self::assertSame('ES384', $state->saved->algorithm);
-        self::assertNotNull($state->saved->retireAt);
+        self::assertNotNull($saved);
+        self::assertSame('generated-key', $saved->kid);
+        self::assertSame('ES384', $saved->algorithm);
+        self::assertNotNull($saved->retireAt);
+        self::assertSame(1, $this->generatedKeys);
     }
 
     #[Test]
     public function itReadsAndStoresKeysForTheProfileTenant(): void
     {
-        $state = new RepositoryProfileSigningKeyProviderState();
-        $repository = new class ($state) implements ManagedSigningKeyRepositoryInterface, TenantAwareManagedSigningKeyRepositoryInterface {
-            public function __construct(private readonly RepositoryProfileSigningKeyProviderState $state)
-            {
-            }
-
-            public function saveManaged(ManagedSigningKey $key): void
-            {
-                $this->saveManagedForTenant(null, $key);
-            }
-
-            public function findManaged(string $kid): ?ManagedSigningKey
-            {
-                return null;
-            }
-
-            public function deleteManaged(string $kid): bool
-            {
-                return false;
-            }
-
-            public function allManaged(): array
-            {
-                return [];
-            }
-
-            public function active(): array
-            {
-                return [];
-            }
-
-            public function purgeRetired(string $olderThanIso8601): void
-            {
-            }
-
-            public function saveManagedForTenant(?string $tenantIdentifier, ManagedSigningKey $key): void
-            {
-                $this->state->tenantIdentifier = $tenantIdentifier;
-                $this->state->saved = $key;
-            }
-
-            public function findManagedForTenant(?string $tenantIdentifier, string $kid): ?ManagedSigningKey
-            {
-                return null;
-            }
-
-            public function deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
-            {
-                return false;
-            }
-
-            public function allManagedForTenant(?string $tenantIdentifier): array
-            {
-                return [];
-            }
-
-            public function activeForTenant(?string $tenantIdentifier): array
-            {
-                $this->state->tenantIdentifier = $tenantIdentifier;
+        /** @var ManagedSigningKey|null $saved */
+        $saved = null;
+        $tenantIdentifier = null;
+        /** @var ManagedSigningKeyRepositoryInterface&TenantAwareManagedSigningKeyRepositoryInterface&MockObject $repository */
+        $repository = $this->createMockForIntersectionOfInterfaces([
+            ManagedSigningKeyRepositoryInterface::class,
+            TenantAwareManagedSigningKeyRepositoryInterface::class,
+        ]);
+        $repository
+            ->method('activeForTenant')
+            ->willReturnCallback(static function (?string $tenant) use (&$tenantIdentifier): array {
+                $tenantIdentifier = $tenant;
 
                 return [];
-            }
-        };
+            });
+        $repository
+            ->expects($this->once())
+            ->method('saveManagedForTenant')
+            ->willReturnCallback(static function (?string $tenant, ManagedSigningKey $key) use (&$tenantIdentifier, &$saved): void {
+                $tenantIdentifier = $tenant;
+                $saved = $key;
+            });
 
         $provider = new RepositoryProfileSigningKeyProvider(
             $repository,
-            new class () implements SigningKeyManagerInterface {
-                public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
-                {
-                    return new ManagedSigningKey($kid, 'public', 'private', $algorithm);
-                }
-
-                public function toPublicKey(ManagedSigningKey $key): PublicSigningKey
-                {
-                    return new PublicSigningKey($key->kid, $key->algorithm, publicKeyPem: $key->publicKeyPem);
-                }
-
-                public function publicKeyFromJwk(array $jwk): PublicSigningKey
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-            },
+            $this->signingKeyManager,
             true,
             'tenant-key',
         );
 
         $provider->provide(new ProfileBuildInput('2026-04-08', 'https://merchant.example', tenantIdentifier: 'sales-channel-a'));
 
-        self::assertSame('sales-channel-a', $state->tenantIdentifier);
-        self::assertNotNull($state->saved);
-        self::assertSame('tenant-key', $state->saved->kid);
+        self::assertSame('sales-channel-a', $tenantIdentifier);
+        self::assertNotNull($saved);
+        self::assertSame('tenant-key', $saved->kid);
+        self::assertSame(1, $this->generatedKeys);
     }
-}
-
-final class RepositoryProfileSigningKeyProviderState
-{
-    public ?ManagedSigningKey $saved = null;
-
-    public ?string $tenantIdentifier = null;
 }

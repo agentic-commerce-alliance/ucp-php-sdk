@@ -97,7 +97,7 @@ final class WebhookDemoControllerTest extends TestCase
     public function itStoresReceivedWebhookEntriesAndReturnsInbox(): void
     {
         $controller = new WebhookDemoController(
-            $this->createStub(OrderWebhookPublisherInterface::class),
+            $this->createMock(OrderWebhookPublisherInterface::class),
             $this->stateStore(),
             $this->settings(),
         );

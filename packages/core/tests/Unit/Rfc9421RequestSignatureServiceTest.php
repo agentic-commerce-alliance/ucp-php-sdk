@@ -24,14 +24,10 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         $managedKey = $manager->generate('kid-1');
         $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
         $created = time();
-        $replayGuard = new class () implements SignatureReplayGuardInterface {
-            public bool $called = false;
-
-            public function rememberOrThrow(string $scope, string $kid, string $signature, ?int $created = null): void
-            {
-                $this->called = true;
-            }
-        };
+        $replayGuard = $this->createMock(SignatureReplayGuardInterface::class);
+        $replayGuard
+            ->expects($this->once())
+            ->method('rememberOrThrow');
         $service = new Rfc9421RequestSignatureService(new ContentDigestService(), $replayGuard);
 
         $signedHeaders = $service->sign($request, $managedKey, $created, $created + 120);
@@ -42,7 +38,6 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         self::assertSame('kid-1', $result->kid);
         self::assertTrue($result->contentDigestVerified);
         self::assertTrue($result->replayChecked);
-        self::assertTrue($replayGuard->called);
     }
 
     #[Test]

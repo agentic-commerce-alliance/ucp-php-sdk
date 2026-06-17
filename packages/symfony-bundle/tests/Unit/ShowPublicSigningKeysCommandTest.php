@@ -18,52 +18,17 @@ final class ShowPublicSigningKeysCommandTest extends TestCase
     #[Test]
     public function itPrintsActivePublicSigningKeysAsJson(): void
     {
+        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $repository
+            ->method('active')
+            ->willReturn([new ManagedSigningKey('key-1', 'public', 'private', 'ES256')]);
+        $manager = $this->createMock(SigningKeyManagerInterface::class);
+        $manager
+            ->method('toPublicKey')
+            ->willReturnCallback(static fn (ManagedSigningKey $key): PublicSigningKey => new PublicSigningKey($key->kid, $key->algorithm, curve: 'P-256', x: 'abc', y: 'def'));
         $command = new ShowPublicSigningKeysCommand(
-            new class () implements ManagedSigningKeyRepositoryInterface {
-                public function saveManaged(ManagedSigningKey $key): void
-                {
-                }
-
-                public function findManaged(string $kid): ?ManagedSigningKey
-                {
-                    return null;
-                }
-
-                public function deleteManaged(string $kid): bool
-                {
-                    return false;
-                }
-
-                public function allManaged(): array
-                {
-                    return [];
-                }
-
-                public function active(): array
-                {
-                    return [new ManagedSigningKey('key-1', 'public', 'private', 'ES256')];
-                }
-
-                public function purgeRetired(string $olderThanIso8601): void
-                {
-                }
-            },
-            new class () implements SigningKeyManagerInterface {
-                public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-
-                public function toPublicKey(ManagedSigningKey $key): PublicSigningKey
-                {
-                    return new PublicSigningKey($key->kid, $key->algorithm, curve: 'P-256', x: 'abc', y: 'def');
-                }
-
-                public function publicKeyFromJwk(array $jwk): PublicSigningKey
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-            },
+            $repository,
+            $manager,
         );
 
         $tester = new CommandTester($command);

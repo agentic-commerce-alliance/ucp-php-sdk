@@ -6,17 +6,24 @@ For release workflow and where release notes belong, also read [docs/release-pro
 
 ## Fast Path
 
-If the goal is to build or extend a Shopware plugin, read files in this order:
+If the goal touches the reusable SDK, Symfony bundle, transport parity, or
+platform adapter model, read files in this order:
 
 1. [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/AGENTS.md)
-2. [packages/core/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/AGENTS.md)
-3. [packages/symfony-bundle/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/symfony-bundle/AGENTS.md)
-4. [docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
-5. [docs/shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md)
+2. [packages/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/AGENTS.md)
+3. [packages/core/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/AGENTS.md)
+4. [packages/symfony-bundle/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/symfony-bundle/AGENTS.md)
+5. [docs/concepts-and-flows.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/concepts-and-flows.md)
 6. [docs/mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)
-7. [docs/concepts-and-flows.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/concepts-and-flows.md)
-8. [docs/repo-layout.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/repo-layout.md)
-9. [docs/full-ucp-parity-plan.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/full-ucp-parity-plan.md)
+7. [docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
+8. [docs/storage-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/storage-adapters.md)
+9. [docs/security-model.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/security-model.md)
+10. [docs/full-ucp-parity-plan.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/full-ucp-parity-plan.md)
+11. [docs/repo-layout.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/repo-layout.md)
+
+Read [docs/shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md)
+only when documenting or checking how a downstream Shopware plugin should
+consume the SDK.
 
 ## Core Decisions
 
@@ -29,15 +36,20 @@ If the goal is to build or extend a Shopware plugin, read files in this order:
 - The shared SDK is shop-agnostic. Do not add Shopware classes or Shopware-only concepts to `packages/core` or `packages/symfony-bundle`.
 - The example apps are plain Symfony apps. Do not add Shopware code there.
 - Protocol target is UCP `2026-04-08`.
-- Scope now targets full UCP parity with the Shopware core UCP foundation: REST, A2A runtime, embedded transport hooks/controllers, and MCP profile metadata are shared SDK concerns when they stay shop-agnostic.
+- Scope now targets full UCP parity at the shared SDK layer: REST, A2A runtime, embedded transport hooks/controllers, and MCP profile metadata are shared SDK concerns when they stay shop-agnostic.
 - Doctrine DBAL is only the default Symfony storage adapter for SDK state. It is not the platform model for Shopware.
-- Shopware work should be DAL-first in its own plugin.
+- Platform-specific work belongs in its own integration package. Shopware-specific work should be DAL-first there.
 - The root workspace package is not the main install target for external projects. External consumers should require `shopware/ucp-php-sdk-core` or `ucp-php-sdk/symfony-bundle`.
 - Top-level `ucp` is reserved for the protocol envelope in normal API responses. Do not put business payload data under that key.
 - Discovery is a raw profile document and is not wrapped by the normal success envelope.
 - Default OAuth state is security-sensitive SDK state. Codes are hashed, refresh tokens are encrypted, and cleanup is expected.
 - Default webhook publishing requires an active signing key already present in storage. Do not reintroduce lazy key generation on the publish path.
 - SDK-local canonical JSON lives behind `DeterministicJsonInterface`.
+- Keep generic REST, A2A, embedded, and MCP profile support on the shared
+  operation/capability layer. Platform-specific proxies, tools, authentication,
+  and storage stay in downstream integrations.
+- Do not duplicate controllers, transports, or operation executors per commerce
+  platform. Use shared code plus explicit runtime configuration.
 
 ## Mapping Layers
 
@@ -58,6 +70,32 @@ Default cleanup entrypoint:
 - `docker compose run --rm php php bin/console ucp:storage:cleanup`
 
 Do not use `HttpPayloadMapper` as a platform mapper.
+
+## Platform Boundary Rules
+
+- Customer-facing adapter and gateway flows should use the host platform's
+  customer-facing API or service boundaries wherever they exist.
+- This is a hard rule for catalog, cart, checkout, customer, identity, payment,
+  and order flows in downstream integrations.
+- Do not implement buyer-facing behavior with direct persistence access, manual
+  customer creation, or hand-rolled context mutation when the platform already
+  has a public runtime boundary for that behavior.
+- Direct repositories are acceptable for SDK-owned infrastructure state,
+  integration-owned configuration, admin/internal metadata, compatibility
+  discovery, or a documented exception where no public runtime boundary exists.
+
+## Runtime Transport Rules
+
+- Extra transports must be opt-in through bundle configuration or
+  `RuntimeConfigurationResolverInterface`; REST remains the baseline.
+- A2A and embedded routes should not expose runtime behavior unless their
+  transport is enabled.
+- Embedded responses must enforce configured allowed origins and frame ancestor
+  policy. Missing or non-allowlisted `Origin` headers should get a controlled
+  rejection when origin validation is required.
+- When the SDK describes MCP-facing write operations, expose object payload
+  schemas such as `payload` plus `id` where needed. Do not model writes as
+  JSON-string arguments.
 
 ## Stable And Internal Areas
 
@@ -81,41 +119,41 @@ Internal surface:
 
 ## Copyable Examples
 
-Example Shopware catalog adapter shape:
+Example catalog adapter shape:
 
 ```php
-final readonly class ShopwareCatalogAdapter implements CatalogAdapterInterface
+final readonly class PlatformCatalogAdapter implements CatalogAdapterInterface
 {
     public function __construct(
-        private ProductRoute $productRoute,
+        private PlatformProductGateway $products,
     ) {
     }
 
     public function getProduct(string $id, RequestContext $context): Product
     {
-        $product = $this->productRoute->load($id);
+        $product = $this->products->load($id);
 
         return new Product(
-            $product->getId(),
-            $product->getTranslation('name'),
-            (float) $product->getCalculatedPrice()->getUnitPrice(),
-            $product->getCover()?->getMedia()?->getUrl(),
-            ['currency' => 'EUR'],
+            $product->id,
+            $product->name,
+            $product->price,
+            $product->imageUrl,
+            ['currency' => $product->currency],
         );
     }
 }
 ```
 
-Example Shopware checkout adapter shape:
+Example checkout adapter shape:
 
 ```php
-final readonly class ShopwareCheckoutAdapter implements CheckoutAdapterInterface
+final readonly class PlatformCheckoutAdapter implements CheckoutAdapterInterface
 {
     public function createCheckout(CheckoutCreateRequest $request, RequestContext $context): Checkout
     {
-        // 1. Resolve sales channel context
-        // 2. Map line items into a Shopware cart
-        // 3. Price it through Shopware
+        // 1. Resolve host commerce context
+        // 2. Map line items into the platform cart
+        // 3. Price it through the platform
         // 4. Return the public Checkout DTO
     }
 }
@@ -124,7 +162,7 @@ final readonly class ShopwareCheckoutAdapter implements CheckoutAdapterInterface
 Example runtime config resolver:
 
 ```php
-final readonly class ShopwareRuntimeConfigurationResolver implements RuntimeConfigurationResolverInterface
+final readonly class RequestRuntimeConfigurationResolver implements RuntimeConfigurationResolverInterface
 {
     public function resolve(HttpRequest $request): RuntimeConfiguration
     {
@@ -147,16 +185,16 @@ final readonly class ShopwareRuntimeConfigurationResolver implements RuntimeConf
 Example storage adapter replacement:
 
 ```php
-$services->set(ManagedSigningKeyRepositoryInterface::class, ShopwareSigningKeyRepository::class);
-$services->set(NegotiationSessionRepositoryInterface::class, ShopwareNegotiationSessionRepository::class);
+$services->set(ManagedSigningKeyRepositoryInterface::class, PlatformSigningKeyRepository::class);
+$services->set(NegotiationSessionRepositoryInterface::class, PlatformNegotiationSessionRepository::class);
 ```
 
 Example service wiring for adapter-backed capabilities:
 
 ```php
-$services->set(ShopwareCatalogAdapter::class);
+$services->set(PlatformCatalogAdapter::class);
 $services->set(AdapterBackedCatalogCapability::class)
-    ->args([new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', '...', '...'), service(ShopwareCatalogAdapter::class)])
+    ->args([new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', '...', '...'), service(PlatformCatalogAdapter::class)])
     ->tag('ucp_sdk.capability');
 ```
 
@@ -207,3 +245,42 @@ Dead-code rules:
 - For local work, prefer `composer mutation:changed`. It uses Infection's git-diff filtering against `origin/main` by default and narrows execution to changed files plus related tests.
 - Override the worker count per run with `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation` when needed.
 - Use `composer mutation:full` for the slower broader manual sweep when changing wide parts of the runtime.
+
+Test style:
+
+- Write test methods as clear executable examples of the behavior under test.
+- Prefer explicit scenario setup over hidden mutation in fixture factories.
+- Move stable boilerplate into `setUp()` or `tearDown()` only when concrete
+  tests become easier to read.
+- When most tests share the same collaborators, configure default mocks in
+  `setUp()` and vary only data such as runtime configuration, profiles,
+  signature results, request contexts, returned records, or captured calls.
+- Expose data knobs on the test class instead of exposing every collaborator
+  mock as a property. Keep mock properties only when a test must set a PHPUnit
+  expectation on that exact collaborator.
+- Keep per-scenario mutations in the test body. The test should make the
+  behavior-specific input obvious without chasing a helper.
+- Keep test helpers smaller than the code they replace.
+- Do not hide mock setup behind factory methods such as `capability()`,
+  `validator()`, or `requestContextFactory()` when the mock behavior matters to
+  the scenario. Inline it or make it a default in `setUp()`.
+- Prefer PHPUnit `createMock()` for interface collaborators. Avoid
+  `createStub()` so tests stay explicit about PHPUnit mock semantics.
+- Avoid throwaway anonymous classes unless their concrete behavior is the
+  subject of the test.
+- Use a named fake only when it is smaller and clearer than equivalent mock
+  callbacks. Keep it in the test file.
+- Prefer one focused test method per distinct exception or behavior over broad
+  data providers when each case has its own meaning.
+- Use named `yield` cases in unit-test data providers.
+- Do not add `#[CoversClass]`, `#[CoversFunction]`, or `#[CoversNothing]` to
+  integration tests.
+
+Pull requests:
+
+- Keep PRs focused. Separate test-only refactors, runtime behavior, transport
+  work, docs, and release changes unless the user asks otherwise.
+- Preserve review history after feedback or CI failures: create a follow-up
+  commit unless the user explicitly asks for an amend or force-push.
+- PR descriptions should summarize what changed and why. Do not add validation
+  sections; CI owns validation reporting.

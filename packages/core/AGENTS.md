@@ -1,6 +1,7 @@
 # Core Package Agent Guide
 
-This package defines the reusable SDK surface and the adapter layer future commerce plugins should build on.
+This package defines the reusable SDK surface and the adapter layer host apps
+and platform integrations should build on.
 
 ## Public Namespaces
 
@@ -58,6 +59,15 @@ $catalogCapability = new AdapterBackedCatalogCapability(
 ```
 
 Projects may skip the adapter layer entirely and implement `CatalogCapabilityInterface`, `CheckoutCapabilityInterface`, or the other capability contracts directly.
+
+## Operation Model
+
+- Keep REST, A2A, embedded, and MCP profile concepts transport-neutral here.
+- Put reusable operation execution behind public contracts, DTOs, and services.
+- Do not add per-platform operation branches. Platform differences belong in
+  adapters or direct capability implementations.
+- MCP-facing write operation metadata should use object payload schemas, not
+  JSON-string arguments.
 
 ## Important Boundaries
 
