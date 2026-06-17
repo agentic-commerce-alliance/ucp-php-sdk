@@ -112,6 +112,27 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
     }
 
     #[Test]
+    public function itDoesNotMarkInvalidContentDigestAsVerified(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-invalid-digest');
+        $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $created = time();
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+
+        $signedHeaders = $service->sign($request, $managedKey, $created, $created + 120);
+        $signedHeaders['Content-Digest'] = 'sha-256=:invalid:';
+        $result = $service->verify(
+            new HttpRequest($request->method, $request->absoluteUri, $signedHeaders, $request->query, $request->body),
+            [$manager->toPublicKey($managedKey)],
+        );
+
+        self::assertFalse($result->verified);
+        self::assertSame('Invalid Content-Digest header.', $result->failureReason);
+        self::assertFalse($result->contentDigestVerified);
+    }
+
+    #[Test]
     public function itRejectsRequestsWhenSignatureHeadersAreIncomplete(): void
     {
         $manager = new DefaultSigningKeyManager();

@@ -54,6 +54,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         $signatureInput = $headers['signature-input'] ?? null;
         $signatureHeader = $headers['signature'] ?? null;
         $digest = $headers['content-digest'] ?? null;
+        $contentDigestVerified = false;
 
         if ($signatureInput === null || $signatureHeader === null) {
             return new SignatureVerificationResult(false, failureReason: 'Missing signature headers.');
@@ -88,6 +89,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
             }
 
             $this->contentDigestService->verify($request->body, $digest);
+            $contentDigestVerified = true;
             $signature = $this->extractSignatureValue($signatureHeader, $label);
             $key = $this->resolveKey($keys, $kid);
             $this->assertSupportedAlgorithm($key->algorithm);
@@ -120,7 +122,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
 
             return new SignatureVerificationResult(true, $kid, $key->algorithm, $created, $expires, true, $replayChecked);
         } catch (SignatureException $exception) {
-            return new SignatureVerificationResult(false, failureReason: $exception->getMessage(), contentDigestVerified: $digest !== null);
+            return new SignatureVerificationResult(false, failureReason: $exception->getMessage(), contentDigestVerified: $contentDigestVerified);
         }
     }
 
