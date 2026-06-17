@@ -22,6 +22,9 @@ final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryIn
 
     public function claimPending(string $key, string $fingerprint): bool
     {
+        $now = time();
+        $this->purgeExpired($now);
+
         $data = [
             'idempotency_key' => $key,
             'fingerprint' => $fingerprint,
@@ -29,7 +32,7 @@ final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryIn
             'response_body' => null,
             'status_code' => null,
             'replayable' => 1,
-            'expires_at' => time() + $this->ttlSeconds,
+            'expires_at' => $now + $this->ttlSeconds,
         ];
 
         try {
@@ -37,22 +40,7 @@ final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryIn
 
             return true;
         } catch (UniqueConstraintViolationException) {
-            $deleted = $this->connection->executeStatement(
-                'DELETE FROM ucp_idempotency WHERE idempotency_key = :key AND expires_at IS NOT NULL AND expires_at < :expires_at',
-                ['key' => $key, 'expires_at' => time()],
-            );
-
-            if ($deleted === 0) {
-                return false;
-            }
-
-            try {
-                $this->connection->insert('ucp_idempotency', $data);
-
-                return true;
-            } catch (UniqueConstraintViolationException) {
-                return false;
-            }
+            return false;
         }
     }
 

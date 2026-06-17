@@ -103,6 +103,56 @@ final class DoctrineDbalIdempotencyRepositoryTest extends TestCase
     }
 
     #[Test]
+    public function itPurgesExpiredRecordsBeforeClaimingANewPendingRecord(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $repository = new DoctrineDbalIdempotencyRepository(
+            $connection,
+            new DefaultPrivateKeyEncryptor('test-secret'),
+            86400,
+            1024,
+        );
+
+        $connection->insert('ucp_idempotency', [
+            'idempotency_key' => 'expired-other-key',
+            'fingerprint' => 'fp-expired',
+            'status' => 'completed',
+            'response_body' => null,
+            'status_code' => 200,
+            'replayable' => 1,
+            'expires_at' => time() - 10,
+        ]);
+        $connection->insert('ucp_idempotency', [
+            'idempotency_key' => 'active-other-key',
+            'fingerprint' => 'fp-active',
+            'status' => 'completed',
+            'response_body' => null,
+            'status_code' => 200,
+            'replayable' => 1,
+            'expires_at' => time() + 3600,
+        ]);
+
+        self::assertTrue($repository->claimPending('fresh-key', 'fp-fresh'));
+
+        self::assertSame(
+            0,
+            (int) $connection->fetchOne('SELECT COUNT(*) FROM ucp_idempotency WHERE idempotency_key = :key', ['key' => 'expired-other-key']),
+        );
+        self::assertSame(
+            1,
+            (int) $connection->fetchOne('SELECT COUNT(*) FROM ucp_idempotency WHERE idempotency_key = :key', ['key' => 'active-other-key']),
+        );
+        self::assertSame(
+            1,
+            (int) $connection->fetchOne('SELECT COUNT(*) FROM ucp_idempotency WHERE idempotency_key = :key', ['key' => 'fresh-key']),
+        );
+    }
+
+    #[Test]
     public function itAllowsExactlyOneProcessToClaimAPendingRecord(): void
     {
         $directory = sys_get_temp_dir() . '/ucp-idempotency-' . bin2hex(random_bytes(8));
