@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Security;
 
-use Ucp\Sdk\Internal\Security\EcJwkPublicKeyConverter;
+use phpseclib3\Crypt\PublicKeyLoader;
+use Ucp\Sdk\Exception\ValidationException;
 
 final class PublicSigningKey
 {
@@ -49,23 +50,103 @@ final class PublicSigningKey
      */
     public static function fromJwk(array $entry): self
     {
-        $curve = isset($entry['crv']) ? (string) $entry['crv'] : null;
-        $x = isset($entry['x']) ? (string) $entry['x'] : null;
-        $y = isset($entry['y']) ? (string) $entry['y'] : null;
-        $publicKeyPem = isset($entry['public_key_pem'])
-            ? (string) $entry['public_key_pem']
-            : EcJwkPublicKeyConverter::toPem($curve, $x, $y);
+        $kid = self::requiredString($entry, 'kid');
+        $algorithm = self::requiredString($entry, 'alg', $kid);
+        $keyType = self::requiredString($entry, 'kty', $kid);
+        $use = self::requiredString($entry, 'use', $kid);
+        $curve = self::requiredString($entry, 'crv', $kid);
+
+        self::assertSupported($kid, 'alg', $algorithm, 'ES256');
+        self::assertSupported($kid, 'kty', $keyType, 'EC');
+        self::assertSupported($kid, 'use', $use, 'sig');
+        self::assertSupported($kid, 'crv', $curve, 'P-256');
+
+        $x = self::optionalString($entry, 'x');
+        $y = self::optionalString($entry, 'y');
+        $publicKeyPem = self::optionalString($entry, 'public_key_pem');
+
+        if ($publicKeyPem === null && ($x === null || $y === null)) {
+            throw new ValidationException(sprintf('Public signing key "%s" must include either public_key_pem or x and y coordinates.', $kid));
+        }
+
+        $publicKeyPem = $publicKeyPem !== null
+            ? self::normalizePublicKeyPem($publicKeyPem, $kid)
+            : self::normalizeJwkPublicKeyPem($curve, $x, $y, $kid);
 
         return new self(
-            (string) ($entry['kid'] ?? ''),
-            (string) ($entry['alg'] ?? 'ES256'),
-            (string) ($entry['kty'] ?? 'EC'),
-            (string) ($entry['use'] ?? 'sig'),
+            $kid,
+            $algorithm,
+            $keyType,
+            $use,
             $curve,
             $x,
             $y,
             $publicKeyPem,
             array_map(static fn (mixed $value): string => (string) $value, array_filter($entry, static fn (mixed $value): bool => is_scalar($value))),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     */
+    private static function requiredString(array $entry, string $field, ?string $kid = null): string
+    {
+        $value = $entry[$field] ?? null;
+        if (! is_string($value) || trim($value) === '') {
+            $subject = $kid === null ? 'Public signing key' : sprintf('Public signing key "%s"', $kid);
+
+            throw new ValidationException(sprintf('%s "%s" must be a non-empty string.', $subject, $field));
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     */
+    private static function optionalString(array $entry, string $field): ?string
+    {
+        $value = $entry[$field] ?? null;
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            throw new ValidationException(sprintf('Public signing key field "%s" must be a non-empty string when present.', $field));
+        }
+
+        return $value;
+    }
+
+    private static function assertSupported(string $kid, string $field, string $actual, string $expected): void
+    {
+        if ($actual !== $expected) {
+            throw new ValidationException(sprintf('Public signing key "%s" uses unsupported %s "%s".', $kid, $field, $actual));
+        }
+    }
+
+    private static function normalizePublicKeyPem(string $publicKeyPem, string $kid): string
+    {
+        try {
+            return PublicKeyLoader::loadPublicKey($publicKeyPem)->toString('PKCS8');
+        } catch (\Throwable) {
+            throw new ValidationException(sprintf('Public signing key "%s" contains unusable key material.', $kid));
+        }
+    }
+
+    private static function normalizeJwkPublicKeyPem(string $curve, string $x, string $y, string $kid): string
+    {
+        try {
+            $jwk = json_encode([
+                'kty' => 'EC',
+                'crv' => $curve,
+                'x' => $x,
+                'y' => $y,
+            ], JSON_THROW_ON_ERROR);
+
+            return PublicKeyLoader::loadPublicKey($jwk)->toString('PKCS8');
+        } catch (\Throwable) {
+            throw new ValidationException(sprintf('Public signing key "%s" contains unusable key material.', $kid));
+        }
     }
 }
