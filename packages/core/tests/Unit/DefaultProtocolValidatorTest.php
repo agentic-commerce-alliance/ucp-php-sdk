@@ -15,46 +15,28 @@ final class DefaultProtocolValidatorTest extends TestCase
     #[Test]
     public function itDelegatesRequestValidationToTheSchemaValidator(): void
     {
-        $state = new CollectedSchemasState();
-        $validator = new DefaultProtocolValidator(
-            new class ($state) implements SchemaValidatorInterface {
-                public function __construct(private CollectedSchemasState $state)
-                {
-                }
-
-                public function validate(string $schemaName, array $payload): void
-                {
-                    $this->state->schemas[] = $schemaName;
-                }
-            },
-        );
+        $schemaValidator = $this->createMock(SchemaValidatorInterface::class);
+        $schemaValidator
+            ->expects($this->once())
+            ->method('validate')
+            ->with('checkout.create.request', ['ok' => true]);
+        $validator = new DefaultProtocolValidator($schemaValidator);
 
         $validator->validateRequest('checkout.create', ['ok' => true], new RequestContext('merchant.example'));
-
-        self::assertSame(['checkout.create.request'], $state->schemas);
     }
 
     #[Test]
     public function itPropagatesResponseValidationFailures(): void
     {
-        $validator = new DefaultProtocolValidator(
-            new class () implements SchemaValidatorInterface {
-                public function validate(string $schemaName, array $payload): void
-                {
-                    throw new \RuntimeException('missing response schema');
-                }
-            },
-        );
+        $schemaValidator = $this->createMock(SchemaValidatorInterface::class);
+        $schemaValidator
+            ->method('validate')
+            ->willThrowException(new \RuntimeException('missing response schema'));
+        $validator = new DefaultProtocolValidator($schemaValidator);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('missing response schema');
 
         $validator->validateResponse('checkout.create', ['ok' => true], new RequestContext('merchant.example'));
     }
-}
-
-final class CollectedSchemasState
-{
-    /** @var list<string> */
-    public array $schemas = [];
 }

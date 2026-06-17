@@ -30,16 +30,31 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     {
         $state = new WebhookDispatcherState();
         $activeKey = new ManagedSigningKey('active', 'public', 'private');
+        $signingKeys = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $signingKeys
+            ->method('active')
+            ->willReturn([$activeKey]);
+        $signatures = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatures
+            ->method('sign')
+            ->willReturnCallback(static function (HttpRequest $request, ManagedSigningKey $key) use ($state): array {
+                $state->capturedRequest = $request;
+                $state->capturedKey = $key;
+
+                return ['Signature' => 'signed'];
+            });
+        $enricher = $this->createMock(OrderWebhookEnricherInterface::class);
+        $enricher
+            ->method('enrich')
+            ->willReturnCallback(static fn (OrderWebhookPayload $payload, RequestContext $context): OrderWebhookPayload => new OrderWebhookPayload($payload->event, $payload->orderId, $payload->payload + ['enriched' => true]));
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            $this->signingKeyRepositoryWithActiveKey($activeKey),
-            $this->recordingSignatureService($state, $activeKey),
+            $signingKeys,
+            $signatures,
             new MockHttpClient(static fn (string $method, string $url, array $options): MockResponse => new MockResponse('accepted', [
                 'http_code' => 202,
                 'response_headers' => ['X-Webhook-Id: demo-1'],
             ])),
-            [
-                $this->orderWebhookEnricher(),
-            ],
+            [$enricher],
             new EventDispatcher(),
             10,
             self::safeWebhookUrlValidator(),
@@ -65,10 +80,17 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     #[Test]
     public function itReturnsARetryableResultOnTransportFailure(): void
     {
-        $activeKey = new ManagedSigningKey('fallback', 'public', 'private');
+        $signingKeys = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $signingKeys
+            ->method('active')
+            ->willReturn([new ManagedSigningKey('fallback', 'public', 'private')]);
+        $signatures = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatures
+            ->method('sign')
+            ->willReturn(['Signature' => 'signed']);
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            $this->signingKeyRepositoryWithActiveKey($activeKey),
-            $this->signatureService(),
+            $signingKeys,
+            $signatures,
             new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['error' => 'network down'])),
             [],
             new EventDispatcher(),
@@ -90,9 +112,13 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     #[Test]
     public function itThrowsWhenNoSigningKeyIsAvailable(): void
     {
+        $signingKeys = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $signingKeys
+            ->method('active')
+            ->willReturn([]);
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            $this->signingKeyRepositoryWithoutActiveKey(),
-            $this->signatureService(),
+            $signingKeys,
+            $this->createMock(RequestSignatureServiceInterface::class),
             new MockHttpClient(),
             [],
             new EventDispatcher(),
@@ -154,9 +180,18 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     public function itDoesNotStoreOversizedWebhookResponseBodies(): void
     {
         $activeKey = new ManagedSigningKey('active', 'public', 'private');
+        $signingKeys = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
+        $signingKeys
+            ->method('active')
+            ->willReturn([$activeKey]);
+        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatureService
+            ->method('sign')
+            ->willReturn(['Signature' => 'signed']);
+
         $dispatcher = new DefaultOrderWebhookDispatcher(
-            $this->signingKeyRepositoryWithActiveKey($activeKey),
-            $this->signatureService(),
+            $signingKeys,
+            $signatureService,
             new MockHttpClient(static fn (): MockResponse => new MockResponse(str_repeat('x', 262145), [
                 'http_code' => 202,
                 'response_headers' => ['Content-Length: 262145'],
@@ -235,64 +270,6 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
             ['platform.example'],
             static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
         );
-    }
-
-    private function signingKeyRepositoryWithActiveKey(ManagedSigningKey $activeKey): ManagedSigningKeyRepositoryInterface
-    {
-        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
-        $repository
-            ->method('active')
-            ->willReturn([$activeKey]);
-
-        return $repository;
-    }
-
-    private function signingKeyRepositoryWithoutActiveKey(): ManagedSigningKeyRepositoryInterface
-    {
-        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
-        $repository
-            ->method('active')
-            ->willReturn([]);
-
-        return $repository;
-    }
-
-    private function recordingSignatureService(WebhookDispatcherState $state, ManagedSigningKey $expectedKey): RequestSignatureServiceInterface
-    {
-        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
-        $signatureService
-            ->expects(self::once())
-            ->method('sign')
-            ->with(self::isInstanceOf(HttpRequest::class), self::identicalTo($expectedKey))
-            ->willReturnCallback(static function (HttpRequest $request, ManagedSigningKey $key) use ($state): array {
-                $state->capturedRequest = $request;
-                $state->capturedKey = $key;
-
-                return ['Signature' => 'signed'];
-            });
-
-        return $signatureService;
-    }
-
-    private function signatureService(): RequestSignatureServiceInterface
-    {
-        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
-        $signatureService
-            ->method('sign')
-            ->willReturn(['Signature' => 'signed']);
-
-        return $signatureService;
-    }
-
-    private function orderWebhookEnricher(): OrderWebhookEnricherInterface
-    {
-        $enricher = $this->createMock(OrderWebhookEnricherInterface::class);
-        $enricher
-            ->expects(self::once())
-            ->method('enrich')
-            ->willReturnCallback(static fn (OrderWebhookPayload $payload, RequestContext $context): OrderWebhookPayload => new OrderWebhookPayload($payload->event, $payload->orderId, $payload->payload + ['enriched' => true]));
-
-        return $enricher;
     }
 }
 

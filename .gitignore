@@ -6,3 +6,4 @@
 /.DS_Store
 /tools/public-api-snapshot.txt
 .claude
+/AGENTS.override.md

@@ -33,14 +33,97 @@ use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 final class EventListenersTest extends TestCase
 {
+    private HttpKernelInterface $kernel;
+
+    private RequestContext $requestContext;
+
+    private ?IdempotencyRecord $claimRecord = null;
+
+    private ?string $claimedKey = null;
+
+    private ?string $claimedFingerprint = null;
+
+    private int $requestContextCreations = 0;
+
+    private ?IdempotencyRecord $abortedRecord = null;
+
+    private ?IdempotencyRecord $completedRecord = null;
+
+    /** @var array<string, mixed>|null */
+    private ?array $completedBody = null;
+
+    private ?int $completedStatusCode = null;
+
+    private bool $completedReplayable = true;
+
+    private UcpSdkConfiguration $configuration;
+
+    private UcpResponseFactory $responseFactory;
+
+    private RequestContextListener $requestContextListener;
+
+    private IdempotencyResponseListener $idempotencyResponseListener;
+
+    protected function setUp(): void
+    {
+        $this->kernel = $this->createMock(HttpKernelInterface::class);
+        $this->configuration = $this->configuration();
+        $this->responseFactory = new UcpResponseFactory($this->configuration);
+        $this->requestContext = new RequestContext(
+            'merchant.example',
+            runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example'),
+        );
+
+        $requestContextFactory = $this->createMock(HttpRequestContextFactoryInterface::class);
+        $requestContextFactory
+            ->method('create')
+            ->willReturnCallback(function (HttpRequest $request): RequestContext {
+                ++$this->requestContextCreations;
+
+                return $this->requestContext;
+            });
+        $idempotencyService = $this->createMock(IdempotencyServiceInterface::class);
+        $idempotencyService
+            ->method('claim')
+            ->willReturnCallback(function (string $key, string $fingerprint): IdempotencyRecord {
+                $this->claimedKey = $key;
+                $this->claimedFingerprint = $fingerprint;
+
+                return $this->claimRecord ?? new IdempotencyRecord($key, $fingerprint);
+            });
+        $idempotencyService
+            ->method('complete')
+            ->willReturnCallback(function (IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void {
+                $this->completedRecord = $record;
+                $this->completedBody = $responseBody;
+                $this->completedStatusCode = $statusCode;
+                $this->completedReplayable = $replayable;
+            });
+        $idempotencyService
+            ->method('abort')
+            ->willReturnCallback(function (IdempotencyRecord $record): void {
+                $this->abortedRecord = $record;
+            });
+
+        $this->requestContextListener = new RequestContextListener(
+            $requestContextFactory,
+            $idempotencyService,
+            $this->responseFactory,
+            $this->configuration,
+        );
+        $this->idempotencyResponseListener = new IdempotencyResponseListener(
+            $idempotencyService,
+            $this->configuration,
+        );
+    }
+
     #[Test]
     public function itMapsDomainExceptionsToUcpErrorResponses(): void
     {
-        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()));
-        $kernel = $this->createMock(HttpKernelInterface::class);
+        $listener = new ExceptionListener($this->responseFactory);
 
         $validationEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/v1/carts', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new ValidationException('invalid', ['$.field is required']),
@@ -49,7 +132,7 @@ final class EventListenersTest extends TestCase
         self::assertSame(422, $validationEvent->getResponse()?->getStatusCode());
 
         $conflictEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/v1/carts', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new IdempotencyConflictException('conflict'),
@@ -58,7 +141,7 @@ final class EventListenersTest extends TestCase
         self::assertSame(409, $conflictEvent->getResponse()?->getStatusCode());
 
         $signatureEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/v1/carts', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new SignatureException('bad signature'),
@@ -67,7 +150,7 @@ final class EventListenersTest extends TestCase
         self::assertSame(401, $signatureEvent->getResponse()?->getStatusCode());
 
         $unsupportedEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/v1/carts', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new UnsupportedCapabilityException('missing'),
@@ -76,7 +159,7 @@ final class EventListenersTest extends TestCase
         self::assertSame(501, $unsupportedEvent->getResponse()?->getStatusCode());
 
         $notFoundEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/v1/carts/missing', 'GET'),
             HttpKernelInterface::MAIN_REQUEST,
             new ResourceNotFoundException('missing'),
@@ -85,7 +168,7 @@ final class EventListenersTest extends TestCase
         self::assertSame(404, $notFoundEvent->getResponse()?->getStatusCode());
 
         $configurationEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/.well-known/ucp', 'GET'),
             HttpKernelInterface::MAIN_REQUEST,
             new ConfigurationException('misconfigured'),
@@ -100,7 +183,7 @@ final class EventListenersTest extends TestCase
         );
 
         $httpEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/v1/carts', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new BadRequestHttpException('bad request'),
@@ -109,7 +192,7 @@ final class EventListenersTest extends TestCase
         self::assertSame(400, $httpEvent->getResponse()?->getStatusCode());
 
         $runtimeEvent = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/v1/carts', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new \RuntimeException('boom'),
@@ -121,10 +204,9 @@ final class EventListenersTest extends TestCase
     #[Test]
     public function itIgnoresExceptionsOutsideTheUcpSurface(): void
     {
-        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()));
-        $kernel = $this->createMock(HttpKernelInterface::class);
+        $listener = new ExceptionListener($this->responseFactory);
         $event = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/admin', 'GET'),
             HttpKernelInterface::MAIN_REQUEST,
             new \RuntimeException('boom'),
@@ -138,10 +220,9 @@ final class EventListenersTest extends TestCase
     #[Test]
     public function itIgnoresMcpTransportExceptions(): void
     {
-        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()));
-        $kernel = $this->createMock(HttpKernelInterface::class);
+        $listener = new ExceptionListener($this->responseFactory);
         $event = new ExceptionEvent(
-            $kernel,
+            $this->kernel,
             Request::create('/ucp/mcp', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
             new \RuntimeException('boom'),
@@ -155,53 +236,22 @@ final class EventListenersTest extends TestCase
     #[Test]
     public function itBuildsRequestContextAndReplaysCompletedIdempotentRequests(): void
     {
-        $state = new EventListenerState();
-        $listener = new RequestContextListener(
-            new class () implements HttpRequestContextFactoryInterface {
-                public function create(HttpRequest $request): RequestContext
-                {
-                    return new RequestContext(
-                        'merchant.example',
-                        $request->headers,
-                        idempotencyKey: 'idem-1',
-                        runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
-                    );
-                }
-            },
-            new class ($state) implements IdempotencyServiceInterface {
-                public function __construct(private readonly EventListenerState $state)
-                {
-                }
-
-                public function claim(string $key, string $fingerprint): IdempotencyRecord
-                {
-                    $this->state->claimedKey = $key;
-                    $this->state->claimedFingerprint = $fingerprint;
-
-                    return new IdempotencyRecord($key, $fingerprint, 'completed', ['ok' => true], 201);
-                }
-
-                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
-                {
-                }
-
-                public function abort(IdempotencyRecord $record): void
-                {
-                }
-            },
-            new UcpResponseFactory($this->configuration()),
-            $this->configuration(),
+        $this->requestContext = new RequestContext(
+            'merchant.example',
+            idempotencyKey: 'idem-1',
+            runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
         );
+        $this->claimRecord = new IdempotencyRecord('idem-1', 'fp-1', 'completed', ['ok' => true], 201);
 
         $request = Request::create('https://merchant.example/ucp/v1/carts?b=2&a=1', 'POST', [], [], [], [], '{"ok":true}');
         $request->headers->set('Idempotency-Key', 'idem-1');
-        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+        $event = new RequestEvent($this->kernel, $request, HttpKernelInterface::MAIN_REQUEST);
 
-        $listener->onKernelRequest($event);
+        $this->requestContextListener->onKernelRequest($event);
 
         self::assertNotNull($request->attributes->get('ucp_request_context'));
-        self::assertSame('idem-1', $state->claimedKey);
-        self::assertIsString($state->claimedFingerprint);
+        self::assertSame('idem-1', $this->claimedKey);
+        self::assertIsString($this->claimedFingerprint);
         self::assertNotNull($event->getResponse());
         self::assertSame('1', $event->getResponse()->headers->get('Idempotency-Replay'));
     }
@@ -209,40 +259,16 @@ final class EventListenersTest extends TestCase
     #[Test]
     public function itRejectsMutatingRequestsWithoutAnIdempotencyKeyWhenRequired(): void
     {
-        $listener = new RequestContextListener(
-            new class () implements HttpRequestContextFactoryInterface {
-                public function create(HttpRequest $request): RequestContext
-                {
-                    return new RequestContext(
-                        'merchant.example',
-                        $request->headers,
-                        runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
-                    );
-                }
-            },
-            new class () implements IdempotencyServiceInterface {
-                public function claim(string $key, string $fingerprint): IdempotencyRecord
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-
-                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
-                {
-                }
-
-                public function abort(IdempotencyRecord $record): void
-                {
-                }
-            },
-            new UcpResponseFactory($this->configuration()),
-            $this->configuration(),
+        $this->requestContext = new RequestContext(
+            'merchant.example',
+            runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
         );
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Idempotency key is required for mutating UCP requests.');
 
-        $listener->onKernelRequest(new RequestEvent(
-            $this->createMock(HttpKernelInterface::class),
+        $this->requestContextListener->onKernelRequest(new RequestEvent(
+            $this->kernel,
             Request::create('https://merchant.example/ucp/v1/carts', 'POST'),
             HttpKernelInterface::MAIN_REQUEST,
         ));
@@ -251,219 +277,97 @@ final class EventListenersTest extends TestCase
     #[Test]
     public function itDoesNotRequireUcpIdempotencyForOAuthTokenRequests(): void
     {
-        $listener = new RequestContextListener(
-            new class () implements HttpRequestContextFactoryInterface {
-                public function create(HttpRequest $request): RequestContext
-                {
-                    return new RequestContext(
-                        'merchant.example',
-                        $request->headers,
-                        runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
-                    );
-                }
-            },
-            new class () implements IdempotencyServiceInterface {
-                public function claim(string $key, string $fingerprint): IdempotencyRecord
-                {
-                    throw new \RuntimeException('OAuth token requests must not claim UCP idempotency records.');
-                }
-
-                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
-                {
-                }
-
-                public function abort(IdempotencyRecord $record): void
-                {
-                }
-            },
-            new UcpResponseFactory($this->configuration()),
-            $this->configuration(),
+        $this->requestContext = new RequestContext(
+            'merchant.example',
+            runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
         );
 
         $request = Request::create('https://merchant.example/ucp/v1/oauth/token', 'POST');
-        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+        $event = new RequestEvent($this->kernel, $request, HttpKernelInterface::MAIN_REQUEST);
 
-        $listener->onKernelRequest($event);
+        $this->requestContextListener->onKernelRequest($event);
 
         self::assertNotNull($request->attributes->get('ucp_request_context'));
+        self::assertNull($this->claimedKey);
         self::assertNull($event->getResponse());
     }
 
     #[Test]
     public function itIgnoresNonUcpRoutes(): void
     {
-        $state = new EventListenerState();
-        $listener = new RequestContextListener(
-            new class () implements HttpRequestContextFactoryInterface {
-                public function create(HttpRequest $request): RequestContext
-                {
-                    throw new \RuntimeException('Should not be called for non-UCP routes.');
-                }
-            },
-            new class ($state) implements IdempotencyServiceInterface {
-                public function __construct(private readonly EventListenerState $state)
-                {
-                }
-
-                public function claim(string $key, string $fingerprint): IdempotencyRecord
-                {
-                    $this->state->claimedKey = $key;
-
-                    throw new \RuntimeException('Should not be called for non-UCP routes.');
-                }
-
-                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
-                {
-                }
-
-                public function abort(IdempotencyRecord $record): void
-                {
-                }
-            },
-            new UcpResponseFactory($this->configuration()),
-            $this->configuration(),
-        );
-
         $request = Request::create('https://merchant.example/_action/swag-agentic-commerce/test/webhooks', 'POST');
-        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+        $event = new RequestEvent($this->kernel, $request, HttpKernelInterface::MAIN_REQUEST);
 
-        $listener->onKernelRequest($event);
+        $this->requestContextListener->onKernelRequest($event);
 
         self::assertNull($request->attributes->get('ucp_request_context'));
-        self::assertNull($state->claimedKey);
+        self::assertSame(0, $this->requestContextCreations);
+        self::assertNull($this->claimedKey);
         self::assertNull($event->getResponse());
     }
 
     #[Test]
     public function itDoesNotBuildRestContextForMcpTransportRequests(): void
     {
-        $state = new EventListenerState();
-        $listener = new RequestContextListener(
-            new class () implements HttpRequestContextFactoryInterface {
-                public function create(HttpRequest $request): RequestContext
-                {
-                    throw new \RuntimeException('MCP transport requests must not use the REST UCP context listener.');
-                }
-            },
-            new class ($state) implements IdempotencyServiceInterface {
-                public function __construct(private readonly EventListenerState $state)
-                {
-                }
-
-                public function claim(string $key, string $fingerprint): IdempotencyRecord
-                {
-                    $this->state->claimedKey = $key;
-
-                    throw new \RuntimeException('MCP transport requests must not claim UCP idempotency records.');
-                }
-
-                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
-                {
-                }
-
-                public function abort(IdempotencyRecord $record): void
-                {
-                }
-            },
-            new UcpResponseFactory($this->configuration()),
-            $this->configuration(),
-        );
-
         $request = Request::create('https://merchant.example/ucp/mcp', 'POST', [], [], [], [], '{"jsonrpc":"2.0"}');
-        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+        $event = new RequestEvent($this->kernel, $request, HttpKernelInterface::MAIN_REQUEST);
 
-        $listener->onKernelRequest($event);
+        $this->requestContextListener->onKernelRequest($event);
 
         self::assertNull($request->attributes->get('ucp_request_context'));
-        self::assertNull($state->claimedKey);
+        self::assertSame(0, $this->requestContextCreations);
+        self::assertNull($this->claimedKey);
         self::assertNull($event->getResponse());
     }
 
     #[Test]
     public function itAbortsOrCompletesPendingIdempotencyRecordsOnResponse(): void
     {
-        $state = new EventListenerState();
-        $listener = new IdempotencyResponseListener(
-            new class ($state) implements IdempotencyServiceInterface {
-                public function __construct(private readonly EventListenerState $state)
-                {
-                }
-
-                public function claim(string $key, string $fingerprint): IdempotencyRecord
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-
-                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
-                {
-                    $this->state->completedRecord = $record;
-                    $this->state->completedBody = $responseBody;
-                    $this->state->completedStatusCode = $statusCode;
-                    $this->state->completedReplayable = $replayable;
-                }
-
-                public function abort(IdempotencyRecord $record): void
-                {
-                    $this->state->abortedRecord = $record;
-                }
-            },
-            $this->configuration(),
-        );
-
         $abortRequest = Request::create('/ucp/v1/carts', 'POST');
         $abortRequest->attributes->set('ucp_idempotency_record', new IdempotencyRecord('idem-1', 'fp-1'));
-        $listener->onKernelResponse(new ResponseEvent(
-            $this->createMock(HttpKernelInterface::class),
+        $this->idempotencyResponseListener->onKernelResponse(new ResponseEvent(
+            $this->kernel,
             $abortRequest,
             HttpKernelInterface::MAIN_REQUEST,
             new Response('boom', 503),
         ));
-        self::assertSame('idem-1', $state->abortedRecord?->key);
+        self::assertSame('idem-1', $this->abortedRecord?->key);
 
         $completeRequest = Request::create('/ucp/v1/carts', 'POST');
         $completeRequest->attributes->set('ucp_idempotency_record', new IdempotencyRecord('idem-2', 'fp-2'));
-        $listener->onKernelResponse(new ResponseEvent(
-            $this->createMock(HttpKernelInterface::class),
+        $this->idempotencyResponseListener->onKernelResponse(new ResponseEvent(
+            $this->kernel,
             $completeRequest,
             HttpKernelInterface::MAIN_REQUEST,
             new Response('not-json', 200),
         ));
-        self::assertSame('idem-2', $state->completedRecord?->key);
-        self::assertSame([], $state->completedBody);
-        self::assertSame(200, $state->completedStatusCode);
-        self::assertFalse($state->completedReplayable);
+        self::assertSame('idem-2', $this->completedRecord?->key);
+        self::assertSame([], $this->completedBody);
+        self::assertSame(200, $this->completedStatusCode);
+        self::assertFalse($this->completedReplayable);
     }
 
     #[Test]
     public function itReturnsA413EnvelopeWhenTheRequestBodyIsTooLarge(): void
     {
+        $requestContextFactory = $this->createMock(HttpRequestContextFactoryInterface::class);
+        $requestContextFactory
+            ->expects($this->never())
+            ->method('create');
+        $idempotencyService = $this->createMock(IdempotencyServiceInterface::class);
+        $idempotencyService
+            ->expects($this->never())
+            ->method('claim');
+        $configuration = $this->configuration(maxRequestBodyBytes: 4);
         $listener = new RequestContextListener(
-            new class () implements HttpRequestContextFactoryInterface {
-                public function create(HttpRequest $request): RequestContext
-                {
-                    throw new \RuntimeException('Should not be called.');
-                }
-            },
-            new class () implements IdempotencyServiceInterface {
-                public function claim(string $key, string $fingerprint): IdempotencyRecord
-                {
-                    throw new \RuntimeException('Not used in this test.');
-                }
-
-                public function complete(IdempotencyRecord $record, array $responseBody, int $statusCode, bool $replayable = true): void
-                {
-                }
-
-                public function abort(IdempotencyRecord $record): void
-                {
-                }
-            },
-            new UcpResponseFactory($this->configuration(maxRequestBodyBytes: 4)),
-            $this->configuration(maxRequestBodyBytes: 4),
+            $requestContextFactory,
+            $idempotencyService,
+            new UcpResponseFactory($configuration),
+            $configuration,
         );
 
         $request = Request::create('https://merchant.example/ucp/v1/carts', 'POST', [], [], [], [], '{"too":"big"}');
-        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+        $event = new RequestEvent($this->kernel, $request, HttpKernelInterface::MAIN_REQUEST);
 
         $listener->onKernelRequest($event);
 
@@ -497,22 +401,4 @@ final class EventListenersTest extends TestCase
             'sqlite:///%kernel.project_dir%/var/ucp_sdk.sqlite',
         );
     }
-}
-
-final class EventListenerState
-{
-    public ?string $claimedKey = null;
-
-    public ?string $claimedFingerprint = null;
-
-    public ?IdempotencyRecord $abortedRecord = null;
-
-    public ?IdempotencyRecord $completedRecord = null;
-
-    /** @var array<string, mixed>|null */
-    public ?array $completedBody = null;
-
-    public ?int $completedStatusCode = null;
-
-    public bool $completedReplayable = true;
 }
