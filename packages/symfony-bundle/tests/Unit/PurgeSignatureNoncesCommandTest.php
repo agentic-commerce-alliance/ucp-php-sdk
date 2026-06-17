@@ -33,7 +33,7 @@ final class PurgeSignatureNoncesCommandTest extends TestCase
         $command = new PurgeSignatureNoncesCommand(
             new StorageCleanupService(
                 $this->createMock(OAuthStateRepositoryInterface::class),
-                $this->createStub(IdempotencyRepositoryInterface::class),
+                $this->createMock(IdempotencyRepositoryInterface::class),
                 $this->createMock(NegotiationSessionRepositoryInterface::class),
                 $this->createMock(PlatformProfileCacheRepositoryInterface::class),
                 $signatureNonces,
