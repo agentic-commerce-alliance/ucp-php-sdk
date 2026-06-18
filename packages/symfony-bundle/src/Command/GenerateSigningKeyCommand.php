@@ -13,6 +13,7 @@ use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 #[AsCommand(name: 'ucp:signing-keys:generate', description: 'Generate and store a signing key for the UCP SDK.')]
+/** @internal */
 final class GenerateSigningKeyCommand extends Command
 {
     public function __construct(

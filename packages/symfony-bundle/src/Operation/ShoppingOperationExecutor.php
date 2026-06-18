@@ -25,6 +25,7 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
+/** @internal */
 final class ShoppingOperationExecutor
 {
     /**

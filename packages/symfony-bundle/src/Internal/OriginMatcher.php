@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\Internal;
 
+/** @internal */
 final class OriginMatcher
 {
     /**

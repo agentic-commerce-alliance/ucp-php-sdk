@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
 
+/** @internal */
 final class DoctrineDbalSignatureNonceRepository implements SignatureNonceRepositoryInterface
 {
     public function __construct(

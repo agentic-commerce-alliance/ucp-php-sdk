@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\Operation;
 
+/** @internal */
 final class ShoppingOperationToolSchemas
 {
     public const CART_CREATE_INPUT = [

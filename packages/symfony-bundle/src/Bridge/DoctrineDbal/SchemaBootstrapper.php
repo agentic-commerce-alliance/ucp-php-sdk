@@ -11,6 +11,7 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\SchemaConfig;
 use Doctrine\DBAL\Schema\Table;
 
+/** @internal */
 final class SchemaBootstrapper
 {
     private StorageSchemaDefinition $schemaDefinition;

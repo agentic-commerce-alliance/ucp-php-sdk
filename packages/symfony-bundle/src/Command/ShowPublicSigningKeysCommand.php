@@ -12,6 +12,7 @@ use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 #[AsCommand(name: 'ucp:signing-keys:show-public', description: 'Show the public signing keys published in discovery.')]
+/** @internal */
 final class ShowPublicSigningKeysCommand extends Command
 {
     public function __construct(

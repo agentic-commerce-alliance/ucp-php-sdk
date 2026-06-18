@@ -14,6 +14,7 @@ use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
+/** @internal */
 final class ProfileController
 {
     public function __construct(

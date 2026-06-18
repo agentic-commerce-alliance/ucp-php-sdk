@@ -14,6 +14,7 @@ use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 
+/** @internal */
 final class TokenizationController
 {
     public function __construct(

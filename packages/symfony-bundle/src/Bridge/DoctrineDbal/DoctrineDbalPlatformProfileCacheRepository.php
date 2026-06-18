@@ -9,6 +9,7 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 
+/** @internal */
 final class DoctrineDbalPlatformProfileCacheRepository implements PlatformProfileCacheRepositoryInterface
 {
     public function __construct(

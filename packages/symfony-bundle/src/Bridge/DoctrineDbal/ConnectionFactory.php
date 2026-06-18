@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Bridge\DoctrineDbal;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 
+/** @internal */
 final class ConnectionFactory
 {
     public static function create(string $dsn): Connection

@@ -16,6 +16,7 @@ use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 
+/** @internal */
 final class ExceptionListener
 {
     public function __construct(

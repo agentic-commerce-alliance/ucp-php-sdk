@@ -10,6 +10,7 @@ use Ucp\Sdk\Model\IdempotencyRecord;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\SecretEncryptorInterface;
 
+/** @internal */
 final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryInterface
 {
     public function __construct(
