@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Service;
 
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
 use Ucp\Sdk\Enum\Transport;
@@ -14,6 +13,7 @@ use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\Profile\ServiceEndpoint;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
+use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 

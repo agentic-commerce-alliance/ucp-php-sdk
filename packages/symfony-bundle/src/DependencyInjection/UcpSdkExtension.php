@@ -12,7 +12,7 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as SymfonyEventDispatcherInterface;
 use Ucp\Sdk\Adapter\CartAdapterInterface;
 use Ucp\Sdk\Adapter\CatalogAdapterInterface;
 use Ucp\Sdk\Adapter\CheckoutAdapterInterface;
@@ -60,6 +60,8 @@ use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\DeterministicJsonInterface;
+use Ucp\Sdk\Service\EventDispatcherInterface;
+use Ucp\Sdk\Service\HttpClientInterface;
 use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\IdempotencyServiceInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
@@ -86,6 +88,8 @@ use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\StorageSchemaDefinition;
 use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
+use Ucp\Sdk\Symfony\Bridge\SymfonyEventDispatcher;
+use Ucp\Sdk\Symfony\Bridge\SymfonyHttpClient;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\Command\GenerateSigningKeyCommand;
 use Ucp\Sdk\Symfony\Command\ListSigningKeysCommand;
@@ -186,6 +190,14 @@ final class UcpSdkExtension extends Extension
 
         $container->setDefinition('ucp_sdk.http_client', (new Definition(HttpClient::class))
             ->setFactory([HttpClient::class, 'create']));
+        $container->setDefinition(SymfonyHttpClient::class, new Definition(SymfonyHttpClient::class, [
+            new Reference('ucp_sdk.http_client'),
+        ]));
+        $container->setAlias(HttpClientInterface::class, new Alias(SymfonyHttpClient::class, true));
+        $container->setDefinition(SymfonyEventDispatcher::class, new Definition(SymfonyEventDispatcher::class, [
+            new Reference(SymfonyEventDispatcherInterface::class),
+        ]));
+        $container->setAlias(EventDispatcherInterface::class, new Alias(SymfonyEventDispatcher::class, true));
 
         $container->setDefinition('ucp_sdk.connection', (new Definition(Connection::class))
             ->setFactory([ConnectionFactory::class, 'create'])
@@ -270,7 +282,7 @@ final class UcpSdkExtension extends Extension
         $container->setDefinition(UnsupportedMerchantAuthorizationService::class, new Definition(UnsupportedMerchantAuthorizationService::class));
         $container->setAlias(MerchantAuthorizationServiceInterface::class, new Alias(UnsupportedMerchantAuthorizationService::class, true));
         $container->setDefinition(HttpAgentProfileFetcher::class, new Definition(HttpAgentProfileFetcher::class, [
-            new Reference('ucp_sdk.http_client'),
+            new Reference(HttpClientInterface::class),
             new Reference(PlatformProfileCacheRepositoryInterface::class),
             new Reference(UrlSafetyValidator::class),
         ]));
@@ -337,7 +349,7 @@ final class UcpSdkExtension extends Extension
         $container->setDefinition(DefaultOrderWebhookDispatcher::class, new Definition(DefaultOrderWebhookDispatcher::class, [
             new Reference(ManagedSigningKeyRepositoryInterface::class),
             new Reference(RequestSignatureServiceInterface::class),
-            new Reference('ucp_sdk.http_client'),
+            new Reference(HttpClientInterface::class),
             new TaggedIteratorArgument('ucp_sdk.order_webhook_enricher'),
             new Reference(EventDispatcherInterface::class),
             $config['webhooks']['timeout'],

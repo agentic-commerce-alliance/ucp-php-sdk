@@ -597,14 +597,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "853937d506635423b75e52cb70581b67dd17531f"
+                "reference": "e111c6ed9e44d01d8c8fbc22295c2c60985f6f7d"
             },
             "require": {
                 "php": "^8.1",
-                "phpseclib/phpseclib": "^3.0",
-                "symfony/event-dispatcher-contracts": "^3.0",
-                "symfony/http-client": "^6.4 || ^7.0",
-                "symfony/http-foundation": "^6.4 || ^7.0"
+                "phpseclib/phpseclib": "^3.0"
             },
             "type": "library",
             "autoload": {

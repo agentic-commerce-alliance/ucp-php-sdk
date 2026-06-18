@@ -6,15 +6,14 @@ namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Symfony\Contracts\HttpClient\ChunkInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
-use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
+use Ucp\Sdk\Model\Http\HttpResponseChunkInterface;
+use Ucp\Sdk\Model\Http\HttpResponseInterface;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
+use Ucp\Sdk\Service\HttpClientInterface;
 
 final class HttpAgentProfileFetcherTest extends TestCase
 {
@@ -290,7 +289,7 @@ final class RecordingHttpClient implements HttpClientInterface
     /**
      * @param array<string, mixed> $options
      */
-    public function request(string $method, string $url, array $options = []): ResponseInterface
+    public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
         $this->method = $method;
         $this->url = $url;
@@ -299,23 +298,15 @@ final class RecordingHttpClient implements HttpClientInterface
         return $this->response;
     }
 
-    public function stream(ResponseInterface|iterable $responses, ?float $timeout = null): ResponseStreamInterface
+    public function stream(HttpResponseInterface $response, ?float $timeout = null): iterable
     {
         $this->streamTimeout = (float) ($timeout ?? 0.0);
 
-        return new RecordingResponseStream($this->response, $this->chunks);
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     */
-    public function withOptions(array $options): static
-    {
-        return $this;
+        return $this->chunks;
     }
 }
 
-final class RecordingResponse implements ResponseInterface
+final class RecordingResponse implements HttpResponseInterface
 {
     public bool $cancelled = false;
     public bool $lastGetHeadersThrowArgument = true;
@@ -365,7 +356,7 @@ final class RecordingResponse implements ResponseInterface
     }
 }
 
-final class RecordingChunk implements ChunkInterface
+final class RecordingChunk implements HttpResponseChunkInterface
 {
     public function __construct(
         private readonly bool $timeout = false,
@@ -391,14 +382,6 @@ final class RecordingChunk implements ChunkInterface
         return $this->last;
     }
 
-    /**
-     * @return array{0: int, 1: array<string, list<string>>}|null
-     */
-    public function getInformationalStatus(): ?array
-    {
-        return null;
-    }
-
     public function getContent(): string
     {
         return $this->content;
@@ -409,47 +392,4 @@ final class RecordingChunk implements ChunkInterface
         return $this->offset;
     }
 
-    public function getError(): ?string
-    {
-        return null;
-    }
-}
-
-final class RecordingResponseStream implements ResponseStreamInterface
-{
-    private int $index = 0;
-
-    /**
-     * @param list<RecordingChunk> $chunks
-     */
-    public function __construct(
-        private readonly ResponseInterface $response,
-        private readonly array $chunks,
-    ) {
-    }
-
-    public function current(): ChunkInterface
-    {
-        return $this->chunks[$this->index];
-    }
-
-    public function next(): void
-    {
-        ++$this->index;
-    }
-
-    public function key(): ResponseInterface
-    {
-        return $this->response;
-    }
-
-    public function valid(): bool
-    {
-        return isset($this->chunks[$this->index]);
-    }
-
-    public function rewind(): void
-    {
-        $this->index = 0;
-    }
 }
