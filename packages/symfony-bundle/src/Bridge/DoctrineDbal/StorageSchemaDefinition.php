@@ -40,6 +40,7 @@ final class StorageSchemaDefinition
         $table->addColumn('replayable', 'integer', ['default' => 1]);
         $table->addColumn('expires_at', 'integer', ['notnull' => false]);
         $table->setPrimaryKey(['idempotency_key']);
+        $table->addIndex(['expires_at'], 'idx_ucp_idempotency_expires_at');
 
         $table = $schema->createTable('ucp_oauth_state');
         $table->addColumn('code_hash', 'string', ['length' => 191]);

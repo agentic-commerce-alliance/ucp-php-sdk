@@ -272,6 +272,7 @@ class Ucp\Sdk\Model\Webhook\OrderWebhookPayload
 class Ucp\Sdk\Model\Webhook\WebhookDispatchResult
   - __construct(string $targetUrl, int $statusCode, bool $successful, bool $retryable = false, array $responseHeaders = [], ?string $responseBody = null)
 interface Ucp\Sdk\Repository\IdempotencyRepositoryInterface
+  - claimPending(string $key, string $fingerprint): bool
   - delete(string $key): void
   - find(string $key): ?Ucp\Sdk\Model\IdempotencyRecord
   - purgeExpired(int $olderThanUnixTimestamp): void

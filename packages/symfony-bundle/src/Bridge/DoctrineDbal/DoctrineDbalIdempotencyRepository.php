@@ -20,6 +20,30 @@ final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryIn
     ) {
     }
 
+    public function claimPending(string $key, string $fingerprint): bool
+    {
+        $now = time();
+        $this->purgeExpired($now);
+
+        $data = [
+            'idempotency_key' => $key,
+            'fingerprint' => $fingerprint,
+            'status' => 'pending',
+            'response_body' => null,
+            'status_code' => null,
+            'replayable' => 1,
+            'expires_at' => $now + $this->ttlSeconds,
+        ];
+
+        try {
+            $this->connection->insert('ucp_idempotency', $data);
+
+            return true;
+        } catch (UniqueConstraintViolationException) {
+            return false;
+        }
+    }
+
     public function find(string $key): ?IdempotencyRecord
     {
         $row = $this->connection->fetchAssociative('SELECT * FROM ucp_idempotency WHERE idempotency_key = :key', ['key' => $key]);

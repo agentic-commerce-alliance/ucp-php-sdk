@@ -73,6 +73,9 @@ final class SchemaBootstrapperTest extends TestCase
         self::assertSame(['tenant_identifier', 'kid'], $primaryKey->getColumns());
         $oauthIndexes = array_change_key_case($schemaManager->listTableIndexes('ucp_oauth_state'), CASE_LOWER);
         self::assertArrayNotHasKey('idx_ucp_oauth_state_code_hash', $oauthIndexes);
+        $idempotencyIndexes = array_change_key_case($schemaManager->listTableIndexes('ucp_idempotency'), CASE_LOWER);
+        self::assertArrayHasKey('idx_ucp_idempotency_expires_at', $idempotencyIndexes);
+        self::assertSame(['expires_at'], $idempotencyIndexes['idx_ucp_idempotency_expires_at']->getColumns());
         self::assertContains('application_table', $this->tableNames($connection));
     }
 
