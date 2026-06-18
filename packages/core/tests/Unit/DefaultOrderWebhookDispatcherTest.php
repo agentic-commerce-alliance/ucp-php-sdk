@@ -324,8 +324,6 @@ final class WebhookRecordingHttpClient implements HttpClientInterface
 
 final class WebhookRecordingResponse implements HttpResponseInterface
 {
-    public bool $cancelled = false;
-
     /**
      * @param array<string, list<string>> $headers
      */
@@ -348,7 +346,6 @@ final class WebhookRecordingResponse implements HttpResponseInterface
 
     public function cancel(): void
     {
-        $this->cancelled = true;
     }
 }
 
