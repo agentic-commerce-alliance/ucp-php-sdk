@@ -88,4 +88,4 @@ The default DBAL-backed repositories are only storage adapters for SDK state. Th
 
 The bundle runtime classes are part of the dead-code QA scope. Coverage and internal reference checks focus on bridge code, listeners, commands, controllers, and the realistic merchant example instead of the exported SDK contracts.
 
-For service tags, config shape, and replacement rules, see [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/symfony-bundle/AGENTS.md).
+For service tags, config shape, and replacement rules, see [AGENTS.md](AGENTS.md).

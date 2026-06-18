@@ -4,12 +4,12 @@ UCP PHP SDK for Symfony and plain PHP.
 
 This repo contains the shared SDK, a Symfony bundle, two example apps, local Docker tooling, and the docs needed to build future platform integrations on top.
 
-For technical notes and agent-facing examples, start with [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/AGENTS.md).
+For technical notes and agent-facing examples, start with [AGENTS.md](AGENTS.md).
 
 Project policies:
 
-- contribution workflow: [CONTRIBUTING.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/CONTRIBUTING.md)
-- vulnerability reporting: [SECURITY.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/SECURITY.md)
+- contribution workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+- vulnerability reporting: [SECURITY.md](SECURITY.md)
 
 ## Packages
 
@@ -21,9 +21,9 @@ External consumers should install the core package or the Symfony bundle directl
 
 More detail:
 
-- [packages/README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/README.md)
-- [packages/core/README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/README.md)
-- [packages/symfony-bundle/README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/symfony-bundle/README.md)
+- [packages/README.md](packages/README.md)
+- [packages/core/README.md](packages/core/README.md)
+- [packages/symfony-bundle/README.md](packages/symfony-bundle/README.md)
 
 ## Main Idea
 
@@ -66,7 +66,7 @@ Current release track: `0.0.1-alpha1`.
 Release organization:
 
 - GitHub Releases are the source of truth for version-specific release notes.
-- [docs/release-process.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/release-process.md) describes how releases are prepared and what each GitHub Release should contain.
+- [docs/release-process.md](docs/release-process.md) describes how releases are prepared and what each GitHub Release should contain.
 - Release Drafter keeps an upcoming draft release current on `main`.
 
 Framework-free install:
@@ -121,26 +121,26 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 
 ## Security
 
-- Vulnerability reporting policy: [SECURITY.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/SECURITY.md)
+- Vulnerability reporting policy: [SECURITY.md](SECURITY.md)
 
 ## Example Apps
 
-- [examples/bootstrap-symfony-app/README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/bootstrap-symfony-app/README.md) is the smallest useful bundle integration.
-- [examples/merchant-symfony-app/README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/merchant-symfony-app/README.md) is the more realistic merchant reference with catalog, checkout, order read, OAuth, tokenization, and webhook flows.
+- [examples/bootstrap-symfony-app/README.md](examples/bootstrap-symfony-app/README.md) is the smallest useful bundle integration.
+- [examples/merchant-symfony-app/README.md](examples/merchant-symfony-app/README.md) is the more realistic merchant reference with catalog, checkout, order read, OAuth, tokenization, and webhook flows.
 
 ## Architecture Docs
 
-- [docs/concepts-and-flows.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/concepts-and-flows.md)
-- [docs/extension-contract.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/extension-contract.md)
-- [docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
-- [docs/full-ucp-parity-plan.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/full-ucp-parity-plan.md)
-- [docs/mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)
-- [docs/repo-layout.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/repo-layout.md)
-- [docs/release-process.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/release-process.md)
-- [docs/storage-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/storage-adapters.md)
-- [docs/security-model.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/security-model.md)
-- [docs/shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md)
-- [docs/qa-dead-code.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/qa-dead-code.md)
+- [docs/concepts-and-flows.md](docs/concepts-and-flows.md)
+- [docs/extension-contract.md](docs/extension-contract.md)
+- [docs/platform-adapters.md](docs/platform-adapters.md)
+- [docs/full-ucp-parity-plan.md](docs/full-ucp-parity-plan.md)
+- [docs/mapping-flow.md](docs/mapping-flow.md)
+- [docs/repo-layout.md](docs/repo-layout.md)
+- [docs/release-process.md](docs/release-process.md)
+- [docs/storage-adapters.md](docs/storage-adapters.md)
+- [docs/security-model.md](docs/security-model.md)
+- [docs/shopware-plugin-blueprint.md](docs/shopware-plugin-blueprint.md)
+- [docs/qa-dead-code.md](docs/qa-dead-code.md)
 
 ## Scope
 
