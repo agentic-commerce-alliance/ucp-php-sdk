@@ -65,6 +65,7 @@ Current config keys:
 - `signature_max_lifetime_seconds`
 - `oauth.authorization_code_ttl`
 - `supported_versions`
+- `enabled_capabilities`
 - `transports`
 - `transport_endpoints`
 - `signing_keys.*`

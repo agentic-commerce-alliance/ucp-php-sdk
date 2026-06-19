@@ -65,6 +65,7 @@ final class A2aController
             supportedVersions: $runtimeConfiguration->supportedVersions,
             transportEndpoints: $runtimeConfiguration->transportEndpoints,
             tenantIdentifier: $runtimeConfiguration->tenantIdentifier,
+            enabledCapabilities: $runtimeConfiguration->enabledCapabilities,
         ));
 
         return new JsonResponse([

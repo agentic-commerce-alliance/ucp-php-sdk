@@ -40,6 +40,7 @@ final class A2aControllerTest extends TestCase
             supportedVersions: ['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'],
             transportEndpoints: ['a2a' => 'https://merchant.example/custom-a2a'],
             tenantIdentifier: 'tenant-1',
+            enabledCapabilities: ['dev.ucp.shopping.catalog'],
         ));
         $profileBuilder = new A2aProfileBuilderFake();
         $controller = $this->controller($resolver, $profileBuilder);
@@ -55,6 +56,7 @@ final class A2aControllerTest extends TestCase
         self::assertNotNull($profileBuilder->lastInput);
         self::assertSame('https://merchant.example', $profileBuilder->lastInput->baseUri);
         self::assertSame('tenant-1', $profileBuilder->lastInput->tenantIdentifier);
+        self::assertSame(['dev.ucp.shopping.catalog'], $profileBuilder->lastInput->enabledCapabilities);
         self::assertNotNull($resolver->lastRequest);
         self::assertSame(['a' => '1', 'z' => '{"nested":"1"}'], $resolver->lastRequest->query);
     }

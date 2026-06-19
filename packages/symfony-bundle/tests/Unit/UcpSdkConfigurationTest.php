@@ -65,6 +65,7 @@ final class UcpSdkConfigurationTest extends TestCase
             transports: [Transport::Rest, Transport::A2a],
             transportEndpoints: ['a2a' => 'https://merchant.example/ucp/a2a'],
             profileFetchingDevelopmentMode: true,
+            enabledCapabilities: ['dev.ucp.shopping.checkout'],
         );
 
         $runtime = $configuration->toRuntimeConfiguration('https://merchant.example');
@@ -76,6 +77,7 @@ final class UcpSdkConfigurationTest extends TestCase
         self::assertSame(['agent.example'], $runtime->allowedAgentDomains);
         self::assertSame(['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'], $runtime->supportedVersions);
         self::assertSame([Transport::Rest, Transport::A2a], $runtime->transports);
+        self::assertSame(['dev.ucp.shopping.checkout'], $runtime->enabledCapabilities);
         self::assertSame(['a2a' => 'https://merchant.example/ucp/a2a'], $runtime->transportEndpoints);
         self::assertTrue($runtime->profileFetchingDevelopmentMode);
     }
@@ -86,6 +88,7 @@ final class UcpSdkConfigurationTest extends TestCase
      * @param array<string, string> $supportedVersions
      * @param list<Transport> $transports
      * @param array<string, string> $transportEndpoints
+     * @param list<string> $enabledCapabilities
      */
     private function configuration(
         ?string $baseUri = 'https://merchant.example',
@@ -96,6 +99,7 @@ final class UcpSdkConfigurationTest extends TestCase
         array $transports = [Transport::Rest],
         array $transportEndpoints = [],
         bool $profileFetchingDevelopmentMode = false,
+        array $enabledCapabilities = [],
     ): UcpSdkConfiguration {
         return new UcpSdkConfiguration(
             '2026-04-08',
@@ -124,6 +128,7 @@ final class UcpSdkConfigurationTest extends TestCase
             $transportEndpoints,
             DefaultOrderWebhookDispatcher::DEFAULT_MAX_RESPONSE_BODY_BYTES,
             $profileFetchingDevelopmentMode,
+            $enabledCapabilities,
         );
     }
 }

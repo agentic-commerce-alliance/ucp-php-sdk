@@ -18,6 +18,7 @@ final class UcpSdkConfiguration
      * @param array<string, string> $supportedVersions
      * @param list<Transport> $transports
      * @param array<string, string> $transportEndpoints
+     * @param list<string> $enabledCapabilities
      */
     public function __construct(
         public readonly string $version,
@@ -46,6 +47,7 @@ final class UcpSdkConfiguration
         public readonly array $transportEndpoints = [],
         public readonly int $webhookMaxResponseBodyBytes = DefaultOrderWebhookDispatcher::DEFAULT_MAX_RESPONSE_BODY_BYTES,
         public readonly bool $profileFetchingDevelopmentMode = false,
+        public readonly array $enabledCapabilities = [],
     ) {
     }
 
@@ -75,7 +77,7 @@ final class UcpSdkConfiguration
             $this->allowedAgentDomains,
             $this->supportedVersions,
             $this->transports,
-            [],
+            $this->enabledCapabilities,
             transportEndpoints: $this->transportEndpoints,
             profileFetchingDevelopmentMode: $this->profileFetchingDevelopmentMode,
         );

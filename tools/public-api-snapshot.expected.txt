@@ -211,6 +211,7 @@ class Ucp\Sdk\Model\Common\Signals
   - toArray(): array
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
   - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false)
+  - isCapabilityEnabled(string $capabilityName): bool
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
 class Ucp\Sdk\Model\IdempotencyRecord
@@ -249,7 +250,7 @@ class Ucp\Sdk\Model\Profile\PlatformProfile
   - static fromArray(array $payload): self
   - toArray(): array
 class Ucp\Sdk\Model\Profile\ProfileBuildInput
-  - __construct(string $version, string $baseUri, array $transports = [], array $supportedVersions = [], array $transportEndpoints = [], ?string $tenantIdentifier = null)
+  - __construct(string $version, string $baseUri, array $transports = [], array $supportedVersions = [], array $transportEndpoints = [], ?string $tenantIdentifier = null, array $enabledCapabilities = [])
 class Ucp\Sdk\Model\Profile\ServiceEndpoint
   - __construct(Ucp\Sdk\Enum\Transport $transport, string $endpoint, string $version, string $specUrl, ?string $schemaUrl = null)
   - static fromArray(array $entry): self

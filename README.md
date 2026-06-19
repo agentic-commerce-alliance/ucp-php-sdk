@@ -112,6 +112,7 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 - Stored idempotent response bodies are capped at `262144` bytes by default.
 - `signature_policy` accepts `off`, `log`, or `strict`.
 - `transports` defaults to `rest`; valid values are `rest`, `mcp`, `a2a`, and `embedded`.
+- `enabled_capabilities` defaults to an empty list, which means every registered capability is enabled. Configure capability names to expose and dispatch only that allowlist.
 - `transport_endpoints` can override generated profile endpoints per transport.
 - `mcp` is metadata-only in the shared SDK and must provide `transport_endpoints.mcp`; the SDK does not generate or handle a default `/ucp/mcp` runtime endpoint.
 - Webhook publishing requires an existing active signing key. Generate one before sending live webhooks.

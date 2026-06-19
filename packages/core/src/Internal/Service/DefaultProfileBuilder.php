@@ -38,6 +38,10 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
         $capabilities = [];
         foreach ($this->capabilityRegistry->all() as $capability) {
             $descriptor = $capability->describe();
+            if (! self::isEnabled($descriptor->name, $input->enabledCapabilities)) {
+                continue;
+            }
+
             $capabilities[$descriptor->name] = [$descriptor];
         }
 
@@ -110,5 +114,13 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
             Transport::Embedded => \sprintf('https://ucp.dev/%s/services/shopping/embedded.openrpc.json', $version),
             Transport::A2a => null,
         };
+    }
+
+    /**
+     * @param list<string> $enabledCapabilities
+     */
+    private static function isEnabled(string $capabilityName, array $enabledCapabilities): bool
+    {
+        return $enabledCapabilities === [] || in_array($capabilityName, $enabledCapabilities, true);
     }
 }

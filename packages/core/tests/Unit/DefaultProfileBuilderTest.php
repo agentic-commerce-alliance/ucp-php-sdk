@@ -48,6 +48,34 @@ final class DefaultProfileBuilderTest extends TestCase
         self::assertArrayHasKey('com.demo.tokenizer', $profile->paymentHandlers);
     }
 
+    public function testItOnlyAdvertisesEnabledCapabilitiesWhenAnAllowlistIsConfigured(): void
+    {
+        $cartCapability = $this->createMock(CapabilityInterface::class);
+        $cartCapability
+            ->method('describe')
+            ->willReturn(new CapabilityDescriptor('dev.ucp.shopping.cart', '2026-04-08', 'https://ucp.dev/specification/cart/', 'https://ucp.dev/schemas/shopping/cart.json'));
+        $checkoutCapability = $this->createMock(CapabilityInterface::class);
+        $checkoutCapability
+            ->method('describe')
+            ->willReturn(new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://ucp.dev/specification/checkout/', 'https://ucp.dev/schemas/shopping/checkout.json'));
+
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([$cartCapability, $checkoutCapability]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $profile = $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            enabledCapabilities: ['dev.ucp.shopping.checkout'],
+        ));
+
+        self::assertSame(['dev.ucp.shopping.checkout'], array_keys($profile->capabilities));
+    }
+
     public function testItBuildsAllConfiguredTransportEndpoints(): void
     {
         $builder = new DefaultProfileBuilder(
