@@ -119,6 +119,8 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 - Expired SDK state can be purged with `docker compose run --rm php php bin/console ucp:storage:cleanup`.
 - SDK-local canonical JSON is exposed through `DeterministicJsonInterface`.
 
+For live deployments and release readiness, use the [production operator checklist](docs/production-operator-checklist.md).
+
 ## Security
 
 - Vulnerability reporting policy: [SECURITY.md](SECURITY.md)
@@ -137,6 +139,7 @@ Mutation runs use a fixed local default of `7` Infection workers. Override that 
 - [docs/mapping-flow.md](docs/mapping-flow.md)
 - [docs/repo-layout.md](docs/repo-layout.md)
 - [docs/release-process.md](docs/release-process.md)
+- [docs/production-operator-checklist.md](docs/production-operator-checklist.md)
 - [docs/storage-adapters.md](docs/storage-adapters.md)
 - [docs/security-model.md](docs/security-model.md)
 - [docs/shopware-plugin-blueprint.md](docs/shopware-plugin-blueprint.md)

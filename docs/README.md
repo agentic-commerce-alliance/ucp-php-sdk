@@ -11,6 +11,7 @@ Current documents:
 - [mapping-flow.md](mapping-flow.md)
 - [repo-layout.md](repo-layout.md)
 - [release-process.md](release-process.md)
+- [production-operator-checklist.md](production-operator-checklist.md)
 - [storage-adapters.md](storage-adapters.md)
 - [security-model.md](security-model.md)
 - [shopware-plugin-blueprint.md](shopware-plugin-blueprint.md)

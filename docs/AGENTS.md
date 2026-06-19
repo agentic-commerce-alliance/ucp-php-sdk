@@ -27,6 +27,7 @@ This folder stores cross-cutting architecture notes.
 - `mapping-flow.md`
 - `repo-layout.md`
 - `release-process.md`
+- `production-operator-checklist.md`
 - `storage-adapters.md`
 - `security-model.md`
 - `shopware-plugin-blueprint.md`

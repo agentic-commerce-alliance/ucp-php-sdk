@@ -71,6 +71,7 @@ docker compose run --rm php composer public-api:check
 5. Confirm the release posture is accurate in the main docs:
    - install commands in [README.md](../README.md)
    - current scope and boundaries in [docs/extension-contract.md](extension-contract.md), [docs/security-model.md](security-model.md), and [docs/platform-adapters.md](platform-adapters.md)
+   - production readiness items in [docs/production-operator-checklist.md](production-operator-checklist.md)
    - contributor workflow in [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 ## Tag And Release Flow
