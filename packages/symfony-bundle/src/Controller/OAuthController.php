@@ -93,11 +93,11 @@ final class OAuthController
 
     private function assertCapabilityEnabled(CapabilityInterface $capability, mixed $context): void
     {
-        $enabledCapabilities = $context instanceof RequestContext
-            ? ($context->runtimeConfiguration->enabledCapabilities ?? [])
-            : [];
-
-        if ($enabledCapabilities === [] || in_array($capability->describe()->name, $enabledCapabilities, true)) {
+        if (
+            ! $context instanceof RequestContext
+            || $context->runtimeConfiguration === null
+            || $context->runtimeConfiguration->isCapabilityEnabled($capability->describe()->name)
+        ) {
             return;
         }
 

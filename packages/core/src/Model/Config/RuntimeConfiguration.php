@@ -32,4 +32,9 @@ final class RuntimeConfiguration
         public readonly bool $profileFetchingDevelopmentMode = false,
     ) {
     }
+
+    public function isCapabilityEnabled(string $capabilityName): bool
+    {
+        return $this->enabledCapabilities === [] || in_array($capabilityName, $this->enabledCapabilities, true);
+    }
 }

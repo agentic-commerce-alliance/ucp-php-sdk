@@ -332,8 +332,7 @@ final class ShoppingOperationExecutor
 
     private function assertCapabilityEnabled(CapabilityInterface $capability, RequestContext $context, string $label): void
     {
-        $enabledCapabilities = $context->runtimeConfiguration->enabledCapabilities ?? [];
-        if ($enabledCapabilities === [] || in_array($capability->describe()->name, $enabledCapabilities, true)) {
+        if ($context->runtimeConfiguration === null || $context->runtimeConfiguration->isCapabilityEnabled($capability->describe()->name)) {
             return;
         }
 
