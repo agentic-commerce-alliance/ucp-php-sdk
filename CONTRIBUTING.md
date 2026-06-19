@@ -62,8 +62,8 @@ If you intentionally change the public API surface:
 docker compose run --rm php composer public-api:dump
 ```
 
-2. review the generated [tools/public-api-snapshot.txt](/Users/b.meyer/Documents/Projects/ucp-php-sdk/tools/public-api-snapshot.txt)
-3. replace [tools/public-api-snapshot.expected.txt](/Users/b.meyer/Documents/Projects/ucp-php-sdk/tools/public-api-snapshot.expected.txt) with the reviewed snapshot
+2. review the generated [tools/public-api-snapshot.txt](tools/public-api-snapshot.txt)
+3. replace [tools/public-api-snapshot.expected.txt](tools/public-api-snapshot.expected.txt) with the reviewed snapshot
 4. rerun:
 
 ```bash
@@ -92,4 +92,4 @@ Before opening a PR:
 
 Version-specific release notes belong in GitHub Releases, not in a dedicated repo file.
 
-See [docs/release-process.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/release-process.md) for the release workflow and note structure.
+See [docs/release-process.md](docs/release-process.md) for the release workflow and note structure.

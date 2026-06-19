@@ -44,4 +44,4 @@ Per-store or sales-channel resolution should live in `RuntimeConfigurationResolv
 - Store API MCP proxy/tool wiring and embedded page rendering when those
   surfaces need Shopware runtime context
 
-See [shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md) for the platform-specific breakdown.
+See [shopware-plugin-blueprint.md](shopware-plugin-blueprint.md) for the platform-specific breakdown.

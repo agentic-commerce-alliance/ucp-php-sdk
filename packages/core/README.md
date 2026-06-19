@@ -49,8 +49,8 @@ Schema layout notes:
 
 - `resources/schema/pinned` contains the committed upstream schema snapshot with its original folder layout.
 - `resources/schema/generated` contains the flattened request and response validator files the runtime loads directly.
-- See [resources/schema/README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/resources/schema/README.md) for the exact split.
+- See [resources/schema/README.md](resources/schema/README.md) for the exact split.
 
 Internal runtime code under `src/Internal` is covered by the dead-code and coverage QA gates. Public contracts and DTOs are not treated as dead code just because the repo does not instantiate them directly.
 
-For technical structure, stable API notes, and agent examples, see [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/AGENTS.md).
+For technical structure, stable API notes, and agent examples, see [AGENTS.md](AGENTS.md).

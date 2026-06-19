@@ -69,9 +69,10 @@ docker compose run --rm php composer public-api:check
 4. Update `CHANGELOG.md` with a short summary entry for the version being tagged.
 
 5. Confirm the release posture is accurate in the main docs:
-   - install commands in [README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/README.md)
-   - current scope and boundaries in [docs/extension-contract.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/extension-contract.md), [docs/security-model.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/security-model.md), and [docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
-   - contributor workflow in [CONTRIBUTING.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/CONTRIBUTING.md)
+   - install commands in [README.md](../README.md)
+   - current scope and boundaries in [docs/extension-contract.md](extension-contract.md), [docs/security-model.md](security-model.md), and [docs/platform-adapters.md](platform-adapters.md)
+   - production readiness items in [docs/production-operator-checklist.md](production-operator-checklist.md)
+   - contributor workflow in [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 ## Tag And Release Flow
 
@@ -139,7 +140,7 @@ Keep these release-related concerns in the repo:
 
 - `CHANGELOG.md` for compact historical summaries
 - this release-process document
-- install commands in [README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/README.md)
+- install commands in [README.md](../README.md)
 - evergreen scope, security, adapter, and extension docs
 
 Do not create new files like `RELEASE_INFO.md`, `ALPHA_NOTES.md`, or `CURRENT_RELEASE.md` unless there is a strong reason the information cannot live in GitHub Releases or the existing docs.

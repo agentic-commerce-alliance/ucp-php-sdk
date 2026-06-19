@@ -133,7 +133,7 @@ $services->set(ManagedSigningKeyRepositoryInterface::class, PlatformSigningKeyRe
 
 ## Related Docs
 
-- [../../docs/storage-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/storage-adapters.md)
-- [../../docs/mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)
-- [../../docs/shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md)
-- [../../docs/qa-dead-code.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/qa-dead-code.md)
+- [../../docs/storage-adapters.md](../../docs/storage-adapters.md)
+- [../../docs/mapping-flow.md](../../docs/mapping-flow.md)
+- [../../docs/shopware-plugin-blueprint.md](../../docs/shopware-plugin-blueprint.md)
+- [../../docs/qa-dead-code.md](../../docs/qa-dead-code.md)

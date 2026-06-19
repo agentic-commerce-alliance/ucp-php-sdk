@@ -54,4 +54,4 @@ curl http://127.0.0.1:8081/merchant/demo/webhook-inbox
 - The whole `var` directory is ignored by Git for this example app.
 - You can safely delete the generated `var` contents; the demo kernel recreates the local SDK schema on boot.
 
-For technical notes about the local helpers and why the state is split this way, see [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/merchant-symfony-app/AGENTS.md).
+For technical notes about the local helpers and why the state is split this way, see [AGENTS.md](AGENTS.md).
