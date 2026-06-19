@@ -20,7 +20,12 @@ final class PaymentHandlerRegistry implements PaymentHandlerRegistryInterface
         $this->handlersById = [];
 
         foreach ($this->handlers as $handler) {
-            $this->handlersById[$handler->id()] ??= $handler;
+            $id = $handler->id();
+            if (isset($this->handlersById[$id])) {
+                throw new \InvalidArgumentException(sprintf('Payment handler "%s" is registered more than once.', $id));
+            }
+
+            $this->handlersById[$id] = $handler;
         }
     }
 
