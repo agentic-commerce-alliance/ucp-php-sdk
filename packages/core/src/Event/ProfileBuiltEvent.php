@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Event;
 
-use Symfony\Contracts\EventDispatcher\Event;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 
-final class ProfileBuiltEvent extends Event
+final class ProfileBuiltEvent
 {
     public function __construct(
         private PlatformProfile $profile,

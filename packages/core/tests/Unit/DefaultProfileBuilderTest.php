@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
 use Ucp\Sdk\Enum\Transport;
@@ -16,6 +15,7 @@ use Ucp\Sdk\Internal\Service\DefaultProfileBuilder;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
+use Ucp\Sdk\Service\EventDispatcherInterface;
 
 final class DefaultProfileBuilderTest extends TestCase
 {
@@ -38,7 +38,7 @@ final class DefaultProfileBuilderTest extends TestCase
             new PaymentHandlerRegistry([$handler]),
             [],
             [],
-            new EventDispatcher(),
+            new NullEventDispatcher(),
         );
 
         $profile = $builder->build(new ProfileBuildInput('2026-04-08', 'https://shop.example'));
@@ -64,7 +64,7 @@ final class DefaultProfileBuilderTest extends TestCase
             new PaymentHandlerRegistry([]),
             [],
             [],
-            new EventDispatcher(),
+            new NullEventDispatcher(),
         );
 
         $profile = $builder->build(new ProfileBuildInput(
@@ -83,7 +83,7 @@ final class DefaultProfileBuilderTest extends TestCase
             new PaymentHandlerRegistry([]),
             [],
             [],
-            new EventDispatcher(),
+            new NullEventDispatcher(),
         );
 
         $profile = $builder->build(new ProfileBuildInput(
@@ -115,7 +115,7 @@ final class DefaultProfileBuilderTest extends TestCase
             new PaymentHandlerRegistry([]),
             [],
             [],
-            new EventDispatcher(),
+            new NullEventDispatcher(),
         );
 
         $this->expectException(ConfigurationException::class);
@@ -135,7 +135,7 @@ final class DefaultProfileBuilderTest extends TestCase
             new PaymentHandlerRegistry([]),
             [],
             [],
-            new EventDispatcher(),
+            new NullEventDispatcher(),
         );
 
         $this->expectException(ConfigurationException::class);
@@ -149,5 +149,13 @@ final class DefaultProfileBuilderTest extends TestCase
                 Transport::Mcp->value => '',
             ],
         ));
+    }
+}
+
+final class NullEventDispatcher implements EventDispatcherInterface
+{
+    public function dispatch(object $event): object
+    {
+        return $event;
     }
 }
