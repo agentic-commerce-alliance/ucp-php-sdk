@@ -64,7 +64,7 @@ final class DefaultProfileBuilderTest extends TestCase
             new PaymentHandlerRegistry([]),
             [],
             [],
-            new EventDispatcher(),
+            new NullEventDispatcher(),
         );
 
         $profile = $builder->build(new ProfileBuildInput(
