@@ -122,6 +122,11 @@ $services->set(ManagedSigningKeyRepositoryInterface::class, PlatformSigningKeyRe
 - `Bridge`, `EventListener`, `Command`, and controller runtime code are inside the dead-code scan scope.
 - `DependencyInjection`, `UcpSdkBundle.php`, and `UcpSdkConfiguration.php` are treated as config glue and are not part of the internal coverage target band.
 - Keep bundle runtime code referenced through real service wiring, not through artificial test-only entrypoints.
+- Implementation classes, interfaces, traits, and enums under `src/Bridge`,
+  `src/Command`, `src/Controller`, `src/EventListener`, `src/Internal`, and
+  `src/Operation` must carry an `@internal` docblock. The public
+  `Bridge/EmbeddedPageRendererInterface.php` extension point is intentionally
+  excluded from this rule.
 
 ## Do Not Do This
 
