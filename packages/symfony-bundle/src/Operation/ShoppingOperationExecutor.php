@@ -18,6 +18,7 @@ use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Event\CheckoutRequestReceivedEvent;
 use Ucp\Sdk\Event\CheckoutResponsePreparedEvent;
 use Ucp\Sdk\Event\PaymentMandateVerificationEvent;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Checkout\Checkout;
@@ -50,6 +51,8 @@ final class ShoppingOperationExecutor
      */
     public function execute(ShoppingOperationRequest $request): array
     {
+        $this->assertNegotiated($request);
+
         return match ($request->operation) {
             'catalog.search' => $this->catalogSearch($request),
             'catalog.lookup' => $this->catalogLookup($request),
@@ -67,6 +70,26 @@ final class ShoppingOperationExecutor
             'order.get' => $this->orderGet($request),
             default => throw new UnsupportedCapabilityException(sprintf('Shopping operation "%s" is not supported.', $request->operation)),
         };
+    }
+
+    private function assertNegotiated(ShoppingOperationRequest $request): void
+    {
+        $context = $request->context;
+        if ($context->platformProfile === null) {
+            return;
+        }
+
+        $configuration = $context->runtimeConfiguration;
+        if ($configuration !== null) {
+            $supportedVersions = [$configuration->version, ...array_keys($configuration->supportedVersions)];
+            if (! in_array($context->platformProfile->version, $supportedVersions, true)) {
+                throw NegotiationException::versionUnsupported();
+            }
+        }
+
+        if ($context->negotiation === null || $context->negotiation->capabilitiesForOperation($request->operation) === []) {
+            throw NegotiationException::capabilitiesIncompatible();
+        }
     }
 
     /**

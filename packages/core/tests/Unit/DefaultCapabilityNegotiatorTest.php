@@ -143,6 +143,7 @@ final class DefaultCapabilityNegotiatorTest extends TestCase
         $result = $this->negotiator->negotiate($platformProfile, new RequestContext('merchant.example'));
 
         self::assertSame(['dev.ucp.shopping.catalog'], $result->capabilitiesForOperation('catalog.search'));
+        self::assertSame(['dev.ucp.shopping.catalog'], $result->capabilitiesForOperation('catalog.product'));
         self::assertSame(['dev.ucp.shopping.cart', 'dev.ucp.shopping.discount'], $result->capabilitiesForOperation('cart.create'));
         self::assertSame(['dev.ucp.shopping.checkout', 'dev.ucp.shopping.discount'], $result->capabilitiesForOperation('checkout.update'));
         self::assertSame(['dev.ucp.identity.oauth'], $result->capabilitiesForOperation('oauth.token'));

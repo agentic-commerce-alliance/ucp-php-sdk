@@ -9,6 +9,7 @@ use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\OAuthException;
 use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\SignatureException;
@@ -54,6 +55,16 @@ final class ExceptionListener
 
         if ($throwable instanceof OAuthException) {
             $event->setResponse($this->responseFactory->error($throwable->getMessage(), 400));
+
+            return;
+        }
+
+        if ($throwable instanceof NegotiationException) {
+            $event->setResponse($this->responseFactory->error($throwable->getMessage(), 400, [[
+                'type' => 'error',
+                'content' => $throwable->getMessage(),
+                'code' => $throwable->errorCode,
+            ]]));
 
             return;
         }

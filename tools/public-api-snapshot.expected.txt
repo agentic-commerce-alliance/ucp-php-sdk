@@ -148,6 +148,9 @@ class Ucp\Sdk\Event\ProfileBuiltEvent
   - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
 class Ucp\Sdk\Exception\ConfigurationException
 class Ucp\Sdk\Exception\IdempotencyConflictException
+class Ucp\Sdk\Exception\NegotiationException
+  - static capabilitiesIncompatible(string $message = 'Requested operation is not included in the negotiated capability intersection.'): self
+  - static versionUnsupported(string $message = 'Unsupported UCP profile version.'): self
 class Ucp\Sdk\Exception\OAuthException
 class Ucp\Sdk\Exception\ResourceNotFoundException
 class Ucp\Sdk\Exception\SignatureException

@@ -117,7 +117,7 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
         $operations = [];
 
         if ($capability instanceof CatalogCapabilityInterface) {
-            $operations = [...$operations, 'catalog.search', 'catalog.lookup'];
+            $operations = [...$operations, 'catalog.search', 'catalog.lookup', 'catalog.product'];
         }
 
         if ($capability instanceof CartCapabilityInterface) {

@@ -14,6 +14,7 @@ use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
+use Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
@@ -206,6 +207,26 @@ final class A2aControllerTest extends TestCase
 
         self::assertSame(404, $response->getStatusCode());
         self::assertSame('Catalog capability is not registered.', $payload['error']['message']);
+
+        $negotiatedRequest = $this->jsonRpcRequest([
+            'jsonrpc' => '2.0',
+            'id' => 'not-negotiated',
+            'method' => 'catalog.search',
+            'params' => ['query' => 'tent'],
+        ]);
+        $negotiatedRequest->attributes->set('ucp_request_context', new RequestContext(
+            'merchant.example',
+            platformProfile: new PlatformProfile('2026-04-08', [], [], []),
+            runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example'),
+            negotiation: new NegotiatedCapabilities(),
+        ));
+        $response = $controller->invoke($negotiatedRequest);
+        $payload = $this->decode($response);
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame('not-negotiated', $payload['id']);
+        self::assertSame(-32602, $payload['error']['code']);
+        self::assertSame('Requested operation is not included in the negotiated capability intersection.', $payload['error']['message']);
     }
 
     private function controller(

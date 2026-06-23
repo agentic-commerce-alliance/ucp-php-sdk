@@ -15,6 +15,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
@@ -74,6 +75,21 @@ final class EventListenersTest extends TestCase
         );
         $listener->onKernelException($unsupportedEvent);
         self::assertSame(501, $unsupportedEvent->getResponse()?->getStatusCode());
+
+        $negotiationEvent = new ExceptionEvent(
+            $kernel,
+            Request::create('/ucp/v1/carts', 'POST'),
+            HttpKernelInterface::MAIN_REQUEST,
+            NegotiationException::capabilitiesIncompatible('capability mismatch'),
+        );
+        $listener->onKernelException($negotiationEvent);
+        $negotiationResponse = $negotiationEvent->getResponse();
+        self::assertNotNull($negotiationResponse);
+        self::assertSame(400, $negotiationResponse->getStatusCode());
+        self::assertSame(
+            'capabilities_incompatible',
+            json_decode((string) $negotiationResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR)['messages'][0]['code'],
+        );
 
         $notFoundEvent = new ExceptionEvent(
             $kernel,
