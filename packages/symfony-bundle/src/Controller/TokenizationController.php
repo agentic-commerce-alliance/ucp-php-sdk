@@ -7,8 +7,10 @@ namespace Ucp\Sdk\Symfony\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\TokenizationCapabilityInterface;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
+use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
@@ -37,9 +39,24 @@ final class TokenizationController
             throw new UnsupportedCapabilityException('Tokenization capability is not registered.');
         }
 
+        $this->assertCapabilityEnabled($capability, $context);
+
         $result = $capability->tokenize($this->payloadMapper->toPaymentInstrument($payload), $context);
         $this->protocolValidator->validateResponse('tokenization', $result, $context);
 
         return $this->responseFactory->success($result);
+    }
+
+    private function assertCapabilityEnabled(CapabilityInterface $capability, mixed $context): void
+    {
+        if (
+            ! $context instanceof RequestContext
+            || $context->runtimeConfiguration === null
+            || $context->runtimeConfiguration->isCapabilityEnabled($capability->describe()->name)
+        ) {
+            return;
+        }
+
+        throw new UnsupportedCapabilityException('Tokenization capability is disabled by runtime configuration.');
     }
 }

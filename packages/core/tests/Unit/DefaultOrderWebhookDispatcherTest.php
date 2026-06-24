@@ -6,9 +6,6 @@ namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\HttpClient\MockHttpClient;
-use Symfony\Component\HttpClient\Response\MockResponse;
 use Ucp\Sdk\Contract\OrderWebhookEnricherInterface;
 use Ucp\Sdk\Exception\UcpException;
 use Ucp\Sdk\Exception\ValidationException;
@@ -16,11 +13,15 @@ use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
+use Ucp\Sdk\Model\Http\HttpResponseChunkInterface;
+use Ucp\Sdk\Model\Http\HttpResponseInterface;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Service\EventDispatcherInterface;
+use Ucp\Sdk\Service\HttpClientInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 
 final class DefaultOrderWebhookDispatcherTest extends TestCase
@@ -50,12 +51,9 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
         $dispatcher = new DefaultOrderWebhookDispatcher(
             $signingKeys,
             $signatures,
-            new MockHttpClient(static fn (string $method, string $url, array $options): MockResponse => new MockResponse('accepted', [
-                'http_code' => 202,
-                'response_headers' => ['X-Webhook-Id: demo-1'],
-            ])),
+            WebhookRecordingHttpClient::responding(new WebhookRecordingResponse(202, ['x-webhook-id' => ['demo-1']], 'accepted')),
             [$enricher],
-            new EventDispatcher(),
+            new RecordingEventDispatcher(),
             10,
             self::safeWebhookUrlValidator(),
         );
@@ -91,9 +89,9 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
         $dispatcher = new DefaultOrderWebhookDispatcher(
             $signingKeys,
             $signatures,
-            new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['error' => 'network down'])),
+            WebhookRecordingHttpClient::failing(new \RuntimeException('network down')),
             [],
-            new EventDispatcher(),
+            new RecordingEventDispatcher(),
             10,
             self::safeWebhookUrlValidator(),
         );
@@ -119,9 +117,9 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
         $dispatcher = new DefaultOrderWebhookDispatcher(
             $signingKeys,
             $this->createMock(RequestSignatureServiceInterface::class),
-            new MockHttpClient(),
+            WebhookRecordingHttpClient::responding(new WebhookRecordingResponse(204)),
             [],
-            new EventDispatcher(),
+            new RecordingEventDispatcher(),
             10,
             self::safeWebhookUrlValidator(),
         );
@@ -152,13 +150,13 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
         $dispatcher = new DefaultOrderWebhookDispatcher(
             $signingKeyRepository,
             $signatureService,
-            new MockHttpClient(static function () use (&$requestAttempted): MockResponse {
+            WebhookRecordingHttpClient::callback(static function () use (&$requestAttempted): WebhookRecordingResponse {
                 $requestAttempted = true;
 
-                return new MockResponse('', ['http_code' => 204]);
+                return new WebhookRecordingResponse(204);
             }),
             [],
-            new EventDispatcher(),
+            new RecordingEventDispatcher(),
             10,
             self::safeWebhookUrlValidator(),
         );
@@ -192,12 +190,9 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
         $dispatcher = new DefaultOrderWebhookDispatcher(
             $signingKeys,
             $signatureService,
-            new MockHttpClient(static fn (): MockResponse => new MockResponse(str_repeat('x', 262145), [
-                'http_code' => 202,
-                'response_headers' => ['Content-Length: 262145'],
-            ])),
+            WebhookRecordingHttpClient::responding(new WebhookRecordingResponse(202, ['content-length' => ['262145']], str_repeat('x', 262145))),
             [],
-            new EventDispatcher(),
+            new RecordingEventDispatcher(),
             10,
             self::safeWebhookUrlValidator(),
         );
@@ -240,9 +235,9 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
         $dispatcher = new DefaultOrderWebhookDispatcher(
             $signingKeyRepository,
             $signatureService,
-            new MockHttpClient(static fn (): MockResponse => new MockResponse('', ['http_code' => 204])),
+            WebhookRecordingHttpClient::responding(new WebhookRecordingResponse(204)),
             [],
-            new EventDispatcher(),
+            new RecordingEventDispatcher(),
             10,
             self::safeWebhookUrlValidator(),
         );
@@ -282,4 +277,105 @@ final class WebhookDispatcherState
 
 interface TenantAwareSigningKeyRepositoryMock extends ManagedSigningKeyRepositoryInterface, TenantAwareManagedSigningKeyRepositoryInterface
 {
+}
+
+final class WebhookRecordingHttpClient implements HttpClientInterface
+{
+    /**
+     * @param \Closure(string, string, array<string, mixed>): HttpResponseInterface $callback
+     */
+    private function __construct(
+        private readonly \Closure $callback,
+    ) {
+    }
+
+    public static function responding(HttpResponseInterface $response): self
+    {
+        return new self(static fn (): HttpResponseInterface => $response);
+    }
+
+    public static function failing(\Throwable $throwable): self
+    {
+        return new self(static fn () => throw $throwable);
+    }
+
+    /**
+     * @param \Closure(string, string, array<string, mixed>): HttpResponseInterface $callback
+     */
+    public static function callback(\Closure $callback): self
+    {
+        return new self($callback);
+    }
+
+    public function request(string $method, string $url, array $options = []): HttpResponseInterface
+    {
+        return ($this->callback)($method, $url, $options);
+    }
+
+    public function stream(HttpResponseInterface $response, ?float $timeout = null): iterable
+    {
+        if (! $response instanceof WebhookRecordingResponse) {
+            return [];
+        }
+
+        return [new WebhookRecordingChunk($response->body)];
+    }
+}
+
+final class WebhookRecordingResponse implements HttpResponseInterface
+{
+    /**
+     * @param array<string, list<string>> $headers
+     */
+    public function __construct(
+        private readonly int $statusCode,
+        private readonly array $headers = [],
+        public readonly string $body = '',
+    ) {
+    }
+
+    public function getStatusCode(): int
+    {
+        return $this->statusCode;
+    }
+
+    public function getHeaders(bool $throw = true): array
+    {
+        return $this->headers;
+    }
+
+    public function cancel(): void
+    {
+    }
+}
+
+final class WebhookRecordingChunk implements HttpResponseChunkInterface
+{
+    public function __construct(
+        private readonly string $content,
+    ) {
+    }
+
+    public function isTimeout(): bool
+    {
+        return false;
+    }
+
+    public function isFirst(): bool
+    {
+        return false;
+    }
+
+    public function getContent(): string
+    {
+        return $this->content;
+    }
+}
+
+final class RecordingEventDispatcher implements EventDispatcherInterface
+{
+    public function dispatch(object $event): object
+    {
+        return $event;
+    }
 }

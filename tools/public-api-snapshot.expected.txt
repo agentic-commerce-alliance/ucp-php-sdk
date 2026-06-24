@@ -211,8 +211,17 @@ class Ucp\Sdk\Model\Common\Signals
   - toArray(): array
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
   - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false)
+  - isCapabilityEnabled(string $capabilityName): bool
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
+interface Ucp\Sdk\Model\Http\HttpResponseChunkInterface
+  - getContent(): string
+  - isFirst(): bool
+  - isTimeout(): bool
+interface Ucp\Sdk\Model\Http\HttpResponseInterface
+  - cancel(): void
+  - getHeaders(bool $throw = true): array
+  - getStatusCode(): int
 class Ucp\Sdk\Model\IdempotencyRecord
   - __construct(string $key, string $fingerprint, string $status = 'pending', ?array $responseBody = null, ?int $statusCode = null, bool $replayable = true)
 class Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest
@@ -249,7 +258,7 @@ class Ucp\Sdk\Model\Profile\PlatformProfile
   - static fromArray(array $payload): self
   - toArray(): array
 class Ucp\Sdk\Model\Profile\ProfileBuildInput
-  - __construct(string $version, string $baseUri, array $transports = [], array $supportedVersions = [], array $transportEndpoints = [], ?string $tenantIdentifier = null)
+  - __construct(string $version, string $baseUri, array $transports = [], array $supportedVersions = [], array $transportEndpoints = [], ?string $tenantIdentifier = null, array $enabledCapabilities = [])
 class Ucp\Sdk\Model\Profile\ServiceEndpoint
   - __construct(Ucp\Sdk\Enum\Transport $transport, string $endpoint, string $version, string $specUrl, ?string $schemaUrl = null)
   - static fromArray(array $entry): self
@@ -272,6 +281,7 @@ class Ucp\Sdk\Model\Webhook\OrderWebhookPayload
 class Ucp\Sdk\Model\Webhook\WebhookDispatchResult
   - __construct(string $targetUrl, int $statusCode, bool $successful, bool $retryable = false, array $responseHeaders = [], ?string $responseBody = null)
 interface Ucp\Sdk\Repository\IdempotencyRepositoryInterface
+  - claimPending(string $key, string $fingerprint): bool
   - delete(string $key): void
   - find(string $key): ?Ucp\Sdk\Model\IdempotencyRecord
   - purgeExpired(int $olderThanUnixTimestamp): void
@@ -319,6 +329,11 @@ interface Ucp\Sdk\Service\CapabilityRegistryInterface
   - firstImplementing(string $interface): ?Ucp\Sdk\Contract\CapabilityInterface
 interface Ucp\Sdk\Service\DeterministicJsonInterface
   - canonicalize(array $payload): string
+interface Ucp\Sdk\Service\EventDispatcherInterface
+  - dispatch(object $event): object
+interface Ucp\Sdk\Service\HttpClientInterface
+  - request(string $method, string $url, array $options = []): Ucp\Sdk\Model\Http\HttpResponseInterface
+  - stream(Ucp\Sdk\Model\Http\HttpResponseInterface $response, ?float $timeout = null): iterable
 interface Ucp\Sdk\Service\HttpRequestContextFactoryInterface
   - create(Ucp\Sdk\Model\Http\HttpRequest $request): Ucp\Sdk\Model\RequestContext
 interface Ucp\Sdk\Service\IdempotencyServiceInterface

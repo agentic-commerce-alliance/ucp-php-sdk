@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Http;
 
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
+use Ucp\Sdk\Service\HttpClientInterface;
 
 /** @internal */
 final class HttpAgentProfileFetcher implements AgentProfileFetcherInterface

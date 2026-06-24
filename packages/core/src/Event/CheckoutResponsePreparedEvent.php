@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Event;
 
-use Symfony\Contracts\EventDispatcher\Event;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\RequestContext;
 
-final class CheckoutResponsePreparedEvent extends Event
+final class CheckoutResponsePreparedEvent
 {
     public function __construct(
         private Checkout $checkout,

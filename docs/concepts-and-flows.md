@@ -97,4 +97,4 @@ flowchart LR
 
 - Keep transport support generic, configurable, and reusable.
 - Put platform-specific product, cart, order, and payment mapping into platform plugins.
-- For Shopware-specific wiring, see [shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md).
+- For Shopware-specific wiring, see [shopware-plugin-blueprint.md](shopware-plugin-blueprint.md).

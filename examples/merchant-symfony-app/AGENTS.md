@@ -43,5 +43,5 @@ This split is intentional. It shows the difference between SDK infrastructure st
 
 ## Related Docs
 
-- [../../docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
-- [../../docs/shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md)
+- [../../docs/platform-adapters.md](../../docs/platform-adapters.md)
+- [../../docs/shopware-plugin-blueprint.md](../../docs/shopware-plugin-blueprint.md)

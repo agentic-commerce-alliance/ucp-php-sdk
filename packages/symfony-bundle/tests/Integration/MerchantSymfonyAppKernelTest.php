@@ -254,6 +254,22 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
     }
 
     #[Test]
+    public function itServesAgentCardDiscoveryUnderStrictSignaturePolicy(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(
+            ['UCP_SIGNATURE_POLICY' => 'strict'],
+            $this->clearMerchantState(...),
+        );
+
+        $this->request($client, 'GET', '/.well-known/agent-card.json');
+
+        self::assertResponseIsSuccessful();
+        $agentCard = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('http://localhost:8081/ucp/a2a', $agentCard['url']);
+        self::assertSame('2026-04-08', $agentCard['version']);
+    }
+
+    #[Test]
     public function itRejectsInvalidA2aRequestsAndUntrustedEmbeddedOrigins(): void
     {
         $client = $this->createConfiguredClient($this->clearMerchantState(...));

@@ -2,26 +2,26 @@
 
 Read this file first before changing the repo.
 
-For release workflow and where release notes belong, also read [docs/release-process.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/release-process.md).
+For release workflow and where release notes belong, also read [docs/release-process.md](docs/release-process.md).
 
 ## Fast Path
 
 If the goal touches the reusable SDK, Symfony bundle, transport parity, or
 platform adapter model, read files in this order:
 
-1. [AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/AGENTS.md)
-2. [packages/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/AGENTS.md)
-3. [packages/core/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/AGENTS.md)
-4. [packages/symfony-bundle/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/symfony-bundle/AGENTS.md)
-5. [docs/concepts-and-flows.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/concepts-and-flows.md)
-6. [docs/mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)
-7. [docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
-8. [docs/storage-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/storage-adapters.md)
-9. [docs/security-model.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/security-model.md)
-10. [docs/full-ucp-parity-plan.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/full-ucp-parity-plan.md)
-11. [docs/repo-layout.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/repo-layout.md)
+1. [AGENTS.md](AGENTS.md)
+2. [packages/AGENTS.md](packages/AGENTS.md)
+3. [packages/core/AGENTS.md](packages/core/AGENTS.md)
+4. [packages/symfony-bundle/AGENTS.md](packages/symfony-bundle/AGENTS.md)
+5. [docs/concepts-and-flows.md](docs/concepts-and-flows.md)
+6. [docs/mapping-flow.md](docs/mapping-flow.md)
+7. [docs/platform-adapters.md](docs/platform-adapters.md)
+8. [docs/storage-adapters.md](docs/storage-adapters.md)
+9. [docs/security-model.md](docs/security-model.md)
+10. [docs/full-ucp-parity-plan.md](docs/full-ucp-parity-plan.md)
+11. [docs/repo-layout.md](docs/repo-layout.md)
 
-Read [docs/shopware-plugin-blueprint.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/shopware-plugin-blueprint.md)
+Read [docs/shopware-plugin-blueprint.md](docs/shopware-plugin-blueprint.md)
 only when documenting or checking how a downstream Shopware plugin should
 consume the SDK.
 
@@ -209,13 +209,13 @@ Projects may also skip the adapter layer and register a direct `CatalogCapabilit
 
 ## Folder Guides
 
-- [packages/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/AGENTS.md)
-- [packages/core/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/core/AGENTS.md)
-- [packages/symfony-bundle/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/symfony-bundle/AGENTS.md)
-- [examples/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/AGENTS.md)
-- [examples/bootstrap-symfony-app/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/bootstrap-symfony-app/AGENTS.md)
-- [examples/merchant-symfony-app/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/merchant-symfony-app/AGENTS.md)
-- [docs/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/AGENTS.md)
+- [packages/AGENTS.md](packages/AGENTS.md)
+- [packages/core/AGENTS.md](packages/core/AGENTS.md)
+- [packages/symfony-bundle/AGENTS.md](packages/symfony-bundle/AGENTS.md)
+- [examples/AGENTS.md](examples/AGENTS.md)
+- [examples/bootstrap-symfony-app/AGENTS.md](examples/bootstrap-symfony-app/AGENTS.md)
+- [examples/merchant-symfony-app/AGENTS.md](examples/merchant-symfony-app/AGENTS.md)
+- [docs/AGENTS.md](docs/AGENTS.md)
 
 ## QA
 
@@ -239,7 +239,7 @@ Dead-code rules:
 
 - Do not treat public SDK namespaces as dead just because the repo does not use them directly.
 - Hard gates focus on `Ucp\Sdk\Internal`, bundle bridge and listener code, runtime commands and controllers, and the realistic merchant example.
-- The allowlist for internal reference scanning lives in [tools/internal-class-allowlist.php](/Users/b.meyer/Documents/Projects/ucp-php-sdk/tools/internal-class-allowlist.php).
+- The allowlist for internal reference scanning lives in [tools/internal-class-allowlist.php](tools/internal-class-allowlist.php).
 - The default mutation gate is intentionally fast. It targets protocol-critical classes first instead of the wider runtime tree while keeping a hard floor of `79%` MSI and `79%` covered MSI.
 - Local mutation runs default to `7` Infection workers through `MUTATION_THREADS`. CI and release workflows pin `MUTATION_THREADS=4`.
 - For local work, prefer `composer mutation:changed`. It uses Infection's git-diff filtering against `origin/main` by default and narrows execution to changed files plus related tests.

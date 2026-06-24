@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Event;
 
-use Symfony\Contracts\EventDispatcher\Event;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 
-final class OrderWebhookDispatchEvent extends Event
+final class OrderWebhookDispatchEvent
 {
     public function __construct(
         private OrderWebhookPayload $payload,

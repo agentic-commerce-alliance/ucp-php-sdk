@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Service;
 
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
 use Ucp\Sdk\Contract\OrderWebhookEnricherInterface;
 use Ucp\Sdk\Event\OrderWebhookDispatchEvent;
 use Ucp\Sdk\Exception\UcpException;
 use Ucp\Sdk\Model\Http\HttpRequest;
+use Ucp\Sdk\Model\Http\HttpResponseInterface;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Webhook\OrderWebhookPayload;
 use Ucp\Sdk\Model\Webhook\WebhookDispatchResult;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Service\EventDispatcherInterface;
+use Ucp\Sdk\Service\HttpClientInterface;
 use Ucp\Sdk\Service\OrderWebhookPublisherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 
@@ -85,7 +85,7 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         }
     }
 
-    private function toResult(string $targetUrl, ResponseInterface $response): WebhookDispatchResult
+    private function toResult(string $targetUrl, HttpResponseInterface $response): WebhookDispatchResult
     {
         $statusCode = $response->getStatusCode();
         $retryable = $statusCode === 408 || $statusCode === 425 || $statusCode === 429 || $statusCode >= 500;
@@ -106,7 +106,7 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         );
     }
 
-    private function responseBody(ResponseInterface $response): ?string
+    private function responseBody(HttpResponseInterface $response): ?string
     {
         $headers = $response->getHeaders(false);
         $contentLength = isset($headers['content-length'][0]) ? (int) $headers['content-length'][0] : null;

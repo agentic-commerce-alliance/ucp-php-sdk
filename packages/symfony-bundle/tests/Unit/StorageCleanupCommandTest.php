@@ -22,9 +22,17 @@ final class StorageCleanupCommandTest extends TestCase
     public function itPurgesExpiredRecordsAcrossTheDefaultStorageAdapters(): void
     {
         $state = new StorageCleanupState();
+        $idempotencyRepository = $this->createMock(IdempotencyRepositoryInterface::class);
+        $idempotencyRepository
+            ->expects(self::once())
+            ->method('purgeExpired')
+            ->willReturnCallback(static function (int $olderThanUnixTimestamp) use ($state): void {
+                $state->idempotencyPurgedAt = $olderThanUnixTimestamp;
+            });
+
         $command = new StorageCleanupCommand(new StorageCleanupService(
             new StorageCleanupOAuthRepository($state),
-            new StorageCleanupIdempotencyRepository($state),
+            $idempotencyRepository,
             new StorageCleanupNegotiationRepository($state),
             new StorageCleanupPlatformProfileRepository($state),
             new StorageCleanupSignatureNonceRepository($state),
@@ -114,6 +122,11 @@ final class StorageCleanupIdempotencyRepository implements IdempotencyRepository
 {
     public function __construct(private readonly StorageCleanupState $state)
     {
+    }
+
+    public function claimPending(string $key, string $fingerprint): bool
+    {
+        return false;
     }
 
     public function find(string $key): ?\Ucp\Sdk\Model\IdempotencyRecord

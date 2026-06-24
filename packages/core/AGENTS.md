@@ -95,8 +95,8 @@ These interfaces are the main place where host apps or platform plugins can deco
 
 ## Related Docs
 
-- [../../docs/platform-adapters.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/platform-adapters.md)
-- [../../docs/mapping-flow.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/mapping-flow.md)
-- [../../docs/security-model.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/security-model.md)
-- [../../docs/qa-dead-code.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/docs/qa-dead-code.md)
-- [../symfony-bundle/AGENTS.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/packages/symfony-bundle/AGENTS.md)
+- [../../docs/platform-adapters.md](../../docs/platform-adapters.md)
+- [../../docs/mapping-flow.md](../../docs/mapping-flow.md)
+- [../../docs/security-model.md](../../docs/security-model.md)
+- [../../docs/qa-dead-code.md](../../docs/qa-dead-code.md)
+- [../symfony-bundle/AGENTS.md](../symfony-bundle/AGENTS.md)

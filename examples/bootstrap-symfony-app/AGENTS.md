@@ -38,4 +38,4 @@ This app is the minimal reference for bundle wiring.
 
 ## Related Guide
 
-- [../merchant-symfony-app/README.md](/Users/b.meyer/Documents/Projects/ucp-php-sdk/examples/merchant-symfony-app/README.md)
+- [../merchant-symfony-app/README.md](../merchant-symfony-app/README.md)

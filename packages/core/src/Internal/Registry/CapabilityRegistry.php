@@ -20,7 +20,12 @@ final class CapabilityRegistry implements CapabilityRegistryInterface
         $this->capabilitiesByName = [];
 
         foreach ($this->capabilities as $capability) {
-            $this->capabilitiesByName[$capability->describe()->name] ??= $capability;
+            $name = $capability->describe()->name;
+            if (isset($this->capabilitiesByName[$name])) {
+                throw new \InvalidArgumentException(sprintf('Capability "%s" is registered more than once.', $name));
+            }
+
+            $this->capabilitiesByName[$name] = $capability;
         }
     }
 

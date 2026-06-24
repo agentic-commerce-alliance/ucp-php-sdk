@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Service;
 
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
 use Ucp\Sdk\Enum\Transport;
@@ -14,6 +13,7 @@ use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\Profile\ServiceEndpoint;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
+use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 
@@ -38,6 +38,10 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
         $capabilities = [];
         foreach ($this->capabilityRegistry->all() as $capability) {
             $descriptor = $capability->describe();
+            if (! self::isEnabled($descriptor->name, $input->enabledCapabilities)) {
+                continue;
+            }
+
             $capabilities[$descriptor->name] = [$descriptor];
         }
 
@@ -110,5 +114,13 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
             Transport::Embedded => \sprintf('https://ucp.dev/%s/services/shopping/embedded.openrpc.json', $version),
             Transport::A2a => null,
         };
+    }
+
+    /**
+     * @param list<string> $enabledCapabilities
+     */
+    private static function isEnabled(string $capabilityName, array $enabledCapabilities): bool
+    {
+        return $enabledCapabilities === [] || in_array($capabilityName, $enabledCapabilities, true);
     }
 }

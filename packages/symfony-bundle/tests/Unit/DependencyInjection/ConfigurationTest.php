@@ -34,6 +34,28 @@ final class ConfigurationTest extends TestCase
         self::assertSame('https://merchant.example/ucp/mcp', $config['transport_endpoints']['mcp']);
     }
 
+    public function testItDefaultsEnabledCapabilitiesToAnEmptyAllowlist(): void
+    {
+        $config = $this->process([]);
+
+        self::assertSame([], $config['enabled_capabilities']);
+    }
+
+    public function testItAcceptsEnabledCapabilities(): void
+    {
+        $config = $this->process([
+            'enabled_capabilities' => [
+                'dev.ucp.shopping.cart',
+                'dev.ucp.shopping.checkout',
+            ],
+        ]);
+
+        self::assertSame([
+            'dev.ucp.shopping.cart',
+            'dev.ucp.shopping.checkout',
+        ], $config['enabled_capabilities']);
+    }
+
     /**
      * @param array<string, mixed> $config
      *

@@ -29,6 +29,18 @@ final class RegistryTest extends TestCase
     }
 
     #[Test]
+    public function itRejectsDuplicateCapabilityNames(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Capability "demo.capability" is registered more than once.');
+
+        new CapabilityRegistry([
+            new CountableTestCapability(),
+            new CountableTestCapability(),
+        ]);
+    }
+
+    #[Test]
     public function itFindsPaymentHandlersByIdAndName(): void
     {
         $handler = $this->createMock(PaymentHandlerInterface::class);
@@ -41,6 +53,24 @@ final class RegistryTest extends TestCase
         self::assertSame([$handler], $registry->all());
         self::assertSame($handler, $registry->find('demo-handler'));
         self::assertNull($registry->find('missing'));
+    }
+
+    #[Test]
+    public function itRejectsDuplicatePaymentHandlerIds(): void
+    {
+        $first = $this->createMock(PaymentHandlerInterface::class);
+        $first
+            ->method('id')
+            ->willReturn('demo-handler');
+        $second = $this->createMock(PaymentHandlerInterface::class);
+        $second
+            ->method('id')
+            ->willReturn('demo-handler');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Payment handler "demo-handler" is registered more than once.');
+
+        new PaymentHandlerRegistry([$first, $second]);
     }
 }
 
