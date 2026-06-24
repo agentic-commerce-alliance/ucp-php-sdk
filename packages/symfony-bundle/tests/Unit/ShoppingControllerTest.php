@@ -73,36 +73,28 @@ final class ShoppingControllerTest extends TestCase
         $lookup = $this->payload($controller->lookup($this->jsonRequest('/ucp/v1/catalog/lookup', ['ids' => ['sku-lookup']])));
         self::assertSame('sku-lookup', $lookup['items'][0]['id']);
 
-        $product = $this->payload($controller->product($this->jsonRequest('/ucp/v1/catalog/product', ['id' => 'sku-detail'])));
+        $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
         self::assertSame('sku-detail', $product['id']);
     }
 
     #[Test]
-    public function itMapsCatalogProductPostBodyIntoRequestDto(): void
+    public function itMapsCatalogProductRouteIdIntoRequestDto(): void
     {
         $capability = new ControllerCatalogCapability();
         $validator = $this->createMock(ProtocolValidatorInterface::class);
         $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability, $validator));
 
-        $product = $this->payload($controller->product($this->jsonRequest('/ucp/v1/catalog/product', [
-            'id' => 'sku-detail',
-            'selected' => [['name' => 'Color', 'label' => 'Blue']],
-            'filters' => ['price' => ['max' => 15000]],
-            'preferences' => ['Color', 'Size'],
-            'context' => ['address_country' => 'US'],
-            'signals' => ['dev.ucp.user_agent' => 'agent'],
-            'attribution' => ['utm_source' => 'assistant'],
-        ])));
+        $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
 
         self::assertSame('sku-detail', $product['id']);
         self::assertInstanceOf(CatalogProductRequest::class, $capability->productRequest);
         self::assertSame('sku-detail', $capability->productRequest->id);
-        self::assertSame([['name' => 'Color', 'label' => 'Blue']], $capability->productRequest->selected);
-        self::assertSame(['price' => ['max' => 15000]], $capability->productRequest->filters);
-        self::assertSame(['Color', 'Size'], $capability->productRequest->preferences);
-        self::assertSame(['address_country' => 'US'], $capability->productRequest->context);
-        self::assertSame(['dev.ucp.user_agent' => 'agent'], $capability->productRequest->signals);
-        self::assertSame(['utm_source' => 'assistant'], $capability->productRequest->attribution);
+        self::assertSame([], $capability->productRequest->selected);
+        self::assertSame([], $capability->productRequest->filters);
+        self::assertSame([], $capability->productRequest->preferences);
+        self::assertSame([], $capability->productRequest->context);
+        self::assertSame([], $capability->productRequest->signals);
+        self::assertSame([], $capability->productRequest->attribution);
     }
 
     #[Test]

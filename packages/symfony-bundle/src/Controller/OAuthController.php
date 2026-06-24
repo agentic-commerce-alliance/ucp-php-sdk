@@ -33,7 +33,7 @@ final class OAuthController
     {
         $context = $this->publicContext($request);
 
-        return $this->responseFactory->success($this->requireCapability($context)->getMetadata($context)->toArray());
+        return $this->responseFactory->success($this->requireCapability($context)->getMetadata($context)->toArray(), context: $context, operation: 'oauth.metadata');
     }
 
     #[Route(path: '/ucp/v1/oauth/authorize', methods: ['GET'])]
@@ -42,7 +42,7 @@ final class OAuthController
         $context = $request->attributes->get('ucp_request_context');
         $result = $this->requireCapability($context)->authorize($this->payloadMapper->toOAuthAuthorizationRequest($request), $context);
 
-        return $this->responseFactory->success($result);
+        return $this->responseFactory->success($result, context: $context, operation: 'oauth.authorize');
     }
 
     #[Route(path: '/ucp/v1/oauth/token', methods: ['POST'])]
@@ -52,7 +52,7 @@ final class OAuthController
         $context = $request->attributes->get('ucp_request_context');
         $result = $this->requireCapability($context)->issueToken($this->payloadMapper->toOAuthTokenRequest($payload), $context);
 
-        return $this->responseFactory->success($result->toArray());
+        return $this->responseFactory->success($result->toArray(), context: $context, operation: 'oauth.token');
     }
 
     private function requireCapability(mixed $context): IdentityLinkingCapabilityInterface

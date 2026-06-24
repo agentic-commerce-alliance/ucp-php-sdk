@@ -29,7 +29,7 @@ final class CatalogController
             'catalog.search',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'catalog.search');
     }
 
     #[Route(path: '/ucp/v1/catalog/lookup', methods: ['POST'])]
@@ -39,17 +39,17 @@ final class CatalogController
             'catalog.lookup',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'catalog.lookup');
     }
 
-    #[Route(path: '/ucp/v1/catalog/product', methods: ['POST'])]
-    public function product(Request $request): Response
+    #[Route(path: '/ucp/v1/catalog/product/{id}', methods: ['GET'])]
+    public function product(string $id, Request $request): Response
     {
         return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
             'catalog.product',
-            $this->payloadMapper->decode($request),
+            [],
             $request->attributes->get('ucp_request_context'),
-        )));
+            $id,
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'catalog.product');
     }
-
 }

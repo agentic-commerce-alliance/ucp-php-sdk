@@ -240,7 +240,7 @@ class Ucp\Sdk\Model\Identity\OAuthTokenResponse
   - __construct(string $accessToken, string $tokenType = 'Bearer', int $expiresIn = 3600, ?string $refreshToken = null, ?string $scope = null)
   - toArray(): array
 class Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities
-  - __construct(array $capabilities = [], array $paymentHandlerIds = [], array $operationCapabilityMap = [])
+  - __construct(array $capabilities = [], array $paymentHandlerIds = [], array $operationCapabilityMap = [], array $paymentHandlers = [])
   - capabilitiesForOperation(string $operation): array
   - capabilityNames(): array
 class Ucp\Sdk\Model\Negotiation\NegotiationSession

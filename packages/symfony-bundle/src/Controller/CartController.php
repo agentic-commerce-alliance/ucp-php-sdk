@@ -29,7 +29,7 @@ final class CartController
             'cart.create',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
-        )), 201);
+        )), 201, context: $request->attributes->get('ucp_request_context'), operation: 'cart.create');
     }
 
     #[Route(path: '/ucp/v1/carts/{id}', methods: ['GET'])]
@@ -40,7 +40,7 @@ final class CartController
             [],
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'cart.get');
     }
 
     #[Route(path: '/ucp/v1/carts/{id}', methods: ['PUT', 'PATCH'])]
@@ -51,7 +51,7 @@ final class CartController
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'cart.update');
     }
 
     #[Route(path: '/ucp/v1/carts/{id}/cancel', methods: ['POST'])]
@@ -62,6 +62,6 @@ final class CartController
             [],
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'cart.cancel');
     }
 }
