@@ -15,6 +15,7 @@ use Ucp\Sdk\Service\IdempotencyServiceInterface;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
+/** @internal */
 final class RequestContextListener
 {
     public function __construct(

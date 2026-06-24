@@ -11,6 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\StorageCleanupService;
 
 #[AsCommand(name: 'ucp:storage:cleanup', description: 'Purge expired records from the default SDK storage adapter.')]
+/** @internal */
 final class StorageCleanupCommand extends Command
 {
     public function __construct(

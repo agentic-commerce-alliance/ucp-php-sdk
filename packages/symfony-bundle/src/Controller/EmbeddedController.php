@@ -17,6 +17,7 @@ use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
 use Ucp\Sdk\Symfony\Internal\OriginMatcher;
 
+/** @internal */
 final class EmbeddedController
 {
     /**

@@ -9,6 +9,7 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
 
+/** @internal */
 final class DoctrineDbalNegotiationSessionRepository implements NegotiationSessionRepositoryInterface
 {
     public function __construct(

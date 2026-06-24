@@ -22,6 +22,7 @@ use Ucp\Sdk\Model\Common\Signals;
 use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
 use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
 
+/** @internal */
 final class HttpPayloadMapper
 {
     /**

@@ -17,6 +17,7 @@ use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 
+/** @internal */
 final class OAuthController
 {
     public function __construct(

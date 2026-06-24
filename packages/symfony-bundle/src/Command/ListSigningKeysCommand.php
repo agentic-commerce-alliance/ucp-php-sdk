@@ -11,6 +11,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 
 #[AsCommand(name: 'ucp:signing-keys:list', description: 'List managed signing keys used by the UCP SDK.')]
+/** @internal */
 final class ListSigningKeysCommand extends Command
 {
     public function __construct(

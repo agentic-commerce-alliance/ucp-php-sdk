@@ -11,6 +11,7 @@ use Ucp\Sdk\Repository\OAuthStateRepositoryInterface;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
 
+/** @internal */
 final class StorageCleanupService
 {
     public function __construct(

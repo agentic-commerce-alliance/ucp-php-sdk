@@ -12,6 +12,7 @@ use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\SecretEncryptorInterface;
 
+/** @internal */
 final class DoctrineDbalSigningKeyRepository implements ManagedSigningKeyRepositoryInterface, TenantAwareManagedSigningKeyRepositoryInterface
 {
     public function __construct(

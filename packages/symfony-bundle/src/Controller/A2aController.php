@@ -24,6 +24,7 @@ use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
+/** @internal */
 final class A2aController
 {
     private const SUPPORTED_METHODS = [

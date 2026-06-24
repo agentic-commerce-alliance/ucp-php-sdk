@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Operation;
 
 use Ucp\Sdk\Model\RequestContext;
 
+/** @internal */
 final class ShoppingOperationRequest
 {
     /**

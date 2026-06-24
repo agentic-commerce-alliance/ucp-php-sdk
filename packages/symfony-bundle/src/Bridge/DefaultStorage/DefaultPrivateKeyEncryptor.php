@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\Bridge\DefaultStorage;
 
+/** @internal */
 final class DefaultPrivateKeyEncryptor implements SecretEncryptorInterface
 {
     private const VERSION = "\x01";

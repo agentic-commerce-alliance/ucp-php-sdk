@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Bridge\DoctrineDbal;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\SchemaConfig;
 
+/** @internal */
 final class StorageSchemaDefinition
 {
     /**

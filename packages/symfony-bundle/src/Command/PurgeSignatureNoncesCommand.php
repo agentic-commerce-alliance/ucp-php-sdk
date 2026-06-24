@@ -12,6 +12,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\StorageCleanupService;
 
 #[AsCommand(name: 'ucp:storage:cleanup-signature-nonces', description: 'Purge expired signature replay nonces from the default storage adapter.')]
+/** @internal */
 final class PurgeSignatureNoncesCommand extends Command
 {
     public function __construct(

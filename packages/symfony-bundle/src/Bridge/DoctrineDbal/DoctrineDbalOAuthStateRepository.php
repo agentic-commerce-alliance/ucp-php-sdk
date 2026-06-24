@@ -10,6 +10,7 @@ use Ucp\Sdk\Model\OAuthState;
 use Ucp\Sdk\Repository\OAuthStateRepositoryInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\SecretEncryptorInterface;
 
+/** @internal */
 final class DoctrineDbalOAuthStateRepository implements OAuthStateRepositoryInterface
 {
     public function __construct(
