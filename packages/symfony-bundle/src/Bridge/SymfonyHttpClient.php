@@ -11,6 +11,7 @@ use Ucp\Sdk\Model\Http\HttpResponseChunkInterface;
 use Ucp\Sdk\Model\Http\HttpResponseInterface;
 use Ucp\Sdk\Service\HttpClientInterface;
 
+/** @internal */
 final class SymfonyHttpClient implements HttpClientInterface
 {
     public function __construct(
@@ -35,6 +36,7 @@ final class SymfonyHttpClient implements HttpClientInterface
     }
 }
 
+/** @internal */
 final class SymfonyHttpResponse implements HttpResponseInterface
 {
     public function __construct(
@@ -63,6 +65,7 @@ final class SymfonyHttpResponse implements HttpResponseInterface
     }
 }
 
+/** @internal */
 final class SymfonyHttpResponseChunk implements HttpResponseChunkInterface
 {
     public function __construct(

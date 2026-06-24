@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Bridge;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as SymfonyEventDispatcherInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 
+/** @internal */
 final class SymfonyEventDispatcher implements EventDispatcherInterface
 {
     public function __construct(
