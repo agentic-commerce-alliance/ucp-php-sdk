@@ -37,7 +37,7 @@ final class UcpResponseFactory
     /**
      * @param array<string, string> $headers
      */
-    public function operation(UcpOperationResponse $response, int $status = 200, array $headers = []): JsonResponse
+    public function operation(UcpOperationResponse $response, int $status = 200, array $headers = [], ?RequestContext $context = null, ?string $operation = null): JsonResponse
     {
         return new JsonResponse($response, $status, $headers);
     }

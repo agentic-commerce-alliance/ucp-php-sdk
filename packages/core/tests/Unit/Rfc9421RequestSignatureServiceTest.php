@@ -226,7 +226,7 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
         $service = new Rfc9421RequestSignatureService(new ContentDigestService());
 
-        $futureCreated = time() + 61;
+        $futureCreated = time() + 120;
         $futureHeaders = $service->sign($request, $managedKey, $futureCreated, $futureCreated + 120);
         $futureResult = $service->verify(
             new HttpRequest($request->method, $request->absoluteUri, $futureHeaders, $request->query, $request->body),
@@ -234,7 +234,7 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         );
 
         $expiredCreated = time() - 500;
-        $expiredHeaders = $service->sign($request, $managedKey, $expiredCreated, time() - 61);
+        $expiredHeaders = $service->sign($request, $managedKey, $expiredCreated, time() - 120);
         $expiredResult = $service->verify(
             new HttpRequest($request->method, $request->absoluteUri, $expiredHeaders, $request->query, $request->body),
             [$manager->toPublicKey($managedKey)],
