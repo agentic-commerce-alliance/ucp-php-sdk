@@ -11,6 +11,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
@@ -133,6 +134,8 @@ final class A2aController
 
             return $this->jsonRpcError($id, -32602, $exception->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (ValidationException $exception) {
+            return $this->jsonRpcError($id, -32602, $exception->getMessage(), Response::HTTP_BAD_REQUEST);
+        } catch (NegotiationException $exception) {
             return $this->jsonRpcError($id, -32602, $exception->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (UnsupportedCapabilityException $exception) {
             return $this->jsonRpcError($id, -32601, $exception->getMessage(), Response::HTTP_NOT_FOUND);

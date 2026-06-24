@@ -14,6 +14,7 @@ use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Contract\DiscountCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
@@ -25,8 +26,11 @@ use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
+use Ucp\Sdk\Model\Config\RuntimeConfiguration;
+use Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities;
 use Ucp\Sdk\Model\Order\OrderView;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
+use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
@@ -85,6 +89,82 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             'request:order.get',
             'response:order.get',
         ], $validator->calls);
+    }
+
+    #[Test]
+    public function itRejectsRequestsFromUnsupportedProfileVersionsBeforeExecutingOperations(): void
+    {
+        $validator = new ShoppingOperationProtocolValidatorSpy();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            $validator,
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+        $context = new RequestContext(
+            'merchant.example',
+            platformProfile: new PlatformProfile('2025-10-01', [], [], []),
+            runtimeConfiguration: new RuntimeConfiguration(
+                '2026-04-08',
+                'https://merchant.example',
+                supportedVersions: ['2026-03-01' => 'https://merchant.example/.well-known/ucp/2026-03-01'],
+            ),
+            negotiation: new NegotiatedCapabilities([
+                'dev.ucp.shopping' => [
+                    new CapabilityDescriptor('dev.ucp.shopping', '2026-04-08', 'spec', 'schema'),
+                ],
+            ], operationCapabilityMap: [
+                'catalog.search' => ['dev.ucp.shopping'],
+            ]),
+        );
+
+        try {
+            $executor->execute(new ShoppingOperationRequest('catalog.search', ['query' => 'tent'], $context));
+            self::fail('Expected unsupported version rejection.');
+        } catch (NegotiationException $exception) {
+            self::assertSame('version_unsupported', $exception->errorCode);
+        }
+
+        self::assertSame([], $validator->calls);
+    }
+
+    #[Test]
+    public function itRejectsRequestsWhenTheOperationCapabilityWasNotNegotiated(): void
+    {
+        $validator = new ShoppingOperationProtocolValidatorSpy();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            $validator,
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+        $context = new RequestContext(
+            'merchant.example',
+            platformProfile: new PlatformProfile('2026-04-08', [], [], []),
+            runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example'),
+            negotiation: new NegotiatedCapabilities([
+                'dev.ucp.shopping.cart' => [
+                    new CapabilityDescriptor('dev.ucp.shopping.cart', '2026-04-08', 'spec', 'schema'),
+                ],
+            ], operationCapabilityMap: [
+                'cart.create' => ['dev.ucp.shopping.cart'],
+            ]),
+        );
+
+        try {
+            $executor->execute(new ShoppingOperationRequest('catalog.search', ['query' => 'tent'], $context));
+            self::fail('Expected incompatible capability rejection.');
+        } catch (NegotiationException $exception) {
+            self::assertSame('capabilities_incompatible', $exception->errorCode);
+        }
+
+        self::assertSame([], $validator->calls);
     }
 
     /**
