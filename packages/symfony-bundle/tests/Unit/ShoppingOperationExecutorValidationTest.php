@@ -188,7 +188,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             'sku-1',
         ));
 
-        self::assertSame('dev.ucp.shopping.catalog.lookup', array_key_first($response->toArray()['ucp']['capabilities']));
+        self::assertSame('dev.ucp.shopping.catalog.product', array_key_first($response->toArray()['ucp']['capabilities']));
     }
 
     #[Test]

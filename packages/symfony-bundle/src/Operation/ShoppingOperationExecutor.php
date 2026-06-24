@@ -127,7 +127,7 @@ final class ShoppingOperationExecutor
         return $this->response(
             'catalog.product',
             $this->catalog($request->context)->getProduct($productRequest, $request->context)->toArray(),
-            UcpCapability::CatalogLookup,
+            UcpCapability::CatalogProduct,
             $request->context,
         );
     }
