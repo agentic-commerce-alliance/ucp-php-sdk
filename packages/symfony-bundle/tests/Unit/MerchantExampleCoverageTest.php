@@ -22,6 +22,7 @@ use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
+use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Common\LineItem;
@@ -146,7 +147,7 @@ final class MerchantExampleCoverageTest extends TestCase
         self::assertCount(1, $lookup);
         self::assertSame('stove-lite', $lookup[0]->id);
 
-        $unknown = $capability->getProduct('missing-sku', $this->context());
+        $unknown = $capability->getProduct(new CatalogProductRequest('missing-sku'), $this->context());
         self::assertSame('missing-sku', $unknown->id);
         self::assertSame('Unknown product', $unknown->title);
         self::assertSame(0.0, $unknown->price);

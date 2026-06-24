@@ -124,9 +124,11 @@ final class ShoppingOperationExecutor
      */
     private function productGet(ShoppingOperationRequest $request): array
     {
-        $this->protocolValidator->validateRequest('catalog.product', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->catalog($request->context)->getProduct($id, $request->context)->toArray();
+        $payload = ['id' => $id, ...$request->payload];
+        $this->protocolValidator->validateRequest('catalog.product', $payload, $request->context);
+        $productRequest = $this->payloadMapper->toCatalogProductRequest($payload);
+        $result = $this->catalog($request->context)->getProduct($productRequest, $request->context)->toArray();
         $this->protocolValidator->validateResponse('catalog.product', $result, $request->context);
 
         return $result;

@@ -8,7 +8,7 @@ class Ucp\Sdk\Adapter\AdapterBackedCartCapability
 class Ucp\Sdk\Adapter\AdapterBackedCatalogCapability
   - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CatalogAdapterInterface $adapter)
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
-  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - getProduct(Ucp\Sdk\Model\Catalog\CatalogProductRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
   - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
   - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\CatalogSearchResponse
 class Ucp\Sdk\Adapter\AdapterBackedCheckoutCapability
@@ -43,7 +43,7 @@ interface Ucp\Sdk\Adapter\CartAdapterInterface
   - getCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
   - updateCart(Ucp\Sdk\Model\Cart\CartUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
 interface Ucp\Sdk\Adapter\CatalogAdapterInterface
-  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - getProduct(Ucp\Sdk\Model\Catalog\CatalogProductRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
   - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
   - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): array
 interface Ucp\Sdk\Adapter\CheckoutAdapterInterface
@@ -72,7 +72,7 @@ interface Ucp\Sdk\Contract\CartCapabilityInterface
   - getCart(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
   - updateCart(Ucp\Sdk\Model\Cart\CartUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Cart\Cart
 interface Ucp\Sdk\Contract\CatalogCapabilityInterface
-  - getProduct(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
+  - getProduct(Ucp\Sdk\Model\Catalog\CatalogProductRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\Product
   - lookup(Ucp\Sdk\Model\Catalog\CatalogLookupRequest $request, Ucp\Sdk\Model\RequestContext $context): array
   - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\CatalogSearchResponse
 interface Ucp\Sdk\Contract\CheckoutCapabilityInterface
@@ -168,6 +168,8 @@ class Ucp\Sdk\Model\Cart\CartUpdateRequest
   - __construct(string $id, array $lineItems)
 class Ucp\Sdk\Model\Catalog\CatalogLookupRequest
   - __construct(array $ids)
+class Ucp\Sdk\Model\Catalog\CatalogProductRequest
+  - __construct(string $id, array $selected = [], array $filters = [], array $preferences = [], array $context = [], array $signals = [], array $attribution = [])
 class Ucp\Sdk\Model\Catalog\CatalogSearchRequest
   - __construct(string $query, int $limit = 20, ?string $cursor = null, array $filters = [])
 class Ucp\Sdk\Model\Catalog\CatalogSearchResponse

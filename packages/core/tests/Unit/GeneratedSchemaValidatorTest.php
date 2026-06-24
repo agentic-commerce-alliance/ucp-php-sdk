@@ -49,6 +49,22 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $this->expectNotToPerformAssertions();
     }
 
+    public function testCatalogProductRequestSchemaContainsSpecBodyFields(): void
+    {
+        $schema = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08/catalog.product.request.json'), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(['id'], $schema['required'] ?? null);
+        self::assertSame([
+            'id',
+            'selected',
+            'filters',
+            'preferences',
+            'context',
+            'signals',
+            'attribution',
+        ], array_keys($schema['properties'] ?? []));
+    }
+
     public function testItValidatesAdditionalSchemaKeywords(): void
     {
         $directory = $this->createTemporarySchemaDirectory();
