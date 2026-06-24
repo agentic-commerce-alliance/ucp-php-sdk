@@ -6,8 +6,12 @@ namespace Ucp\Sdk\Symfony\Tests\Integration;
 
 use Closure;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
+use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
+use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 trait CreatesConfiguredKernelBrowserTrait
 {
@@ -58,6 +62,7 @@ trait CreatesConfiguredKernelBrowserTrait
         /** @var SigningKeyManagerInterface $manager */
         $manager = self::getContainer()->get(SigningKeyManagerInterface::class);
         $repository->saveManaged($manager->generate('demo-kid'));
+        $this->seedAgentProfileCache();
         $this->baselineExceptionHandlers = $this->activeExceptionHandlers();
 
         return $client;
@@ -138,8 +143,57 @@ trait CreatesConfiguredKernelBrowserTrait
      */
     private function request(KernelBrowser $client, string $method, string $uri, array $server = [], ?string $content = null): void
     {
+        $server = $this->withDefaultRuntimeAgentHeader($uri, $server);
+
         $client->request($method, $uri, server: $server, content: $content);
         $this->restoreExceptionHandlers($this->baselineExceptionHandlers);
+    }
+
+    private function seedAgentProfileCache(): void
+    {
+        /** @var UcpSdkConfiguration $configuration */
+        $configuration = self::getContainer()->get(UcpSdkConfiguration::class);
+        $baseUri = $configuration->resolvedBaseUri();
+        $profileUri = $this->testAgentProfileUri($baseUri);
+
+        /** @var ProfileBuilderInterface $profileBuilder */
+        $profileBuilder = self::getContainer()->get(ProfileBuilderInterface::class);
+        /** @var PlatformProfileCacheRepositoryInterface $cacheRepository */
+        $cacheRepository = self::getContainer()->get(PlatformProfileCacheRepositoryInterface::class);
+        $cacheRepository->save($profileUri, $profileBuilder->build(new ProfileBuildInput(
+            $configuration->version,
+            $baseUri,
+            $configuration->transports,
+            supportedVersions: $configuration->supportedVersions,
+            transportEndpoints: $configuration->transportEndpoints,
+            enabledCapabilities: $configuration->enabledCapabilities,
+        )));
+    }
+
+    /**
+     * @param array<string, mixed> $server
+     * @return array<string, mixed>
+     */
+    private function withDefaultRuntimeAgentHeader(string $uri, array $server): array
+    {
+        if (! str_starts_with($uri, '/ucp/v1/') || array_key_exists('HTTP_UCP_AGENT', $server)) {
+            return $server;
+        }
+
+        /** @var UcpSdkConfiguration $configuration */
+        $configuration = self::getContainer()->get(UcpSdkConfiguration::class);
+        $server['HTTP_UCP_AGENT'] = sprintf('platform; profile="%s"', $this->testAgentProfileUri($configuration->resolvedBaseUri()));
+
+        return $server;
+    }
+
+    private function testAgentProfileUri(string $baseUri): string
+    {
+        $parts = parse_url($baseUri);
+        $host = $parts['host'] ?? 'localhost';
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+
+        return sprintf('https://%s%s/.well-known/ucp', $host, $port);
     }
 
     /**

@@ -103,7 +103,11 @@ final class RequestContextListener
     {
         $path = $request->getPathInfo();
 
-        if ($path === '/ucp/mcp' || str_starts_with($path, '/ucp/mcp/')) {
+        if (
+            $path === '/ucp/mcp' || str_starts_with($path, '/ucp/mcp/')
+            || $path === '/ucp/a2a' || str_starts_with($path, '/ucp/a2a/')
+            || $path === '/ucp/embedded' || str_starts_with($path, '/ucp/embedded/')
+        ) {
             return false;
         }
 

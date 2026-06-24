@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Exception\SignatureException;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Service\DefaultHttpRequestContextFactory;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
@@ -189,27 +190,65 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
     }
 
     #[Test]
-    public function itBuildsAContextWithoutFetchingAProfileWhenNoAgentHeaderIsPresent(): void
+    public function itRejectsRuntimeRequestsWithoutAnAgentProfileHeader(): void
     {
-        $context = $this->factory->create(new HttpRequest('GET', 'https://merchant.example/ucp/v1/catalog', [
-            'Idempotency-Key' => 'idem-42',
-            'X-OAuth-Client-Id' => 'client-7',
-            'X-Custom-Header' => 'yes',
-        ]));
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('UCP-Agent header with a profile URI is required for UCP runtime requests.');
 
-        self::assertSame('merchant.example', $context->host);
-        self::assertSame('idem-42', $context->idempotencyKey);
-        self::assertSame('client-7', $context->oauthClientId);
-        self::assertSame('yes', $context->headers['x-custom-header']);
-        self::assertNull($context->platformProfileUri);
-        self::assertNull($context->platformProfile);
-        self::assertFalse($context->signatureVerified);
-        self::assertSame([], $context->negotiatedCapabilities);
-        self::assertNull($context->negotiationSessionId);
-        self::assertSame(0, $this->profileFetches);
-        self::assertSame(0, $this->signatureVerifications);
-        self::assertSame(1, $this->negotiations);
-        self::assertNull($this->negotiatedProfile);
+        try {
+            $this->factory->create(new HttpRequest('GET', 'https://merchant.example/ucp/v1/catalog', [
+                'Idempotency-Key' => 'idem-42',
+                'X-OAuth-Client-Id' => 'client-7',
+                'X-Custom-Header' => 'yes',
+            ]));
+        } finally {
+            self::assertSame(0, $this->profileFetches);
+            self::assertSame(0, $this->signatureVerifications);
+            self::assertSame(0, $this->negotiations);
+            self::assertNull($this->negotiatedProfile);
+        }
+    }
+
+    #[Test]
+    public function itRejectsRuntimeRequestsWithAMalformedAgentProfileHeader(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('UCP-Agent header must include a non-empty profile URI.');
+
+        try {
+            $this->factory->create(new HttpRequest('GET', 'https://merchant.example/ucp/v1/catalog', [
+                'UCP-Agent' => 'platform',
+                'Idempotency-Key' => 'idem-42',
+                'X-OAuth-Client-Id' => 'client-7',
+                'X-Custom-Header' => 'yes',
+            ]));
+        } finally {
+            self::assertSame(0, $this->profileFetches);
+            self::assertSame(0, $this->signatureVerifications);
+            self::assertSame(0, $this->negotiations);
+            self::assertNull($this->negotiatedProfile);
+        }
+    }
+
+    #[Test]
+    public function itRejectsRuntimeRequestsWithAnEmptyAgentProfileUri(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('UCP-Agent header must include a non-empty profile URI.');
+
+        try {
+            $this->factory->create(new HttpRequest('GET', 'https://merchant.example/ucp/v1/catalog', [
+                'UCP-Agent' => 'platform; profile=""',
+                'Idempotency-Key' => 'idem-42',
+                'X-OAuth-Client-Id' => 'client-7',
+                'X-Custom-Header' => 'yes',
+            ]));
+        } finally {
+            self::assertSame(0, $this->profileFetches);
+            self::assertSame(0, $this->signatureVerifications);
+            self::assertSame(0, $this->negotiations);
+            self::assertNull($this->negotiatedProfile);
+        }
     }
 
     #[Test]

@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Internal\Service;
 
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Exception\SignatureException;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Model\RequestContext;
@@ -38,31 +39,36 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         }
 
         $configuration = $this->runtimeConfigurationResolver->resolve($request);
-        $profileUri = $this->extractProfileUri($headers['ucp-agent'] ?? null);
-
-        if ($profileUri !== null) {
-            $this->assertSafeProfileUri(
-                $profileUri,
-                $configuration->allowedProfileHosts,
-                $configuration->allowedAgentDomains,
-                $configuration->profileFetchingDevelopmentMode,
+        $agentHeader = $headers['ucp-agent'] ?? null;
+        if ($agentHeader === null || trim($agentHeader) === '') {
+            throw new ValidationException(
+                'UCP-Agent header with a profile URI is required for UCP runtime requests.',
+                ['$.headers.ucp-agent is required'],
             );
         }
 
-        $platformProfile = $profileUri !== null ? $this->agentProfileFetcher->fetch($profileUri) : null;
-        $verificationResult = null;
-        $publicKeys = [];
-        if ($platformProfile !== null) {
-            $publicKeys = $platformProfile->signingKeys;
-
-            $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);
+        $profileUri = $this->extractProfileUri($agentHeader);
+        if ($profileUri === null || trim($profileUri) === '') {
+            throw new ValidationException(
+                'UCP-Agent header must include a non-empty profile URI.',
+                ['$.headers.ucp-agent.profile must be a non-empty URI'],
+            );
         }
 
-        if ($configuration->signaturePolicy === SignaturePolicy::Strict && ($verificationResult === null || ! $verificationResult->verified)) {
+        $this->assertSafeProfileUri(
+            $profileUri,
+            $configuration->allowedProfileHosts,
+            $configuration->allowedAgentDomains,
+            $configuration->profileFetchingDevelopmentMode,
+        );
+
+        $platformProfile = $this->agentProfileFetcher->fetch($profileUri);
+        $publicKeys = $platformProfile->signingKeys;
+        $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);
+
+        if ($configuration->signaturePolicy === SignaturePolicy::Strict && ! $verificationResult->verified) {
             throw new SignatureException(
-                $verificationResult !== null
-                    ? ($verificationResult->failureReason ?? 'Request signature verification failed.')
-                    : 'Missing request signature for strict policy request.',
+                $verificationResult->failureReason ?? 'Request signature verification failed.',
             );
         }
 
@@ -72,7 +78,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             $profileUri,
             $platformProfile,
             [],
-            $verificationResult !== null ? $verificationResult->verified : false,
+            $verificationResult->verified,
             $headers['idempotency-key'] ?? null,
             $headers['x-oauth-client-id'] ?? null,
             $configuration,
@@ -86,7 +92,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         $negotiation = $this->capabilityNegotiator->negotiate($platformProfile, $context);
         $sessionId = null;
 
-        if ($this->negotiationSessionRepository !== null && $platformProfile !== null) {
+        if ($this->negotiationSessionRepository !== null) {
             $existing = $this->negotiationSessionRepository->findByProfileUri($profileUri, $configuration->tenantIdentifier);
             $sessionId = $existing instanceof NegotiationSession
                 ? $existing->id

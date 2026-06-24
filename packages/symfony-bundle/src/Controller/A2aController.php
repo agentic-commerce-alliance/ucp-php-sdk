@@ -17,6 +17,7 @@ use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
+use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
@@ -99,7 +100,9 @@ final class A2aController
     #[Route(path: '/ucp/a2a', methods: ['POST'])]
     public function invoke(Request $request): Response
     {
-        $this->requireTransport($this->runtimeConfigurationResolver->resolve($this->toHttpRequest($request)));
+        $httpRequest = $this->toHttpRequest($request);
+        $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($httpRequest);
+        $this->requireTransport($runtimeConfiguration);
 
         $id = null;
 
@@ -109,6 +112,13 @@ final class A2aController
             $method = $this->jsonRpcMethod($payload);
             $params = $this->jsonRpcParams($payload);
             $context = $request->attributes->get('ucp_request_context');
+            if (! $context instanceof RequestContext) {
+                $context = new RequestContext(
+                    parse_url($request->getUri(), PHP_URL_HOST) ?: '',
+                    $httpRequest->headers,
+                    runtimeConfiguration: $runtimeConfiguration,
+                );
+            }
 
             if (! isset(self::SUPPORTED_METHODS[$method])) {
                 throw new UnsupportedCapabilityException(sprintf('A2A method "%s" is not supported.', $method));

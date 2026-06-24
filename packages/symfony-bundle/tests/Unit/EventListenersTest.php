@@ -339,7 +339,7 @@ final class EventListenersTest extends TestCase
     }
 
     #[Test]
-    public function itDoesNotBuildRestContextForMcpTransportRequests(): void
+    public function itDoesNotBuildRestContextForNonRestTransportRequests(): void
     {
         $contextFactory = $this->createMock(HttpRequestContextFactoryInterface::class);
         $contextFactory->expects(self::never())->method('create');
@@ -355,13 +355,19 @@ final class EventListenersTest extends TestCase
             $this->configuration(),
         );
 
-        $request = Request::create('https://merchant.example/ucp/mcp', 'POST', [], [], [], [], '{"jsonrpc":"2.0"}');
-        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+        foreach ([
+            '/ucp/mcp',
+            '/ucp/a2a',
+            '/ucp/embedded/cart/cart-demo',
+        ] as $path) {
+            $request = Request::create('https://merchant.example' . $path, 'POST', [], [], [], [], '{"jsonrpc":"2.0"}');
+            $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
-        $listener->onKernelRequest($event);
+            $listener->onKernelRequest($event);
 
-        self::assertNull($request->attributes->get('ucp_request_context'));
-        self::assertNull($event->getResponse());
+            self::assertNull($request->attributes->get('ucp_request_context'), $path);
+            self::assertNull($event->getResponse(), $path);
+        }
     }
 
     #[Test]
