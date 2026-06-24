@@ -74,7 +74,7 @@ final class ShoppingControllerTest extends TestCase
         self::assertSame('sku-lookup', $lookup['products'][0]['id']);
 
         $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
-        self::assertSame('sku-detail', $product['id']);
+        self::assertSame('sku-detail', $product['product']['id']);
     }
 
     #[Test]
@@ -86,7 +86,7 @@ final class ShoppingControllerTest extends TestCase
 
         $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
 
-        self::assertSame('sku-detail', $product['id']);
+        self::assertSame('sku-detail', $product['product']['id']);
         self::assertInstanceOf(CatalogProductRequest::class, $capability->productRequest);
         self::assertSame('sku-detail', $capability->productRequest->id);
         self::assertSame([], $capability->productRequest->selected);
