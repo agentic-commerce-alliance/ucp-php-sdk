@@ -21,9 +21,9 @@ final class OrderController
     }
 
     #[Route(path: '/ucp/v1/orders', methods: ['GET'])]
-    public function missingId(): Response
+    public function missingId(Request $request): Response
     {
-        return $this->responseFactory->error('Order id is required.', 400);
+        return $this->responseFactory->error('Order id is required.', 400, context: $request->attributes->get('ucp_request_context'), operation: 'order.get');
     }
 
     #[Route(path: '/ucp/v1/orders/{id}', methods: ['GET'])]
@@ -34,6 +34,6 @@ final class OrderController
             [],
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'order.get');
     }
 }

@@ -44,7 +44,7 @@ final class TokenizationController
         $result = $capability->tokenize($this->payloadMapper->toPaymentInstrument($payload), $context);
         $this->protocolValidator->validateResponse('tokenization', $result, $context);
 
-        return $this->responseFactory->success($result);
+        return $this->responseFactory->success($result, context: $context, operation: 'tokenization');
     }
 
     private function assertCapabilityEnabled(CapabilityInterface $capability, mixed $context): void

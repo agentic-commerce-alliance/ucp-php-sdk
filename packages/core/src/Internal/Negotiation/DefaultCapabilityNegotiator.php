@@ -77,8 +77,11 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
         }
 
         $localPaymentHandlerIds = [];
+        $localPaymentHandlers = [];
         foreach ($this->paymentHandlerRegistry->all() as $handler) {
-            $localPaymentHandlerIds[] = $handler->id();
+            $descriptor = $handler->describe($context);
+            $localPaymentHandlerIds[] = $descriptor->id;
+            $localPaymentHandlers[$descriptor->id] = $descriptor;
         }
 
         $remotePaymentHandlerIds = [];
@@ -89,6 +92,15 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
         }
 
         $paymentHandlerIds = array_values(array_intersect($localPaymentHandlerIds, $remotePaymentHandlerIds));
+        $paymentHandlers = [];
+        foreach ($paymentHandlerIds as $id) {
+            $descriptor = $localPaymentHandlers[$id] ?? null;
+            if ($descriptor === null) {
+                continue;
+            }
+
+            $paymentHandlers[$descriptor->name][] = $descriptor;
+        }
 
         $negotiatedCapabilityNames = array_keys($capabilities);
         foreach ($operationCapabilityMap as $operation => $names) {
@@ -106,7 +118,7 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
             $operationCapabilityMap[$operation] = $filtered;
         }
 
-        return new NegotiatedCapabilities($capabilities, $paymentHandlerIds, $operationCapabilityMap);
+        return new NegotiatedCapabilities($capabilities, $paymentHandlerIds, $operationCapabilityMap, $paymentHandlers);
     }
 
     /**

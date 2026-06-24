@@ -74,10 +74,16 @@ final class DefaultCapabilityNegotiatorTest extends TestCase
         $cardHandler
             ->method('id')
             ->willReturn('handler-1');
+        $cardHandler
+            ->method('describe')
+            ->willReturn(new PaymentHandlerDescriptor('handler-1', 'Card', '2026-04-08', 'https://merchant.example/spec/card', 'https://merchant.example/schema/card', []));
         $walletHandler = $this->createMock(PaymentHandlerInterface::class);
         $walletHandler
             ->method('id')
             ->willReturn('handler-2');
+        $walletHandler
+            ->method('describe')
+            ->willReturn(new PaymentHandlerDescriptor('handler-2', 'com.merchant.wallet', '2026-04-08', 'https://merchant.example/spec/wallet', 'https://merchant.example/schema/wallet', [], ['merchant_id' => 'merchant-1']));
         $paymentHandlerRegistry = $this->createMock(PaymentHandlerRegistryInterface::class);
         $paymentHandlerRegistry
             ->method('all')
@@ -118,6 +124,9 @@ final class DefaultCapabilityNegotiatorTest extends TestCase
 
         self::assertSame(['dev.ucp.shopping.checkout', 'dev.ucp.shopping.discount'], $result->capabilityNames());
         self::assertSame(['handler-2'], $result->paymentHandlerIds);
+        self::assertSame(['com.merchant.wallet'], array_keys($result->paymentHandlers));
+        self::assertSame('handler-2', $result->paymentHandlers['com.merchant.wallet'][0]->id);
+        self::assertSame('https://merchant.example/spec/wallet', $result->paymentHandlers['com.merchant.wallet'][0]->specUrl);
         self::assertSame(['dev.ucp.shopping.checkout', 'dev.ucp.shopping.discount'], $result->capabilitiesForOperation('checkout.create'));
         self::assertSame([], $result->capabilitiesForOperation('order.get'));
     }

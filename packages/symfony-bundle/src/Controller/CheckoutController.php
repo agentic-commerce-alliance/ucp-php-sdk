@@ -29,7 +29,7 @@ final class CheckoutController
             'checkout.create',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
-        )), 201);
+        )), 201, context: $request->attributes->get('ucp_request_context'), operation: 'checkout.create');
     }
 
     #[Route(path: '/ucp/v1/checkout-sessions/{id}', methods: ['GET'])]
@@ -40,7 +40,7 @@ final class CheckoutController
             [],
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'checkout.get');
     }
 
     #[Route(path: '/ucp/v1/checkout-sessions/{id}', methods: ['PUT', 'PATCH'])]
@@ -51,7 +51,7 @@ final class CheckoutController
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'checkout.update');
     }
 
     #[Route(path: '/ucp/v1/checkout-sessions/{id}/complete', methods: ['POST'])]
@@ -62,7 +62,7 @@ final class CheckoutController
             [],
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'checkout.complete');
     }
 
     #[Route(path: '/ucp/v1/checkout-sessions/{id}/cancel', methods: ['POST'])]
@@ -73,6 +73,6 @@ final class CheckoutController
             [],
             $request->attributes->get('ucp_request_context'),
             $id,
-        )));
+        )), context: $request->attributes->get('ucp_request_context'), operation: 'checkout.cancel');
     }
 }
