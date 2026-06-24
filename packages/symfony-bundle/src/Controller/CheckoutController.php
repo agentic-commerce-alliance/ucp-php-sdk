@@ -59,7 +59,7 @@ final class CheckoutController
     {
         return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
             'checkout.complete',
-            [],
+            $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
             $id,
         )), context: $request->attributes->get('ucp_request_context'), operation: 'checkout.complete');

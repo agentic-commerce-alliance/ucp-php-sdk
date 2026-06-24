@@ -1,6 +1,13 @@
 {
-  "type": "object",
-  "properties": {
-    "id": { "type": "string" }
-  }
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "id"
+    ],
+    "properties": {
+        "id": {
+            "type": "string"
+        }
+    },
+    "additionalProperties": false
 }

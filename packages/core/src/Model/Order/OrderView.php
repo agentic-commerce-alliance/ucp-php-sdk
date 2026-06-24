@@ -40,7 +40,17 @@ final class OrderView
         $data = [
             'id' => $this->id,
             'currency' => $this->currency,
-            'line_items' => array_map(static fn (LineItem $item): array => $item->toArray(), $this->lineItems),
+            'line_items' => array_map(static function (LineItem $item): array {
+                $lineItem = $item->toArray();
+                $lineItem['quantity'] = [
+                    'original' => $item->quantity,
+                    'total' => $item->quantity,
+                    'fulfilled' => 0,
+                ];
+                $lineItem['status'] ??= 'processing';
+
+                return $lineItem;
+            }, $this->lineItems),
             'totals' => array_map(static fn (Money $money): array => $money->toArray(), $this->totals),
             'messages' => array_map(static fn (Message $message): array => $message->toArray(), $this->messages),
             'links' => array_map(static fn (Link $link): array => $link->toArray(), $this->links),

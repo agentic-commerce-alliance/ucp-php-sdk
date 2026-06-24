@@ -30,12 +30,12 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $this->expectNotToPerformAssertions();
     }
 
-    public function testItRejectsMissingRequiredFields(): void
+    public function testItRejectsInvalidRequiredFields(): void
     {
         $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
 
         $this->expectException(ValidationException::class);
-        $validator->validate('catalog.search.request', []);
+        $validator->validate('catalog.lookup.request', []);
     }
 
     public function testItProvidesSchemasForEveryShoppingOperation(): void
@@ -183,6 +183,80 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $validator->validate('custom', ['email' => 'not-an-email']);
     }
 
+    public function testItRejectsCatalogProductResponsesWithoutProtocolEnvelope(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        $this->expectException(ValidationException::class);
+        $validator->validate('catalog.product.response', [
+            'id' => 'sku-1',
+            'title' => 'Tent',
+            'price' => 10.0,
+        ]);
+    }
+
+    public function testItRejectsCartResponsesWithoutProtocolEnvelope(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        $this->expectException(ValidationException::class);
+        $validator->validate('cart.create.response', [
+            'id' => 'cart-1',
+            'line_items' => [],
+            'currency' => 'EUR',
+            'totals' => ['total' => ['amount' => 1000, 'currency' => 'EUR']],
+        ]);
+    }
+
+    public function testItRejectsCheckoutResponsesWithUnknownStatus(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        $this->expectException(ValidationException::class);
+        $validator->validate('checkout.create.response', [
+            ...$this->validCheckoutResponse(),
+            'status' => 'done',
+        ]);
+    }
+
+    public function testItRejectsCartResponsesWithoutSubtotalAndTotalRows(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        $this->expectException(ValidationException::class);
+        $validator->validate('cart.create.response', [
+            ...$this->validCartResponse(),
+            'totals' => [
+                ['type' => 'total', 'amount' => 1000],
+            ],
+        ]);
+    }
+
+    public function testItRejectsResponseCapabilityNamesThatAreNotReverseDomains(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        $this->expectException(ValidationException::class);
+        $validator->validate('catalog.product.response', [
+            'ucp' => $this->ucpEnvelope('catalog'),
+            'product' => $this->validProduct(),
+        ]);
+    }
+
+    public function testItRejectsEmptyProductDescriptions(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        $this->expectException(ValidationException::class);
+        $validator->validate('catalog.product.response', [
+            'ucp' => $this->ucpEnvelope('dev.ucp.shopping.catalog.lookup'),
+            'product' => [
+                ...$this->validProduct(),
+                'description' => [],
+            ],
+        ]);
+    }
+
     private function createTemporarySchemaDirectory(): string
     {
         $directory = sys_get_temp_dir() . '/ucp-sdk-schema-' . bin2hex(random_bytes(4));
@@ -197,35 +271,30 @@ final class GeneratedSchemaValidatorTest extends TestCase
      */
     private function shoppingOperationPayloads(): array
     {
-        $cart = [
-            'id' => 'cart-1',
-            'line_items' => [],
-            'currency' => 'EUR',
-            'totals' => [],
-            'messages' => [],
-        ];
-        $checkout = [
-            'id' => 'checkout-1',
-            'status' => 'incomplete',
-            'currency' => 'EUR',
-            'line_items' => [],
-            'totals' => [],
-            'messages' => [],
-            'links' => [],
-        ];
+        $cart = $this->validCartResponse();
+        $checkout = $this->validCheckoutResponse();
 
         return [
             'catalog.search.request' => ['query' => 'tent'],
-            'catalog.search.response' => ['items' => []],
+            'catalog.search.response' => [
+                'ucp' => $this->ucpEnvelope('dev.ucp.shopping.catalog.search'),
+                'products' => [],
+            ],
             'catalog.lookup.request' => ['ids' => ['sku-1']],
-            'catalog.lookup.response' => ['items' => []],
+            'catalog.lookup.response' => [
+                'ucp' => $this->ucpEnvelope('dev.ucp.shopping.catalog.lookup'),
+                'products' => [],
+            ],
             'catalog.product.request' => ['id' => 'sku-1'],
-            'catalog.product.response' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
+            'catalog.product.response' => [
+                'ucp' => $this->ucpEnvelope('dev.ucp.shopping.catalog.lookup'),
+                'product' => $this->validProduct(),
+            ],
             'cart.create.request' => ['line_items' => []],
             'cart.create.response' => $cart,
             'cart.get.request' => ['id' => 'cart-1'],
             'cart.get.response' => $cart,
-            'cart.update.request' => ['line_items' => []],
+            'cart.update.request' => ['id' => 'cart-1', 'line_items' => []],
             'cart.update.response' => $cart,
             'cart.cancel.request' => ['id' => 'cart-1'],
             'cart.cancel.response' => $cart,
@@ -237,7 +306,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
             'checkout.get.response' => $checkout,
             'checkout.update.request' => ['line_items' => []],
             'checkout.update.response' => $checkout,
-            'checkout.complete.request' => ['id' => 'checkout-1'],
+            'checkout.complete.request' => ['payment' => ['instruments' => []]],
             'checkout.complete.response' => [
                 ...$checkout,
                 'status' => 'completed',
@@ -249,13 +318,102 @@ final class GeneratedSchemaValidatorTest extends TestCase
             ],
             'order.get.request' => ['id' => 'order-1'],
             'order.get.response' => [
+                'ucp' => $this->ucpEnvelope('dev.ucp.shopping.order'),
                 'id' => 'order-1',
+                'checkout_id' => 'checkout-1',
+                'permalink_url' => 'https://merchant.example/orders/order-1',
                 'currency' => 'EUR',
                 'line_items' => [],
-                'totals' => [],
+                'fulfillment' => [],
+                'totals' => $this->validTotals(),
                 'messages' => [],
                 'links' => [],
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validCartResponse(): array
+    {
+        return [
+            'ucp' => $this->ucpEnvelope('dev.ucp.shopping.cart'),
+            'id' => 'cart-1',
+            'line_items' => [],
+            'currency' => 'EUR',
+            'totals' => $this->validTotals(),
+            'messages' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validCheckoutResponse(): array
+    {
+        return [
+            'ucp' => $this->ucpEnvelope('dev.ucp.shopping.checkout'),
+            'id' => 'checkout-1',
+            'status' => 'incomplete',
+            'currency' => 'EUR',
+            'line_items' => [],
+            'totals' => $this->validTotals(),
+            'messages' => [],
+            'links' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validProduct(): array
+    {
+        return [
+            'id' => 'sku-1',
+            'title' => 'Tent',
+            'description' => ['plain' => 'Canvas tent.'],
+            'price_range' => [
+                'min' => ['amount' => 1000, 'currency' => 'EUR'],
+                'max' => ['amount' => 1000, 'currency' => 'EUR'],
+            ],
+            'variants' => [
+                [
+                    'id' => 'variant-1',
+                    'title' => 'Default',
+                    'description' => ['plain' => 'Default variant.'],
+                    'price' => ['amount' => 1000, 'currency' => 'EUR'],
+                    'availability' => ['available' => true],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ucpEnvelope(string $capability): array
+    {
+        return [
+            'version' => '2026-04-08',
+            'status' => 'success',
+            'capabilities' => [
+                $capability => [
+                    ['version' => '2026-04-08'],
+                ],
+            ],
+            'payment_handlers' => [],
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function validTotals(): array
+    {
+        return [
+            ['type' => 'subtotal', 'amount' => 1000],
+            ['type' => 'total', 'amount' => 1000],
         ];
     }
 }

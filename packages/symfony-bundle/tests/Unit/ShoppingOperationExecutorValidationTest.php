@@ -348,7 +348,11 @@ final class ShoppingOperationCapabilityFake implements CatalogCapabilityInterfac
 
     public function getOrder(string $id, RequestContext $context): OrderView
     {
-        return new OrderView($id, 'EUR', [], []);
+        return new OrderView($id, 'EUR', [], [], extra: [
+            'checkout_id' => 'checkout-1',
+            'permalink_url' => 'https://example.com/order/' . $id,
+            'fulfillment' => [],
+        ]);
     }
 
     private function cart(string $id): Cart

@@ -49,6 +49,11 @@ final class MerchantOrderCapability implements OrderCapabilityInterface
                 [],
                 [],
                 [new Message('error', 'Order not found.', 'warning', 'order_not_found')],
+                extra: [
+                    'checkout_id' => 'missing',
+                    'permalink_url' => $this->settings->orderPermalink($id),
+                    'fulfillment' => [],
+                ],
             );
         }
 

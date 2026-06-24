@@ -40,7 +40,7 @@ final class DemoCheckoutCapability implements CheckoutCapabilityInterface
             CheckoutStatus::Incomplete,
             'EUR',
             $request->lineItems,
-            [new Money('grand_total', 19.99)],
+            [new Money('subtotal', 19.99), new Money('total', 19.99)],
             links: [new Link('privacy', 'https://example.com/privacy')],
             buyer: $request->buyer,
             continueUrl: 'https://example.com/continue/chk-demo',
@@ -62,7 +62,7 @@ final class DemoCheckoutCapability implements CheckoutCapabilityInterface
             CheckoutStatus::ReadyForComplete,
             'EUR',
             $request->lineItems,
-            [new Money('grand_total', 24.99)],
+            [new Money('subtotal', 24.99), new Money('total', 24.99)],
             links: [new Link('privacy', 'https://example.com/privacy')],
             buyer: $request->buyer,
         );
@@ -84,6 +84,11 @@ final class DemoCheckoutCapability implements CheckoutCapabilityInterface
             [new Link('order', 'https://example.com/order/' . $orderId, 'Order details')],
             $checkout->buyer,
             gmdate('c'),
+            [
+                'checkout_id' => $checkout->id,
+                'permalink_url' => 'https://example.com/order/' . $orderId,
+                'fulfillment' => [],
+            ],
         ));
 
         return new Checkout(

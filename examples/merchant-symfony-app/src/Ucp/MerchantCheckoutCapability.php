@@ -133,8 +133,11 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
 
         $this->stateStore->put(self::ORDER_COLLECTION, $orderId, [
             'id' => $orderId,
+            'checkout_id' => $completed->id,
+            'permalink_url' => $this->settings->orderPermalink($orderId),
             'currency' => $completed->currency,
             'line_items' => array_map(static fn ($item): array => $item->toArray(), $completed->lineItems),
+            'fulfillment' => [],
             'totals' => array_map(static fn ($money): array => $money->toArray(), $completed->totals),
             'messages' => array_map(static fn ($message): array => $message->toArray(), $completed->messages),
             'links' => array_map(static fn ($link): array => $link->toArray(), [

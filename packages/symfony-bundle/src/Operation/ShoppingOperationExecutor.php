@@ -54,7 +54,7 @@ final class ShoppingOperationExecutor
     {
         $this->assertNegotiated($request);
 
-        return match ($request->operation) {
+        $result = match ($request->operation) {
             'catalog.search' => $this->catalogSearch($request),
             'catalog.lookup' => $this->catalogLookup($request),
             'catalog.product' => $this->productGet($request),
@@ -71,6 +71,8 @@ final class ShoppingOperationExecutor
             'order.get' => $this->orderGet($request),
             default => throw new UnsupportedCapabilityException(sprintf('Shopping operation "%s" is not supported.', $request->operation)),
         };
+
+        return $this->normalizeUcpRegistries($result);
     }
 
     private function assertNegotiated(ShoppingOperationRequest $request): void
@@ -99,7 +101,7 @@ final class ShoppingOperationExecutor
     private function catalogSearch(ShoppingOperationRequest $request): array
     {
         $this->protocolValidator->validateRequest('catalog.search', $request->payload, $request->context);
-        $result = $this->catalog($request->context)->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context)->toArray();
+        $result = $this->withUcp($this->catalog($request->context)->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context)->toArray(), 'dev.ucp.shopping.catalog.search');
         $this->protocolValidator->validateResponse('catalog.search', $result, $request->context);
 
         return $result;
@@ -112,8 +114,9 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('catalog.lookup', $request->payload, $request->context);
         $result = [
-            'items' => array_map(static fn (Product $product): array => $product->toArray(), $this->catalog($request->context)->lookup($this->payloadMapper->toCatalogLookupRequest($request->payload), $request->context)),
+            'products' => array_map(static fn (Product $product): array => $product->toArray(), $this->catalog($request->context)->lookup($this->payloadMapper->toCatalogLookupRequest($request->payload), $request->context)),
         ];
+        $result = $this->withUcp($result, 'dev.ucp.shopping.catalog.lookup');
         $this->protocolValidator->validateResponse('catalog.lookup', $result, $request->context);
 
         return $result;
@@ -140,7 +143,7 @@ final class ShoppingOperationExecutor
     private function cartCreate(ShoppingOperationRequest $request): array
     {
         $this->protocolValidator->validateRequest('cart.create', $request->payload, $request->context);
-        $result = $this->cart($request->context)->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context)->toArray();
+        $result = $this->withUcp($this->cart($request->context)->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context)->toArray(), 'dev.ucp.shopping.cart');
         $this->protocolValidator->validateResponse('cart.create', $result, $request->context);
 
         return $result;
@@ -151,9 +154,9 @@ final class ShoppingOperationExecutor
      */
     private function cartGet(ShoppingOperationRequest $request): array
     {
-        $this->protocolValidator->validateRequest('cart.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->cart($request->context)->getCart($id, $request->context)->toArray();
+        $this->protocolValidator->validateRequest('cart.get', ['id' => $id, ...$request->payload], $request->context);
+        $result = $this->withUcp($this->cart($request->context)->getCart($id, $request->context)->toArray(), 'dev.ucp.shopping.cart');
         $this->protocolValidator->validateResponse('cart.get', $result, $request->context);
 
         return $result;
@@ -165,7 +168,7 @@ final class ShoppingOperationExecutor
     private function cartUpdate(ShoppingOperationRequest $request): array
     {
         $this->protocolValidator->validateRequest('cart.update', $request->payload, $request->context);
-        $result = $this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context)->toArray();
+        $result = $this->withUcp($this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context)->toArray(), 'dev.ucp.shopping.cart');
         $this->protocolValidator->validateResponse('cart.update', $result, $request->context);
 
         return $result;
@@ -176,9 +179,9 @@ final class ShoppingOperationExecutor
      */
     private function cartCancel(ShoppingOperationRequest $request): array
     {
-        $this->protocolValidator->validateRequest('cart.cancel', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->cart($request->context)->cancelCart($id, $request->context)->toArray();
+        $this->protocolValidator->validateRequest('cart.cancel', ['id' => $id, ...$request->payload], $request->context);
+        $result = $this->withUcp($this->cart($request->context)->cancelCart($id, $request->context)->toArray(), 'dev.ucp.shopping.cart');
         $this->protocolValidator->validateResponse('cart.cancel', $result, $request->context);
 
         return $result;
@@ -195,7 +198,7 @@ final class ShoppingOperationExecutor
         if ($cartId === '' || $code === '') {
             throw new BadRequestHttpException('discount.apply requires cart_id and code parameters.');
         }
-        $result = $this->discount($request->context)->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray();
+        $result = $this->withUcp($this->discount($request->context)->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray(), 'dev.ucp.shopping.cart');
         $this->protocolValidator->validateResponse('discount.apply', $result, $request->context);
 
         return $result;
@@ -216,7 +219,7 @@ final class ShoppingOperationExecutor
         $event = new CheckoutRequestReceivedEvent($checkoutRequest, $request->context);
         $this->eventDispatcher->dispatch($event);
 
-        $result = $this->finalizeCheckout($this->checkout($request->context)->createCheckout($event->getRequest(), $request->context), $request)->toArray();
+        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->createCheckout($event->getRequest(), $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
         $this->protocolValidator->validateResponse('checkout.create', $result, $request->context);
 
         return $result;
@@ -227,9 +230,9 @@ final class ShoppingOperationExecutor
      */
     private function checkoutGet(ShoppingOperationRequest $request): array
     {
-        $this->protocolValidator->validateRequest('checkout.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->finalizeCheckout($this->checkout($request->context)->getCheckout($id, $request->context), $request)->toArray();
+        $this->protocolValidator->validateRequest('checkout.get', ['id' => $id, ...$request->payload], $request->context);
+        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->getCheckout($id, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
         $this->protocolValidator->validateResponse('checkout.get', $result, $request->context);
 
         return $result;
@@ -251,7 +254,7 @@ final class ShoppingOperationExecutor
             $this->eventDispatcher->dispatch(new PaymentMandateVerificationEvent($checkoutRequest->payment, $request->context));
         }
 
-        $result = $this->finalizeCheckout($this->checkout($request->context)->updateCheckout($checkoutRequest, $request->context), $request)->toArray();
+        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->updateCheckout($checkoutRequest, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
         $this->protocolValidator->validateResponse('checkout.update', $result, $request->context);
 
         return $result;
@@ -264,7 +267,7 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request)->toArray();
+        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
         $this->protocolValidator->validateResponse('checkout.complete', $result, $request->context);
 
         return $result;
@@ -275,9 +278,9 @@ final class ShoppingOperationExecutor
      */
     private function checkoutCancel(ShoppingOperationRequest $request): array
     {
-        $this->protocolValidator->validateRequest('checkout.cancel', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->finalizeCheckout($this->checkout($request->context)->cancelCheckout($id, $request->context), $request)->toArray();
+        $this->protocolValidator->validateRequest('checkout.cancel', ['id' => $id, ...$request->payload], $request->context);
+        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->cancelCheckout($id, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
         $this->protocolValidator->validateResponse('checkout.cancel', $result, $request->context);
 
         return $result;
@@ -288,9 +291,9 @@ final class ShoppingOperationExecutor
      */
     private function orderGet(ShoppingOperationRequest $request): array
     {
-        $this->protocolValidator->validateRequest('order.get', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->order($request->context)->getOrder($id, $request->context)->toArray();
+        $this->protocolValidator->validateRequest('order.get', ['id' => $id, ...$request->payload], $request->context);
+        $result = $this->withUcp($this->order($request->context)->getOrder($id, $request->context)->toArray(), 'dev.ucp.shopping.order');
         $this->protocolValidator->validateResponse('order.get', $result, $request->context);
 
         return $result;
@@ -385,5 +388,44 @@ final class ShoppingOperationExecutor
         }
 
         return $id;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function withUcp(array $payload, string $capability): array
+    {
+        $payload['ucp'] = [
+            'version' => '2026-04-08',
+            'status' => 'success',
+            'capabilities' => [
+                $capability => [
+                    ['version' => '2026-04-08'],
+                ],
+            ],
+            'payment_handlers' => [],
+        ];
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function normalizeUcpRegistries(array $payload): array
+    {
+        if (! is_array($payload['ucp'] ?? null)) {
+            return $payload;
+        }
+
+        foreach (['services', 'capabilities', 'payment_handlers'] as $registry) {
+            if (($payload['ucp'][$registry] ?? null) === []) {
+                $payload['ucp'][$registry] = new \stdClass();
+            }
+        }
+
+        return $payload;
     }
 }

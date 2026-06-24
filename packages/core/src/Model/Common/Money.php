@@ -14,13 +14,13 @@ final class Money
     }
 
     /**
-     * @return array<string, float|string>
+     * @return array<string, int|string>
      */
     public function toArray(): array
     {
         $data = [
             'type' => $this->type,
-            'amount' => $this->amount,
+            'amount' => (int) round($this->amount * 100),
         ];
 
         if ($this->displayText !== null) {

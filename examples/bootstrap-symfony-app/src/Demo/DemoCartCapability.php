@@ -32,7 +32,7 @@ final class DemoCartCapability implements CartCapabilityInterface
 
     public function createCart(CartCreateRequest $request, RequestContext $context): Cart
     {
-        $cart = new Cart('cart-demo', $request->lineItems, 'EUR', [new Money('grand_total', 19.99)], [new Message('info', 'cart created')]);
+        $cart = new Cart('cart-demo', $request->lineItems, 'EUR', [new Money('subtotal', 19.99), new Money('total', 19.99)], [new Message('info', 'cart created')]);
         self::$carts[$cart->id] = $cart;
 
         return $cart;
@@ -40,12 +40,12 @@ final class DemoCartCapability implements CartCapabilityInterface
 
     public function getCart(string $id, RequestContext $context): Cart
     {
-        return self::$carts[$id] ?? new Cart($id, [], 'EUR');
+        return self::$carts[$id] ?? new Cart($id, [], 'EUR', [new Money('subtotal', 0.0), new Money('total', 0.0)]);
     }
 
     public function updateCart(CartUpdateRequest $request, RequestContext $context): Cart
     {
-        $cart = new Cart($request->id, $request->lineItems, 'EUR', [new Money('grand_total', 24.99)]);
+        $cart = new Cart($request->id, $request->lineItems, 'EUR', [new Money('subtotal', 24.99), new Money('total', 24.99)]);
         self::$carts[$request->id] = $cart;
 
         return $cart;
@@ -53,6 +53,6 @@ final class DemoCartCapability implements CartCapabilityInterface
 
     public function cancelCart(string $id, RequestContext $context): Cart
     {
-        return self::$carts[$id] ?? new Cart($id, [], 'EUR');
+        return self::$carts[$id] ?? new Cart($id, [], 'EUR', [new Money('subtotal', 0.0), new Money('total', 0.0)]);
     }
 }

@@ -24,14 +24,27 @@ final class LineItem
      */
     public function toArray(): array
     {
+        $amount = self::minorUnits($this->price);
+        $total = $amount * $this->quantity;
+
         return array_merge([
+            'id' => 'li_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $this->id),
             'item' => array_filter([
                 'id' => $this->id,
                 'title' => $this->title,
-                'price' => $this->price,
+                'price' => $amount,
                 'image_url' => $this->imageUrl,
             ], static fn (mixed $value): bool => $value !== null),
             'quantity' => $this->quantity,
+            'totals' => [
+                ['type' => 'subtotal', 'amount' => $total],
+                ['type' => 'total', 'amount' => $total],
+            ],
         ], $this->extra);
+    }
+
+    private static function minorUnits(float $amount): int
+    {
+        return (int) round($amount * 100);
     }
 }

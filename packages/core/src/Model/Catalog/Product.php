@@ -23,11 +23,32 @@ final class Product
      */
     public function toArray(): array
     {
+        $price = self::minorUnits($this->price);
+
         return array_merge(array_filter([
             'id' => $this->id,
             'title' => $this->title,
-            'price' => $this->price,
+            'description' => [
+                'plain' => $this->title,
+            ],
+            'price_range' => [
+                'min' => ['amount' => $price, 'currency' => 'EUR'],
+                'max' => ['amount' => $price, 'currency' => 'EUR'],
+            ],
             'image_url' => $this->imageUrl,
+            'variants' => [[
+                'id' => $this->id,
+                'title' => $this->title,
+                'description' => [
+                    'plain' => $this->title,
+                ],
+                'price' => ['amount' => $price, 'currency' => 'EUR'],
+            ]],
         ], static fn (mixed $value): bool => $value !== null), $this->extra);
+    }
+
+    private static function minorUnits(float $amount): int
+    {
+        return (int) round($amount * 100);
     }
 }

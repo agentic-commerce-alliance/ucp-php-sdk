@@ -21,11 +21,14 @@ final class CatalogSearchResponse
     public function toArray(): array
     {
         $data = [
-            'items' => array_map(static fn (Product $product): array => $product->toArray(), $this->items),
+            'products' => array_map(static fn (Product $product): array => $product->toArray(), $this->items),
         ];
 
         if ($this->nextCursor !== null) {
-            $data['next_cursor'] = $this->nextCursor;
+            $data['pagination'] = [
+                'has_next_page' => true,
+                'cursor' => $this->nextCursor,
+            ];
         }
 
         return $data;
