@@ -25,7 +25,7 @@ final class CartController
     #[Route(path: '/ucp/v1/carts', methods: ['POST'])]
     public function create(Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'cart.create',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
@@ -35,7 +35,7 @@ final class CartController
     #[Route(path: '/ucp/v1/carts/{id}', methods: ['GET'])]
     public function get(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'cart.get',
             [],
             $request->attributes->get('ucp_request_context'),
@@ -46,7 +46,7 @@ final class CartController
     #[Route(path: '/ucp/v1/carts/{id}', methods: ['PUT', 'PATCH'])]
     public function update(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'cart.update',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
@@ -57,7 +57,7 @@ final class CartController
     #[Route(path: '/ucp/v1/carts/{id}/cancel', methods: ['POST'])]
     public function cancel(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'cart.cancel',
             [],
             $request->attributes->get('ucp_request_context'),

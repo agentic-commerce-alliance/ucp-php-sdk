@@ -25,7 +25,7 @@ final class CatalogController
     #[Route(path: '/ucp/v1/catalog/search', methods: ['POST'])]
     public function search(Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'catalog.search',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
@@ -35,7 +35,7 @@ final class CatalogController
     #[Route(path: '/ucp/v1/catalog/lookup', methods: ['POST'])]
     public function lookup(Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'catalog.lookup',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
@@ -45,7 +45,7 @@ final class CatalogController
     #[Route(path: '/ucp/v1/catalog/product/{id}', methods: ['GET'])]
     public function product(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'catalog.product',
             [],
             $request->attributes->get('ucp_request_context'),

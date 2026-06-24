@@ -10,6 +10,7 @@ final class Money
         public readonly string $type,
         public readonly float $amount,
         public readonly ?string $displayText = null,
+        public readonly string $currency = 'EUR',
     ) {
     }
 
@@ -20,7 +21,7 @@ final class Money
     {
         $data = [
             'type' => $this->type,
-            'amount' => (int) round($this->amount * 100),
+            'amount' => MonetaryAmount::fromMajorUnits($this->amount, $this->currency)->minorUnits,
         ];
 
         if ($this->displayText !== null) {

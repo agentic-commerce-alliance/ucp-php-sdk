@@ -25,7 +25,7 @@ final class CheckoutController
     #[Route(path: '/ucp/v1/checkout-sessions', methods: ['POST'])]
     public function create(Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'checkout.create',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
@@ -35,7 +35,7 @@ final class CheckoutController
     #[Route(path: '/ucp/v1/checkout-sessions/{id}', methods: ['GET'])]
     public function get(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'checkout.get',
             [],
             $request->attributes->get('ucp_request_context'),
@@ -46,7 +46,7 @@ final class CheckoutController
     #[Route(path: '/ucp/v1/checkout-sessions/{id}', methods: ['PUT', 'PATCH'])]
     public function update(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'checkout.update',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
@@ -57,7 +57,7 @@ final class CheckoutController
     #[Route(path: '/ucp/v1/checkout-sessions/{id}/complete', methods: ['POST'])]
     public function complete(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'checkout.complete',
             $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
@@ -68,7 +68,7 @@ final class CheckoutController
     #[Route(path: '/ucp/v1/checkout-sessions/{id}/cancel', methods: ['POST'])]
     public function cancel(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'checkout.cancel',
             [],
             $request->attributes->get('ucp_request_context'),

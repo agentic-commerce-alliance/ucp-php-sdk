@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Ucp\Sdk\Enum;
+
+enum UcpCapability: string
+{
+    case CatalogSearch = 'dev.ucp.shopping.catalog.search';
+    case CatalogLookup = 'dev.ucp.shopping.catalog.lookup';
+    case Cart = 'dev.ucp.shopping.cart';
+    case Checkout = 'dev.ucp.shopping.checkout';
+    case Order = 'dev.ucp.shopping.order';
+}

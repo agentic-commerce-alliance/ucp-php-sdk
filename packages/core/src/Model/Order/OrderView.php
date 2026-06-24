@@ -18,6 +18,7 @@ final class OrderView
      * @param list<Message> $messages
      * @param list<Link> $links
      * @param array<string, mixed> $extra
+     * @param array<string, mixed>|null $fulfillment
      */
     public function __construct(
         public readonly string $id,
@@ -29,6 +30,9 @@ final class OrderView
         public readonly ?Buyer $buyer = null,
         public readonly ?string $createdAt = null,
         public readonly array $extra = [],
+        public readonly ?string $checkoutId = null,
+        public readonly ?string $permalinkUrl = null,
+        public readonly ?array $fulfillment = null,
     ) {
     }
 
@@ -62,6 +66,18 @@ final class OrderView
 
         if ($this->createdAt !== null) {
             $data['created_at'] = $this->createdAt;
+        }
+
+        if ($this->checkoutId !== null) {
+            $data['checkout_id'] = $this->checkoutId;
+        }
+
+        if ($this->permalinkUrl !== null) {
+            $data['permalink_url'] = $this->permalinkUrl;
+        }
+
+        if ($this->fulfillment !== null) {
+            $data['fulfillment'] = $this->fulfillment;
         }
 
         return array_merge($data, $this->extra);

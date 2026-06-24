@@ -57,8 +57,8 @@ final class GeneratedSchemaValidatorTest extends TestCase
         self::assertSame([
             'id',
             'selected',
-            'filters',
             'preferences',
+            'filters',
             'context',
             'signals',
             'attribution',

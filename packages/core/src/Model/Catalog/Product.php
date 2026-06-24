@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Catalog;
 
+use Ucp\Sdk\Model\Common\MonetaryAmount;
+
 final class Product
 {
     /**
@@ -15,6 +17,7 @@ final class Product
         public readonly float $price,
         public readonly ?string $imageUrl = null,
         public readonly array $extra = [],
+        public readonly string $currency = 'EUR',
     ) {
     }
 
@@ -23,7 +26,7 @@ final class Product
      */
     public function toArray(): array
     {
-        $price = self::minorUnits($this->price);
+        $price = MonetaryAmount::fromMajorUnits($this->price, $this->currency)->toPriceArray();
 
         return array_merge(array_filter([
             'id' => $this->id,
@@ -32,8 +35,8 @@ final class Product
                 'plain' => $this->title,
             ],
             'price_range' => [
-                'min' => ['amount' => $price, 'currency' => 'EUR'],
-                'max' => ['amount' => $price, 'currency' => 'EUR'],
+                'min' => $price,
+                'max' => $price,
             ],
             'image_url' => $this->imageUrl,
             'variants' => [[
@@ -42,13 +45,8 @@ final class Product
                 'description' => [
                     'plain' => $this->title,
                 ],
-                'price' => ['amount' => $price, 'currency' => 'EUR'],
+                'price' => $price,
             ]],
         ], static fn (mixed $value): bool => $value !== null), $this->extra);
-    }
-
-    private static function minorUnits(float $amount): int
-    {
-        return (int) round($amount * 100);
     }
 }

@@ -15,6 +15,9 @@ use Ucp\Sdk\Contract\CheckoutResponseAugmenterInterface;
 use Ucp\Sdk\Contract\DiscountCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
+use Ucp\Sdk\Enum\UcpCapability;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
+use Ucp\Sdk\Enum\UcpResponseStatus;
 use Ucp\Sdk\Event\CheckoutRequestReceivedEvent;
 use Ucp\Sdk\Event\CheckoutResponsePreparedEvent;
 use Ucp\Sdk\Event\PaymentMandateVerificationEvent;
@@ -23,6 +26,8 @@ use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
+use Ucp\Sdk\Model\Protocol\UcpEnvelope;
+use Ucp\Sdk\Model\Protocol\UcpOperationResponse;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
@@ -47,14 +52,11 @@ final class ShoppingOperationExecutor
     ) {
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function execute(ShoppingOperationRequest $request): array
+    public function execute(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->assertNegotiated($request);
 
-        $result = match ($request->operation) {
+        return match ($request->operation) {
             'catalog.search' => $this->catalogSearch($request),
             'catalog.lookup' => $this->catalogLookup($request),
             'catalog.product' => $this->productGet($request),
@@ -71,8 +73,6 @@ final class ShoppingOperationExecutor
             'order.get' => $this->orderGet($request),
             default => throw new UnsupportedCapabilityException(sprintf('Shopping operation "%s" is not supported.', $request->operation)),
         };
-
-        return $this->normalizeUcpRegistries($result);
     }
 
     private function assertNegotiated(ShoppingOperationRequest $request): void
@@ -95,102 +95,84 @@ final class ShoppingOperationExecutor
         }
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function catalogSearch(ShoppingOperationRequest $request): array
+    private function catalogSearch(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('catalog.search', $request->payload, $request->context);
-        $result = $this->withUcp($this->catalog($request->context)->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context)->toArray(), 'dev.ucp.shopping.catalog.search');
-        $this->protocolValidator->validateResponse('catalog.search', $result, $request->context);
 
-        return $result;
+        return $this->response(
+            'catalog.search',
+            $this->catalog($request->context)->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context)->toArray(),
+            UcpCapability::CatalogSearch,
+            $request->context,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function catalogLookup(ShoppingOperationRequest $request): array
+    private function catalogLookup(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('catalog.lookup', $request->payload, $request->context);
         $result = [
             'products' => array_map(static fn (Product $product): array => $product->toArray(), $this->catalog($request->context)->lookup($this->payloadMapper->toCatalogLookupRequest($request->payload), $request->context)),
         ];
-        $result = $this->withUcp($result, 'dev.ucp.shopping.catalog.lookup');
-        $this->protocolValidator->validateResponse('catalog.lookup', $result, $request->context);
 
-        return $result;
+        return $this->response('catalog.lookup', $result, UcpCapability::CatalogLookup, $request->context);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function productGet(ShoppingOperationRequest $request): array
+    private function productGet(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $payload = ['id' => $id, ...$request->payload];
         $this->protocolValidator->validateRequest('catalog.product', $payload, $request->context);
         $productRequest = $this->payloadMapper->toCatalogProductRequest($payload);
-        $result = $this->catalog($request->context)->getProduct($productRequest, $request->context)->toArray();
-        $this->protocolValidator->validateResponse('catalog.product', $result, $request->context);
 
-        return $result;
+        return $this->response(
+            'catalog.product',
+            $this->catalog($request->context)->getProduct($productRequest, $request->context)->toArray(),
+            UcpCapability::CatalogLookup,
+            $request->context,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function cartCreate(ShoppingOperationRequest $request): array
+    private function cartCreate(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('cart.create', $request->payload, $request->context);
-        $result = $this->withUcp($this->cart($request->context)->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context)->toArray(), 'dev.ucp.shopping.cart');
-        $this->protocolValidator->validateResponse('cart.create', $result, $request->context);
 
-        return $result;
+        return $this->response(
+            'cart.create',
+            $this->cart($request->context)->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context)->toArray(),
+            UcpCapability::Cart,
+            $request->context,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function cartGet(ShoppingOperationRequest $request): array
+    private function cartGet(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('cart.get', ['id' => $id, ...$request->payload], $request->context);
-        $result = $this->withUcp($this->cart($request->context)->getCart($id, $request->context)->toArray(), 'dev.ucp.shopping.cart');
-        $this->protocolValidator->validateResponse('cart.get', $result, $request->context);
 
-        return $result;
+        return $this->response('cart.get', $this->cart($request->context)->getCart($id, $request->context)->toArray(), UcpCapability::Cart, $request->context);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function cartUpdate(ShoppingOperationRequest $request): array
+    private function cartUpdate(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('cart.update', $request->payload, $request->context);
-        $result = $this->withUcp($this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context)->toArray(), 'dev.ucp.shopping.cart');
-        $this->protocolValidator->validateResponse('cart.update', $result, $request->context);
 
-        return $result;
+        return $this->response(
+            'cart.update',
+            $this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context)->toArray(),
+            UcpCapability::Cart,
+            $request->context,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function cartCancel(ShoppingOperationRequest $request): array
+    private function cartCancel(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('cart.cancel', ['id' => $id, ...$request->payload], $request->context);
-        $result = $this->withUcp($this->cart($request->context)->cancelCart($id, $request->context)->toArray(), 'dev.ucp.shopping.cart');
-        $this->protocolValidator->validateResponse('cart.cancel', $result, $request->context);
 
-        return $result;
+        return $this->response('cart.cancel', $this->cart($request->context)->cancelCart($id, $request->context)->toArray(), UcpCapability::Cart, $request->context);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function discountApply(ShoppingOperationRequest $request): array
+    private function discountApply(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('discount.apply', $request->payload, $request->context);
         $cartId = (string) ($request->payload['cart_id'] ?? $request->id ?? '');
@@ -198,16 +180,15 @@ final class ShoppingOperationExecutor
         if ($cartId === '' || $code === '') {
             throw new BadRequestHttpException('discount.apply requires cart_id and code parameters.');
         }
-        $result = $this->withUcp($this->discount($request->context)->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray(), 'dev.ucp.shopping.cart');
-        $this->protocolValidator->validateResponse('discount.apply', $result, $request->context);
-
-        return $result;
+        return $this->response(
+            'discount.apply',
+            $this->discount($request->context)->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray(),
+            UcpCapability::Cart,
+            $request->context,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function checkoutCreate(ShoppingOperationRequest $request): array
+    private function checkoutCreate(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('checkout.create', $request->payload, $request->context);
         $checkoutRequest = $this->payloadMapper->toCheckoutCreateRequest($request->payload);
@@ -219,29 +200,22 @@ final class ShoppingOperationExecutor
         $event = new CheckoutRequestReceivedEvent($checkoutRequest, $request->context);
         $this->eventDispatcher->dispatch($event);
 
-        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->createCheckout($event->getRequest(), $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
-        $this->protocolValidator->validateResponse('checkout.create', $result, $request->context);
-
-        return $result;
+        return $this->response(
+            'checkout.create',
+            $this->finalizeCheckout($this->checkout($request->context)->createCheckout($event->getRequest(), $request->context), $request)->toArray(),
+            UcpCapability::Checkout,
+            $request->context,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function checkoutGet(ShoppingOperationRequest $request): array
+    private function checkoutGet(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('checkout.get', ['id' => $id, ...$request->payload], $request->context);
-        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->getCheckout($id, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
-        $this->protocolValidator->validateResponse('checkout.get', $result, $request->context);
-
-        return $result;
+        return $this->response('checkout.get', $this->finalizeCheckout($this->checkout($request->context)->getCheckout($id, $request->context), $request)->toArray(), UcpCapability::Checkout, $request->context);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function checkoutUpdate(ShoppingOperationRequest $request): array
+    private function checkoutUpdate(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('checkout.update', $request->payload, $request->context);
         $checkoutRequest = $this->payloadMapper->toCheckoutUpdateRequest($this->requiredId($request), $request->payload);
@@ -254,49 +228,33 @@ final class ShoppingOperationExecutor
             $this->eventDispatcher->dispatch(new PaymentMandateVerificationEvent($checkoutRequest->payment, $request->context));
         }
 
-        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->updateCheckout($checkoutRequest, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
-        $this->protocolValidator->validateResponse('checkout.update', $result, $request->context);
-
-        return $result;
+        return $this->response(
+            'checkout.update',
+            $this->finalizeCheckout($this->checkout($request->context)->updateCheckout($checkoutRequest, $request->context), $request)->toArray(),
+            UcpCapability::Checkout,
+            $request->context,
+        );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function checkoutComplete(ShoppingOperationRequest $request): array
+    private function checkoutComplete(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
-        $this->protocolValidator->validateResponse('checkout.complete', $result, $request->context);
-
-        return $result;
+        return $this->response('checkout.complete', $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request)->toArray(), UcpCapability::Checkout, $request->context);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function checkoutCancel(ShoppingOperationRequest $request): array
+    private function checkoutCancel(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('checkout.cancel', ['id' => $id, ...$request->payload], $request->context);
-        $result = $this->withUcp($this->finalizeCheckout($this->checkout($request->context)->cancelCheckout($id, $request->context), $request)->toArray(), 'dev.ucp.shopping.checkout');
-        $this->protocolValidator->validateResponse('checkout.cancel', $result, $request->context);
-
-        return $result;
+        return $this->response('checkout.cancel', $this->finalizeCheckout($this->checkout($request->context)->cancelCheckout($id, $request->context), $request)->toArray(), UcpCapability::Checkout, $request->context);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function orderGet(ShoppingOperationRequest $request): array
+    private function orderGet(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('order.get', ['id' => $id, ...$request->payload], $request->context);
-        $result = $this->withUcp($this->order($request->context)->getOrder($id, $request->context)->toArray(), 'dev.ucp.shopping.order');
-        $this->protocolValidator->validateResponse('order.get', $result, $request->context);
-
-        return $result;
+        return $this->response('order.get', $this->order($request->context)->getOrder($id, $request->context)->toArray(), UcpCapability::Order, $request->context);
     }
 
     private function catalog(RequestContext $context): CatalogCapabilityInterface
@@ -392,40 +350,16 @@ final class ShoppingOperationExecutor
 
     /**
      * @param array<string, mixed> $payload
-     * @return array<string, mixed>
      */
-    private function withUcp(array $payload, string $capability): array
+    private function response(string $operation, array $payload, UcpCapability $capability, RequestContext $context): UcpOperationResponse
     {
-        $payload['ucp'] = [
-            'version' => '2026-04-08',
-            'status' => 'success',
-            'capabilities' => [
-                $capability => [
-                    ['version' => '2026-04-08'],
-                ],
-            ],
-            'payment_handlers' => [],
-        ];
+        $response = new UcpOperationResponse(
+            $payload,
+            UcpEnvelope::response(UcpProtocolVersion::V20260408->value, UcpResponseStatus::Success, $capability),
+        );
 
-        return $payload;
-    }
+        $this->protocolValidator->validateResponse($operation, $response->toArray(), $context);
 
-    /**
-     * @param array<string, mixed> $payload
-     * @return array<string, mixed>
-     */
-    private function normalizeUcpRegistries(array $payload): array
-    {
-        if (! is_array($payload['ucp'] ?? null)) {
-            return $payload;
-        }
-
-        foreach (['services', 'capabilities', 'payment_handlers'] as $registry) {
-            if (($payload['ucp'][$registry] ?? null) === []) {
-                $payload['ucp'][$registry] = new \stdClass();
-            }
-        }
-
-        return $payload;
+        return $response;
     }
 }

@@ -16,6 +16,7 @@ final class LineItem
         public readonly int $quantity = 1,
         public readonly ?string $imageUrl = null,
         public readonly array $extra = [],
+        public readonly string $currency = 'EUR',
     ) {
     }
 
@@ -24,7 +25,7 @@ final class LineItem
      */
     public function toArray(): array
     {
-        $amount = self::minorUnits($this->price);
+        $amount = MonetaryAmount::fromMajorUnits($this->price, $this->currency)->minorUnits;
         $total = $amount * $this->quantity;
 
         return array_merge([
@@ -43,8 +44,4 @@ final class LineItem
         ], $this->extra);
     }
 
-    private static function minorUnits(float $amount): int
-    {
-        return (int) round($amount * 100);
-    }
 }

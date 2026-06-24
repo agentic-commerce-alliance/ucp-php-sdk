@@ -83,6 +83,9 @@ final class UcpModelFactory
             'links',
             'buyer',
             'created_at',
+            'checkout_id',
+            'permalink_url',
+            'fulfillment',
         ];
 
         /** @var array<string, mixed> $extra */
@@ -98,6 +101,9 @@ final class UcpModelFactory
             $this->buyer($payload['buyer'] ?? null),
             is_string($payload['created_at'] ?? null) ? $payload['created_at'] : null,
             $extra,
+            is_string($payload['checkout_id'] ?? null) ? $payload['checkout_id'] : null,
+            is_string($payload['permalink_url'] ?? null) ? $payload['permalink_url'] : null,
+            is_array($payload['fulfillment'] ?? null) ? $payload['fulfillment'] : null,
         );
     }
 

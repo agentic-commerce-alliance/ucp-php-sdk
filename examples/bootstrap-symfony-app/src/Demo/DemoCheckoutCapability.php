@@ -84,11 +84,9 @@ final class DemoCheckoutCapability implements CheckoutCapabilityInterface
             [new Link('order', 'https://example.com/order/' . $orderId, 'Order details')],
             $checkout->buyer,
             gmdate('c'),
-            [
-                'checkout_id' => $checkout->id,
-                'permalink_url' => 'https://example.com/order/' . $orderId,
-                'fulfillment' => [],
-            ],
+            checkoutId: $checkout->id,
+            permalinkUrl: 'https://example.com/order/' . $orderId,
+            fulfillment: [],
         ));
 
         return new Checkout(
