@@ -9,6 +9,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
+use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Checkout\BuyerConsent;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
@@ -73,6 +74,22 @@ final class HttpPayloadMapper
     public function toCatalogLookupRequest(array $payload): CatalogLookupRequest
     {
         return new CatalogLookupRequest(array_values(array_map('strval', is_array($payload['ids'] ?? null) ? $payload['ids'] : [])));
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function toCatalogProductRequest(array $payload): CatalogProductRequest
+    {
+        return new CatalogProductRequest(
+            (string) ($payload['id'] ?? ''),
+            $this->listOfArrays($payload['selected'] ?? null),
+            is_array($payload['filters'] ?? null) ? $payload['filters'] : [],
+            array_values(array_map('strval', is_array($payload['preferences'] ?? null) ? $payload['preferences'] : [])),
+            is_array($payload['context'] ?? null) ? $payload['context'] : [],
+            is_array($payload['signals'] ?? null) ? $payload['signals'] : [],
+            $this->stringMap($payload['attribution'] ?? null),
+        );
     }
 
     /**
@@ -210,6 +227,40 @@ final class HttpPayloadMapper
         }
 
         return $items;
+    }
+
+    /**
+     * @param mixed $payload
+     * @return list<array<string, mixed>>
+     */
+    private function listOfArrays(mixed $payload): array
+    {
+        $items = [];
+        foreach (is_array($payload) ? $payload : [] as $row) {
+            if (is_array($row)) {
+                $items[] = $row;
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param mixed $payload
+     * @return array<string, string>
+     */
+    private function stringMap(mixed $payload): array
+    {
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        $values = [];
+        foreach ($payload as $key => $value) {
+            $values[(string) $key] = (string) $value;
+        }
+
+        return $values;
     }
 
     /**

@@ -42,14 +42,14 @@ final class CatalogController
         )));
     }
 
-    #[Route(path: '/ucp/v1/catalog/product/{id}', methods: ['GET'])]
-    public function product(string $id, Request $request): Response
+    #[Route(path: '/ucp/v1/catalog/product', methods: ['POST'])]
+    public function product(Request $request): Response
     {
         return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
             'catalog.product',
-            [],
+            $this->payloadMapper->decode($request),
             $request->attributes->get('ucp_request_context'),
-            $id,
         )));
     }
+
 }

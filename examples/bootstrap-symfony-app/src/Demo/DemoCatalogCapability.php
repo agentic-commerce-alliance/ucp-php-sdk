@@ -6,6 +6,7 @@ namespace BootstrapSymfonyApp\Demo;
 
 use Ucp\Sdk\Contract\CatalogCapabilityInterface;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
+use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchResponse;
 use Ucp\Sdk\Model\Catalog\Product;
@@ -40,8 +41,8 @@ final class DemoCatalogCapability implements CatalogCapabilityInterface
         );
     }
 
-    public function getProduct(string $id, RequestContext $context): Product
+    public function getProduct(CatalogProductRequest $request, RequestContext $context): Product
     {
-        return new Product($id, 'Lookup ' . $id, 9.99);
+        return new Product($request->id, 'Lookup ' . $request->id, 9.99);
     }
 }
