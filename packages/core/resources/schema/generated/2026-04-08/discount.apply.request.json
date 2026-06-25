@@ -1,8 +1,16 @@
 {
-  "type": "object",
-  "required": ["cart_id", "code"],
-  "properties": {
-    "cart_id": { "type": "string" },
-    "code": { "type": "string" }
-  }
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "cart_id",
+        "code"
+    ],
+    "properties": {
+        "cart_id": {
+            "type": "string"
+        },
+        "code": {
+            "type": "string"
+        }
+    }
 }

@@ -82,12 +82,19 @@ final class PriceCalculator
         $tax = round($taxableBase * 0.19, 2);
         $grandTotal = round($taxableBase + $tax, 2);
 
-        return [
+        $totals = [
             new Money('subtotal', round($subtotal, 2), $this->format($subtotal)),
-            new Money('discount', round(-1 * $discountAmount, 2), $this->format(-1 * $discountAmount)),
-            new Money('shipping', round($shipping, 2), $this->format($shipping)),
+        ];
+
+        if ($discountAmount > 0.0) {
+            $totals[] = new Money('discount', round(-1 * $discountAmount, 2), $this->format(-1 * $discountAmount));
+        }
+
+        return [
+            ...$totals,
+            new Money('fulfillment', round($shipping, 2), $this->format($shipping)),
             new Money('tax', $tax, $this->format($tax)),
-            new Money('grand_total', $grandTotal, $this->format($grandTotal)),
+            new Money('total', $grandTotal, $this->format($grandTotal)),
         ];
     }
 

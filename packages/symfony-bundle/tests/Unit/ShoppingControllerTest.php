@@ -67,14 +67,14 @@ final class ShoppingControllerTest extends TestCase
         $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability, $validator));
 
         $search = $this->payload($controller->search($this->jsonRequest('/ucp/v1/catalog/search', ['query' => 'tent'])));
-        self::assertSame('sku-search', $search['items'][0]['id']);
-        self::assertSame('next', $search['next_cursor']);
+        self::assertSame('sku-search', $search['products'][0]['id']);
+        self::assertSame('next', $search['pagination']['cursor']);
 
         $lookup = $this->payload($controller->lookup($this->jsonRequest('/ucp/v1/catalog/lookup', ['ids' => ['sku-lookup']])));
-        self::assertSame('sku-lookup', $lookup['items'][0]['id']);
+        self::assertSame('sku-lookup', $lookup['products'][0]['id']);
 
         $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
-        self::assertSame('sku-detail', $product['id']);
+        self::assertSame('sku-detail', $product['product']['id']);
     }
 
     #[Test]
@@ -86,7 +86,7 @@ final class ShoppingControllerTest extends TestCase
 
         $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
 
-        self::assertSame('sku-detail', $product['id']);
+        self::assertSame('sku-detail', $product['product']['id']);
         self::assertInstanceOf(CatalogProductRequest::class, $capability->productRequest);
         self::assertSame('sku-detail', $capability->productRequest->id);
         self::assertSame([], $capability->productRequest->selected);

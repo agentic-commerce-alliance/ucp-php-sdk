@@ -57,7 +57,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         $context = new RequestContext('merchant.example');
 
         foreach ($this->operationRequests($context) as $request) {
-            $executor->execute($request);
+            self::assertArrayHasKey('ucp', $executor->execute($request)->toArray());
         }
 
         self::assertSame([
@@ -166,6 +166,34 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         }
 
         self::assertSame([], $validator->calls);
+    }
+
+    #[Test]
+    public function itReturnsTypedOperationResponsesWithProtocolEnvelopeMetadata(): void
+    {
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'catalog.product',
+            [],
+            new RequestContext('merchant.example'),
+            'sku-1',
+        ));
+
+        $payload = $response->toArray();
+        self::assertIsArray($payload['product']);
+        self::assertSame('sku-1', $payload['product']['id']);
+        self::assertIsArray($payload['ucp']);
+        self::assertIsArray($payload['ucp']['capabilities']);
+        self::assertSame('dev.ucp.shopping.catalog.product', array_key_first($payload['ucp']['capabilities']));
     }
 
     #[Test]
@@ -348,7 +376,15 @@ final class ShoppingOperationCapabilityFake implements CatalogCapabilityInterfac
 
     public function getOrder(string $id, RequestContext $context): OrderView
     {
-        return new OrderView($id, 'EUR', [], []);
+        return new OrderView(
+            $id,
+            'EUR',
+            [],
+            [],
+            checkoutId: 'checkout-1',
+            permalinkUrl: 'https://example.com/order/' . $id,
+            fulfillment: [],
+        );
     }
 
     private function cart(string $id): Cart

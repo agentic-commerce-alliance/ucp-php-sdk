@@ -102,7 +102,7 @@ final class UcpResponseFactoryTest extends TestCase
     }
 
     #[Test]
-    public function itRejectsReservedTopLevelUcpPayloads(): void
+    public function itRejectsPayloadsThatAlreadyContainProtocolEnvelopeMetadata(): void
     {
         $factory = new UcpResponseFactory($this->configuration());
 
@@ -110,7 +110,11 @@ final class UcpResponseFactoryTest extends TestCase
         $this->expectExceptionMessage('Top-level "ucp" is reserved for the protocol envelope.');
 
         $factory->success([
-            'ucp' => ['version' => 'custom-version'],
+            'ucp' => [
+                'capabilities' => [
+                    'dev.ucp.shopping.cart' => [['version' => '2026-04-08']],
+                ],
+            ],
         ]);
     }
 

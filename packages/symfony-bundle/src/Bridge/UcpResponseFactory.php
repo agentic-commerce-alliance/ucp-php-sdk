@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Bridge;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
+use Ucp\Sdk\Model\Protocol\UcpOperationResponse;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
@@ -31,6 +32,14 @@ final class UcpResponseFactory
         $payload['ucp'] = $this->ucpEnvelope('success', $context, $operation);
 
         return new JsonResponse($payload, $status, $headers);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    public function operation(UcpOperationResponse $response, int $status = 200, array $headers = [], ?RequestContext $context = null, ?string $operation = null): JsonResponse
+    {
+        return new JsonResponse($response, $status, $headers);
     }
 
     /**

@@ -29,7 +29,7 @@ final class OrderController
     #[Route(path: '/ucp/v1/orders/{id}', methods: ['GET'])]
     public function get(string $id, Request $request): Response
     {
-        return $this->responseFactory->success($this->operationExecutor->execute(new ShoppingOperationRequest(
+        return $this->responseFactory->operation($this->operationExecutor->execute(new ShoppingOperationRequest(
             'order.get',
             [],
             $request->attributes->get('ucp_request_context'),

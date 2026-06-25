@@ -35,9 +35,12 @@ final class DemoOrderCapability implements OrderCapabilityInterface
             $id,
             'EUR',
             [],
-            [new Money('grand_total', 0.0)],
+            [new Money('subtotal', 0.0), new Money('total', 0.0)],
             [new Message('error', 'Demo order not found.', 'warning', 'order_not_found')],
             [new Link('order', 'https://example.com/order/' . $id, 'Order details')],
+            checkoutId: 'chk-demo',
+            permalinkUrl: 'https://example.com/order/' . $id,
+            fulfillment: [],
         );
     }
 

@@ -36,8 +36,8 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $catalog = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertCount(1, $catalog['items']);
-        self::assertSame('tent-4p', $catalog['items'][0]['id']);
+        self::assertCount(1, $catalog['products']);
+        self::assertSame('tent-4p', $catalog['products'][0]['id']);
     }
 
     #[Test]
@@ -113,7 +113,9 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         $updated = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('ready_for_complete', $updated['status']);
 
-        $this->request($client, 'POST', '/ucp/v1/checkout-sessions/' . $checkoutId . '/complete');
+        $this->request($client, 'POST', '/ucp/v1/checkout-sessions/' . $checkoutId . '/complete', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'payment' => ['instruments' => []],
+        ], JSON_THROW_ON_ERROR));
 
         self::assertResponseIsSuccessful();
         $completed = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
@@ -145,6 +147,7 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
 
         $this->request($client, 'POST', '/ucp/v1/checkout-sessions', ['CONTENT_TYPE' => 'application/json'], json_encode([
             'cart_id' => $cart['id'],
+            'line_items' => [],
             'buyer' => [
                 'email' => 'buyer@example.test',
                 'first_name' => 'Alex',
@@ -172,13 +175,13 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
             'query' => 'tent',
             'limit' => 1,
         ]);
-        self::assertSame('tent-4p', $search['items'][0]['id']);
+        self::assertSame('tent-4p', $search['products'][0]['id']);
 
         $product = $this->a2a($client, 'catalog.product', [
-            'id' => $search['items'][0]['id'],
+            'id' => $search['products'][0]['id'],
         ]);
-        self::assertSame('tent-4p', $product['id']);
-        self::assertSame('Summit 4P Tent', $product['title']);
+        self::assertSame('tent-4p', $product['product']['id']);
+        self::assertSame('Summit 4P Tent', $product['product']['title']);
 
         $cart = $this->a2a($client, 'cart.create', [
             'line_items' => [[
@@ -233,7 +236,7 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         ]);
         self::assertSame('ready_for_complete', $updatedCheckout['status']);
 
-        $completedCheckout = $this->a2a($client, 'checkout.complete', ['id' => $checkout['id']]);
+        $completedCheckout = $this->a2a($client, 'checkout.complete', ['id' => $checkout['id'], 'payment' => ['instruments' => []]]);
         self::assertSame('completed', $completedCheckout['status']);
         self::assertStringStartsWith('ord_', $completedCheckout['order']['id']);
 

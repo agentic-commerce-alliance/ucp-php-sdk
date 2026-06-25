@@ -85,6 +85,26 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             }
         }
 
+        if (isset($schema['not']) && is_array($schema['not'])) {
+            $candidateViolations = [];
+            $this->validateValue($value, $schema['not'], $path, $candidateViolations, $rootSchema);
+            if ($candidateViolations === []) {
+                $violations[] = sprintf('%s must not match the disallowed schema.', $path);
+            }
+        }
+
+        if (isset($schema['if']) && is_array($schema['if'])) {
+            $candidateViolations = [];
+            $this->validateValue($value, $schema['if'], $path, $candidateViolations, $rootSchema);
+            if ($candidateViolations === [] && isset($schema['then']) && is_array($schema['then'])) {
+                $this->validateValue($value, $schema['then'], $path, $violations, $rootSchema);
+            }
+
+            if ($candidateViolations !== [] && isset($schema['else']) && is_array($schema['else'])) {
+                $this->validateValue($value, $schema['else'], $path, $violations, $rootSchema);
+            }
+        }
+
         if (isset($schema['const']) && ! $this->valuesEqual($value, $schema['const'])) {
             $violations[] = sprintf('%s must match the expected constant value.', $path);
         }
@@ -151,6 +171,15 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             }
         }
 
+        $count = count($payload);
+        if (isset($schema['minProperties']) && is_int($schema['minProperties']) && $count < $schema['minProperties']) {
+            $violations[] = sprintf('%s must contain at least %d properties', $path, $schema['minProperties']);
+        }
+
+        if (isset($schema['maxProperties']) && is_int($schema['maxProperties']) && $count > $schema['maxProperties']) {
+            $violations[] = sprintf('%s must contain at most %d properties', $path, $schema['maxProperties']);
+        }
+
         $properties = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
         foreach ($properties as $property => $propertySchema) {
             if (! array_key_exists((string) $property, $payload) || ! is_array($propertySchema)) {
@@ -159,6 +188,12 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
 
             $value = $payload[(string) $property];
             $this->validateValue($value, $propertySchema, $path . '.' . $property, $violations, $rootSchema);
+        }
+
+        if (isset($schema['propertyNames']) && is_array($schema['propertyNames'])) {
+            foreach (array_keys($payload) as $property) {
+                $this->validateValue((string) $property, $schema['propertyNames'], $path . '.' . $property, $violations, $rootSchema);
+            }
         }
 
         $additionalProperties = $schema['additionalProperties'] ?? true;
@@ -199,6 +234,26 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
 
         if (isset($schema['maxItems']) && is_int($schema['maxItems']) && $count > $schema['maxItems']) {
             $violations[] = sprintf('%s must contain at most %d items', $path, $schema['maxItems']);
+        }
+
+        if (isset($schema['contains']) && is_array($schema['contains'])) {
+            $matches = 0;
+            foreach ($value as $entry) {
+                $candidateViolations = [];
+                $this->validateValue($entry, $schema['contains'], $path, $candidateViolations, $rootSchema);
+                if ($candidateViolations === []) {
+                    ++$matches;
+                }
+            }
+
+            $minContains = isset($schema['minContains']) && is_int($schema['minContains']) ? $schema['minContains'] : 1;
+            if ($matches < $minContains) {
+                $violations[] = sprintf('%s must contain at least %d matching items', $path, $minContains);
+            }
+
+            if (isset($schema['maxContains']) && is_int($schema['maxContains']) && $matches > $schema['maxContains']) {
+                $violations[] = sprintf('%s must contain at most %d matching items', $path, $schema['maxContains']);
+            }
         }
 
         $items = $schema['items'] ?? null;
@@ -374,7 +429,12 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             return in_array('object', $types, true);
         }
 
-        return isset($schema['properties']) || isset($schema['required']) || array_key_exists('additionalProperties', $schema);
+        return isset($schema['properties'])
+            || isset($schema['required'])
+            || isset($schema['propertyNames'])
+            || isset($schema['minProperties'])
+            || isset($schema['maxProperties'])
+            || array_key_exists('additionalProperties', $schema);
     }
 
     /**
@@ -387,7 +447,12 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             return in_array('array', $types, true);
         }
 
-        return isset($schema['items']) || isset($schema['minItems']) || isset($schema['maxItems']);
+        return isset($schema['items'])
+            || isset($schema['contains'])
+            || isset($schema['minItems'])
+            || isset($schema['maxItems'])
+            || isset($schema['minContains'])
+            || isset($schema['maxContains']);
     }
 
     private function valuesEqual(mixed $left, mixed $right): bool

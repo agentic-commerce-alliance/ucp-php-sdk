@@ -10,8 +10,9 @@ use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Link;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Common\Money;
+use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
 
-final class Checkout
+final class Checkout implements UcpOperationPayload
 {
     /**
      * @param list<LineItem> $lineItems
@@ -68,5 +69,13 @@ final class Checkout
         }
 
         return array_merge($data, $this->extra);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }

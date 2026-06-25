@@ -134,7 +134,7 @@ final class A2aController
             return new JsonResponse([
                 'jsonrpc' => '2.0',
                 'id' => $id,
-                'result' => $result,
+                'result' => $result->toArray(),
             ]);
         } catch (\JsonException $exception) {
             return $this->jsonRpcError($id, -32700, 'Parse error.', Response::HTTP_BAD_REQUEST);
