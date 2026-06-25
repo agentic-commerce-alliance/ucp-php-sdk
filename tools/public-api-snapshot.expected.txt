@@ -173,6 +173,7 @@ class Ucp\Sdk\Exception\ValidationException
   - getViolations(): array
 class Ucp\Sdk\Model\Cart\Cart
   - __construct(string $id, array $lineItems, string $currency, array $totals = [], array $messages = [])
+  - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Cart\CartCreateRequest
   - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Signals $signals = null)
@@ -180,12 +181,21 @@ class Ucp\Sdk\Model\Cart\CartUpdateRequest
   - __construct(string $id, array $lineItems)
 class Ucp\Sdk\Model\Catalog\CatalogLookupRequest
   - __construct(array $ids)
+class Ucp\Sdk\Model\Catalog\CatalogLookupResponse
+  - __construct(array $products)
+  - jsonSerialize(): array
+  - toArray(): array
 class Ucp\Sdk\Model\Catalog\CatalogProductRequest
   - __construct(string $id, array $selected = [], array $filters = [], array $preferences = [], array $context = [], array $signals = [], array $attribution = [])
+class Ucp\Sdk\Model\Catalog\CatalogProductResponse
+  - __construct(Ucp\Sdk\Model\Catalog\Product $product)
+  - jsonSerialize(): array
+  - toArray(): array
 class Ucp\Sdk\Model\Catalog\CatalogSearchRequest
   - __construct(string $query, int $limit = 20, ?string $cursor = null, array $filters = [])
 class Ucp\Sdk\Model\Catalog\CatalogSearchResponse
   - __construct(array $items, ?string $nextCursor = null)
+  - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Catalog\Product
   - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR')
@@ -194,6 +204,7 @@ class Ucp\Sdk\Model\Checkout\BuyerConsent
   - __construct(bool $granted, ?string $timestamp = null)
 class Ucp\Sdk\Model\Checkout\Checkout
   - __construct(string $id, Ucp\Sdk\Enum\CheckoutStatus $status, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $continueUrl = null, ?string $expiresAt = null, ?Ucp\Sdk\Model\Checkout\OrderConfirmation $order = null, array $extra = [])
+  - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
   - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null)
@@ -264,6 +275,7 @@ class Ucp\Sdk\Model\OAuthState
   - __construct(string $code, string $clientId, string $subject, ?string $refreshToken = null, ?int $expiresAt = null)
 class Ucp\Sdk\Model\Order\OrderView
   - __construct(string $id, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $createdAt = null, array $extra = [], ?string $checkoutId = null, ?string $permalinkUrl = null, ?array $fulfillment = null)
+  - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Profile\CapabilityDescriptor
   - __construct(string $name, string $version, string $specUrl, string $schemaUrl, ?array $extends = null, array $config = [])
@@ -289,8 +301,10 @@ class Ucp\Sdk\Model\Protocol\UcpEnvelope
   - static response(string $version, Ucp\Sdk\Enum\UcpResponseStatus $status, ?Ucp\Sdk\Enum\UcpCapability $capability = null): self
   - toArray(): array
   - toJsonArray(): array
+interface Ucp\Sdk\Model\Protocol\UcpOperationPayload
+  - toArray(): array
 class Ucp\Sdk\Model\Protocol\UcpOperationResponse
-  - __construct(array $payload, Ucp\Sdk\Model\Protocol\UcpEnvelope $envelope)
+  - __construct(Ucp\Sdk\Model\Protocol\UcpOperationPayload $payload, Ucp\Sdk\Model\Protocol\UcpEnvelope $envelope)
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\RequestContext

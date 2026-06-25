@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Catalog;
 
-final class CatalogSearchResponse
+use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
+
+final class CatalogSearchResponse implements UcpOperationPayload
 {
     /**
      * @param list<Product> $items
@@ -16,7 +18,7 @@ final class CatalogSearchResponse
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{products: list<array<string, mixed>>, pagination?: array{has_next_page: true, cursor: string}}
      */
     public function toArray(): array
     {
@@ -32,5 +34,13 @@ final class CatalogSearchResponse
         }
 
         return $data;
+    }
+
+    /**
+     * @return array{products: list<array<string, mixed>>, pagination?: array{has_next_page: true, cursor: string}}
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }

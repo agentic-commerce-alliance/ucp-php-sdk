@@ -7,7 +7,7 @@ namespace Ucp\Sdk\Model\Common;
 final class LineItem
 {
     /**
-     * @param array<string, mixed> $extra
+     * @param array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>> $extra
      */
     public function __construct(
         public readonly string $id,
@@ -21,14 +21,20 @@ final class LineItem
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     id: string,
+     *     item: array{id: string, title: string, price: int, image_url?: string},
+     *     quantity: int,
+     *     totals: list<array{type: string, amount: int}>
+     * }
      */
     public function toArray(): array
     {
         $amount = MonetaryAmount::fromMajorUnits($this->price, $this->currency)->minorUnits;
         $total = $amount * $this->quantity;
 
-        return array_merge([
+        /** @var array{id: string, item: array{id: string, title: string, price: int, image_url?: string}, quantity: int, totals: list<array{type: string, amount: int}>} $payload */
+        $payload = array_merge([
             'id' => 'li_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $this->id),
             'item' => array_filter([
                 'id' => $this->id,
@@ -42,6 +48,8 @@ final class LineItem
                 ['type' => 'total', 'amount' => $total],
             ],
         ], $this->extra);
+
+        return $payload;
     }
 
 }

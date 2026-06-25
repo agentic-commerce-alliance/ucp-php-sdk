@@ -6,33 +6,30 @@ namespace Ucp\Sdk\Model\Protocol;
 
 final readonly class UcpOperationResponse implements \JsonSerializable
 {
-    /**
-     * @param array<string, mixed> $payload
-     */
     public function __construct(
-        private array $payload,
+        private UcpOperationPayload $payload,
         private UcpEnvelope $envelope,
     ) {
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, bool|float|int|string|null|\stdClass|array<array-key, bool|float|int|string|null|\stdClass|array<array-key, bool|float|int|string|null|\stdClass|array<array-key, bool|float|int|string|null>>>>
      */
     public function toArray(): array
     {
         return [
-            ...$this->payload,
+            ...$this->payload->toArray(),
             'ucp' => $this->envelope->toArray(),
         ];
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, bool|float|int|string|null|\stdClass|array<array-key, bool|float|int|string|null|\stdClass|array<array-key, bool|float|int|string|null|\stdClass|array<array-key, bool|float|int|string|null>>>>
      */
     public function jsonSerialize(): array
     {
         return [
-            ...$this->payload,
+            ...$this->payload->jsonSerialize(),
             'ucp' => $this->envelope->toJsonArray(),
         ];
     }

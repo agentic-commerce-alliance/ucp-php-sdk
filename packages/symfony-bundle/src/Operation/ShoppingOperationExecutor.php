@@ -23,10 +23,12 @@ use Ucp\Sdk\Event\CheckoutResponsePreparedEvent;
 use Ucp\Sdk\Event\PaymentMandateVerificationEvent;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
-use Ucp\Sdk\Model\Catalog\Product;
+use Ucp\Sdk\Model\Catalog\CatalogLookupResponse;
+use Ucp\Sdk\Model\Catalog\CatalogProductResponse;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
 use Ucp\Sdk\Model\Protocol\UcpEnvelope;
+use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
 use Ucp\Sdk\Model\Protocol\UcpOperationResponse;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
@@ -101,7 +103,7 @@ final class ShoppingOperationExecutor
 
         return $this->response(
             'catalog.search',
-            $this->catalog($request->context)->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context)->toArray(),
+            $this->catalog($request->context)->search($this->payloadMapper->toCatalogSearchRequest($request->payload), $request->context),
             UcpCapability::CatalogSearch,
             $request->context,
         );
@@ -110,9 +112,9 @@ final class ShoppingOperationExecutor
     private function catalogLookup(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('catalog.lookup', $request->payload, $request->context);
-        $result = [
-            'products' => array_map(static fn (Product $product): array => $product->toArray(), $this->catalog($request->context)->lookup($this->payloadMapper->toCatalogLookupRequest($request->payload), $request->context)),
-        ];
+        $result = new CatalogLookupResponse(
+            $this->catalog($request->context)->lookup($this->payloadMapper->toCatalogLookupRequest($request->payload), $request->context),
+        );
 
         return $this->response('catalog.lookup', $result, UcpCapability::CatalogLookup, $request->context);
     }
@@ -126,7 +128,7 @@ final class ShoppingOperationExecutor
 
         return $this->response(
             'catalog.product',
-            ['product' => $this->catalog($request->context)->getProduct($productRequest, $request->context)->toArray()],
+            new CatalogProductResponse($this->catalog($request->context)->getProduct($productRequest, $request->context)),
             UcpCapability::CatalogProduct,
             $request->context,
         );
@@ -138,7 +140,7 @@ final class ShoppingOperationExecutor
 
         return $this->response(
             'cart.create',
-            $this->cart($request->context)->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context)->toArray(),
+            $this->cart($request->context)->createCart($this->payloadMapper->toCartCreateRequest($request->payload), $request->context),
             UcpCapability::Cart,
             $request->context,
         );
@@ -149,7 +151,7 @@ final class ShoppingOperationExecutor
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('cart.get', ['id' => $id, ...$request->payload], $request->context);
 
-        return $this->response('cart.get', $this->cart($request->context)->getCart($id, $request->context)->toArray(), UcpCapability::Cart, $request->context);
+        return $this->response('cart.get', $this->cart($request->context)->getCart($id, $request->context), UcpCapability::Cart, $request->context);
     }
 
     private function cartUpdate(ShoppingOperationRequest $request): UcpOperationResponse
@@ -158,7 +160,7 @@ final class ShoppingOperationExecutor
 
         return $this->response(
             'cart.update',
-            $this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context)->toArray(),
+            $this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context),
             UcpCapability::Cart,
             $request->context,
         );
@@ -169,7 +171,7 @@ final class ShoppingOperationExecutor
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('cart.cancel', ['id' => $id, ...$request->payload], $request->context);
 
-        return $this->response('cart.cancel', $this->cart($request->context)->cancelCart($id, $request->context)->toArray(), UcpCapability::Cart, $request->context);
+        return $this->response('cart.cancel', $this->cart($request->context)->cancelCart($id, $request->context), UcpCapability::Cart, $request->context);
     }
 
     private function discountApply(ShoppingOperationRequest $request): UcpOperationResponse
@@ -182,7 +184,7 @@ final class ShoppingOperationExecutor
         }
         return $this->response(
             'discount.apply',
-            $this->discount($request->context)->applyCartDiscount($cartId, new DiscountCode($code), $request->context)->toArray(),
+            $this->discount($request->context)->applyCartDiscount($cartId, new DiscountCode($code), $request->context),
             UcpCapability::Cart,
             $request->context,
         );
@@ -202,7 +204,7 @@ final class ShoppingOperationExecutor
 
         return $this->response(
             'checkout.create',
-            $this->finalizeCheckout($this->checkout($request->context)->createCheckout($event->getRequest(), $request->context), $request)->toArray(),
+            $this->finalizeCheckout($this->checkout($request->context)->createCheckout($event->getRequest(), $request->context), $request),
             UcpCapability::Checkout,
             $request->context,
         );
@@ -212,7 +214,7 @@ final class ShoppingOperationExecutor
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('checkout.get', ['id' => $id, ...$request->payload], $request->context);
-        return $this->response('checkout.get', $this->finalizeCheckout($this->checkout($request->context)->getCheckout($id, $request->context), $request)->toArray(), UcpCapability::Checkout, $request->context);
+        return $this->response('checkout.get', $this->finalizeCheckout($this->checkout($request->context)->getCheckout($id, $request->context), $request), UcpCapability::Checkout, $request->context);
     }
 
     private function checkoutUpdate(ShoppingOperationRequest $request): UcpOperationResponse
@@ -230,7 +232,7 @@ final class ShoppingOperationExecutor
 
         return $this->response(
             'checkout.update',
-            $this->finalizeCheckout($this->checkout($request->context)->updateCheckout($checkoutRequest, $request->context), $request)->toArray(),
+            $this->finalizeCheckout($this->checkout($request->context)->updateCheckout($checkoutRequest, $request->context), $request),
             UcpCapability::Checkout,
             $request->context,
         );
@@ -240,21 +242,21 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        return $this->response('checkout.complete', $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request)->toArray(), UcpCapability::Checkout, $request->context);
+        return $this->response('checkout.complete', $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request), UcpCapability::Checkout, $request->context);
     }
 
     private function checkoutCancel(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('checkout.cancel', ['id' => $id, ...$request->payload], $request->context);
-        return $this->response('checkout.cancel', $this->finalizeCheckout($this->checkout($request->context)->cancelCheckout($id, $request->context), $request)->toArray(), UcpCapability::Checkout, $request->context);
+        return $this->response('checkout.cancel', $this->finalizeCheckout($this->checkout($request->context)->cancelCheckout($id, $request->context), $request), UcpCapability::Checkout, $request->context);
     }
 
     private function orderGet(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $id = $this->requiredId($request);
         $this->protocolValidator->validateRequest('order.get', ['id' => $id, ...$request->payload], $request->context);
-        return $this->response('order.get', $this->order($request->context)->getOrder($id, $request->context)->toArray(), UcpCapability::Order, $request->context);
+        return $this->response('order.get', $this->order($request->context)->getOrder($id, $request->context), UcpCapability::Order, $request->context);
     }
 
     private function catalog(RequestContext $context): CatalogCapabilityInterface
@@ -349,9 +351,8 @@ final class ShoppingOperationExecutor
     }
 
     /**
-     * @param array<string, mixed> $payload
      */
-    private function response(string $operation, array $payload, UcpCapability $capability, RequestContext $context): UcpOperationResponse
+    private function response(string $operation, UcpOperationPayload $payload, UcpCapability $capability, RequestContext $context): UcpOperationResponse
     {
         $response = new UcpOperationResponse(
             $payload,

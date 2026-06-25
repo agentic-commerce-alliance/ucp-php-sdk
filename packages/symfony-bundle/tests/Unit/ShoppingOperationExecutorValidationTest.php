@@ -188,8 +188,12 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             'sku-1',
         ));
 
-        self::assertSame('sku-1', $response->toArray()['product']['id']);
-        self::assertSame('dev.ucp.shopping.catalog.product', array_key_first($response->toArray()['ucp']['capabilities']));
+        $payload = $response->toArray();
+        self::assertIsArray($payload['product']);
+        self::assertSame('sku-1', $payload['product']['id']);
+        self::assertIsArray($payload['ucp']);
+        self::assertIsArray($payload['ucp']['capabilities']);
+        self::assertSame('dev.ucp.shopping.catalog.product', array_key_first($payload['ucp']['capabilities']));
     }
 
     #[Test]

@@ -9,16 +9,17 @@ use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Link;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Common\Money;
+use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
 
-final class OrderView
+final class OrderView implements UcpOperationPayload
 {
     /**
      * @param list<LineItem> $lineItems
      * @param list<Money> $totals
      * @param list<Message> $messages
      * @param list<Link> $links
-     * @param array<string, mixed> $extra
-     * @param array<string, mixed>|null $fulfillment
+     * @param array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>> $extra
+     * @param array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>|null $fulfillment
      */
     public function __construct(
         public readonly string $id,
@@ -37,7 +38,25 @@ final class OrderView
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     id: string,
+     *     currency: string,
+     *     line_items: list<array{
+     *         id: string,
+     *         item: array{id: string, title: string, price: int, image_url?: string},
+     *         quantity: array{original: int, total: int, fulfilled: int},
+     *         totals: list<array{type: string, amount: int}>,
+     *         status: string
+     *     }>,
+     *     totals: list<array<string, int|string>>,
+     *     messages: list<array<string, string|null>>,
+     *     links: list<array<string, string>>,
+     *     buyer?: array<string, string>,
+     *     created_at?: string,
+     *     checkout_id?: string,
+     *     permalink_url?: string,
+     *     fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>
+     * }
      */
     public function toArray(): array
     {
@@ -51,8 +70,9 @@ final class OrderView
                     'total' => $item->quantity,
                     'fulfilled' => 0,
                 ];
-                $lineItem['status'] ??= 'processing';
+                $lineItem['status'] = 'processing';
 
+                /** @var array{id: string, item: array{id: string, title: string, price: int, image_url?: string}, quantity: array{original: int, total: int, fulfilled: int}, totals: list<array{type: string, amount: int}>, status: string} $lineItem */
                 return $lineItem;
             }, $this->lineItems),
             'totals' => array_map(static fn (Money $money): array => $money->toArray(), $this->totals),
@@ -80,6 +100,35 @@ final class OrderView
             $data['fulfillment'] = $this->fulfillment;
         }
 
-        return array_merge($data, $this->extra);
+        /** @var array{id: string, currency: string, line_items: list<array{id: string, item: array{id: string, title: string, price: int, image_url?: string}, quantity: array{original: int, total: int, fulfilled: int}, totals: list<array{type: string, amount: int}>, status: string}>, totals: list<array<string, int|string>>, messages: list<array<string, string|null>>, links: list<array<string, string>>, buyer?: array<string, string>, created_at?: string, checkout_id?: string, permalink_url?: string, fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>} $payload */
+        $payload = array_merge($data, $this->extra);
+
+        return $payload;
+    }
+
+    /**
+     * @return array{
+     *     id: string,
+     *     currency: string,
+     *     line_items: list<array{
+     *         id: string,
+     *         item: array{id: string, title: string, price: int, image_url?: string},
+     *         quantity: array{original: int, total: int, fulfilled: int},
+     *         totals: list<array{type: string, amount: int}>,
+     *         status: string
+     *     }>,
+     *     totals: list<array<string, int|string>>,
+     *     messages: list<array<string, string|null>>,
+     *     links: list<array<string, string>>,
+     *     buyer?: array<string, string>,
+     *     created_at?: string,
+     *     checkout_id?: string,
+     *     permalink_url?: string,
+     *     fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>
+     * }
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }

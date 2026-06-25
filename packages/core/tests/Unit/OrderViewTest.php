@@ -25,9 +25,9 @@ final class OrderViewTest extends TestCase
 
         $payload = $order->toArray();
 
-        self::assertSame('checkout-1', $payload['checkout_id']);
-        self::assertSame('https://merchant.example/orders/order-1', $payload['permalink_url']);
-        self::assertSame([], $payload['fulfillment']);
+        self::assertSame('checkout-1', $payload['checkout_id'] ?? null);
+        self::assertSame('https://merchant.example/orders/order-1', $payload['permalink_url'] ?? null);
+        self::assertSame([], $payload['fulfillment'] ?? null);
         self::assertArrayNotHasKey('extra', $payload);
     }
 }

@@ -7,12 +7,25 @@ namespace Ucp\Sdk\Model\Protocol;
 use Ucp\Sdk\Enum\UcpCapability;
 use Ucp\Sdk\Enum\UcpResponseStatus;
 
+/**
+ * @phpstan-type UcpRegistryEntry array{
+ *     version: string,
+ *     spec?: string,
+ *     schema?: string,
+ *     id?: string,
+ *     config?: array<string, bool|float|int|string|null|list<bool|float|int|string|null>|array<string, bool|float|int|string|null>>,
+ *     extends?: string|list<string>,
+ *     transport?: string,
+ *     endpoint?: string,
+ *     available_instruments?: list<array{type: string, constraints?: array<string, bool|float|int|string|null|list<bool|float|int|string|null>|array<string, bool|float|int|string|null>>}>
+ * }
+ */
 final readonly class UcpEnvelope implements \JsonSerializable
 {
     /**
-     * @param array<string, list<array<string, mixed>>> $services
-     * @param array<string, list<array<string, mixed>>> $capabilities
-     * @param array<string, list<array<string, mixed>>> $paymentHandlers
+     * @param array<string, list<UcpRegistryEntry>> $services
+     * @param array<string, list<UcpRegistryEntry>> $capabilities
+     * @param array<string, list<UcpRegistryEntry>> $paymentHandlers
      */
     public function __construct(
         public string $version,
@@ -37,7 +50,13 @@ final readonly class UcpEnvelope implements \JsonSerializable
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     version: string,
+     *     status: string,
+     *     services: array<string, list<UcpRegistryEntry>>,
+     *     capabilities: array<string, list<UcpRegistryEntry>>,
+     *     payment_handlers: array<string, list<UcpRegistryEntry>>
+     * }
      */
     public function toArray(): array
     {
@@ -51,7 +70,13 @@ final readonly class UcpEnvelope implements \JsonSerializable
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     version: string,
+     *     status: string,
+     *     services: array<string, list<UcpRegistryEntry>>|\stdClass,
+     *     capabilities: array<string, list<UcpRegistryEntry>>|\stdClass,
+     *     payment_handlers: array<string, list<UcpRegistryEntry>>|\stdClass
+     * }
      */
     public function jsonSerialize(): array
     {
@@ -65,7 +90,13 @@ final readonly class UcpEnvelope implements \JsonSerializable
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     version: string,
+     *     status: string,
+     *     services: array<string, list<UcpRegistryEntry>>|\stdClass,
+     *     capabilities: array<string, list<UcpRegistryEntry>>|\stdClass,
+     *     payment_handlers: array<string, list<UcpRegistryEntry>>|\stdClass
+     * }
      */
     public function toJsonArray(): array
     {
@@ -73,8 +104,8 @@ final readonly class UcpEnvelope implements \JsonSerializable
     }
 
     /**
-     * @param array<string, list<array<string, mixed>>> $registry
-     * @return array<string, list<array<string, mixed>>>|\stdClass
+     * @param array<string, list<UcpRegistryEntry>> $registry
+     * @return array<string, list<UcpRegistryEntry>>|\stdClass
      */
     private function jsonRegistry(array $registry): array|\stdClass
     {
