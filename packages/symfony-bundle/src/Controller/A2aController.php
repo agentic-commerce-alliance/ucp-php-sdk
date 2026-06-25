@@ -126,7 +126,7 @@ final class A2aController
 
             $result = $this->operationExecutor->execute(new ShoppingOperationRequest(
                 $method,
-                $this->payloadParams($params),
+                $params,
                 $context,
                 $this->optionalId($params),
             ));
@@ -200,17 +200,6 @@ final class A2aController
         if (! is_array($params) || (array_is_list($params) && $params !== [])) {
             throw new BadRequestHttpException('JSON-RPC params must be an object.');
         }
-
-        return $params;
-    }
-
-    /**
-     * @param array<string, mixed> $params
-     * @return array<string, mixed>
-     */
-    private function payloadParams(array $params): array
-    {
-        unset($params['id']);
 
         return $params;
     }

@@ -170,6 +170,26 @@ final class A2aControllerTest extends TestCase
     }
 
     #[Test]
+    public function itKeepsA2aUpdateIdsInTheValidatedPayload(): void
+    {
+        $validator = new A2aProtocolValidatorFake();
+        $controller = $this->controller(protocolValidator: $validator);
+
+        $response = $controller->invoke($this->jsonRpcRequest([
+            'jsonrpc' => '2.0',
+            'id' => 'call-1',
+            'method' => 'cart.update',
+            'params' => [
+                'id' => 'cart-1',
+                'line_items' => [],
+            ],
+        ]));
+
+        self::assertSame(404, $response->getStatusCode());
+        self::assertSame(['id' => 'cart-1', 'line_items' => []], $validator->requests['cart.update']);
+    }
+
+    #[Test]
     public function itReturnsJsonRpcErrorsForMissingOperationInputsAndCapabilities(): void
     {
         $controller = $this->controller();
@@ -232,6 +252,7 @@ final class A2aControllerTest extends TestCase
     private function controller(
         ?RuntimeConfigurationResolverInterface $resolver = null,
         ?ProfileBuilderInterface $profileBuilder = null,
+        ?ProtocolValidatorInterface $protocolValidator = null,
     ): A2aController {
         return new A2aController(
             new HttpPayloadMapper(),
@@ -244,7 +265,7 @@ final class A2aControllerTest extends TestCase
             $this->configuration(),
             new ShoppingOperationExecutor(
                 new A2aCapabilityRegistryFake(),
-                new A2aProtocolValidatorFake(),
+                $protocolValidator ?? new A2aProtocolValidatorFake(),
                 new HttpPayloadMapper(),
                 [],
                 [],
@@ -362,8 +383,14 @@ final class A2aCapabilityRegistryFake implements CapabilityRegistryInterface
 
 final class A2aProtocolValidatorFake implements ProtocolValidatorInterface
 {
+    /**
+     * @var array<string, array<string, mixed>>
+     */
+    public array $requests = [];
+
     public function validateRequest(string $operation, array $payload, RequestContext $context): void
     {
+        $this->requests[$operation] = $payload;
     }
 
     public function validateResponse(string $operation, array $payload, RequestContext $context): void
