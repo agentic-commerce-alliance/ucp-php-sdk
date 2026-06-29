@@ -2,6 +2,8 @@ x-php-base: &php-base
   build:
     context: .
     dockerfile: docker/php/Dockerfile
+    args:
+      PHP_VERSION: ${PHP_VERSION:-8.2}
   working_dir: /workspace
   volumes:
     - .:/workspace

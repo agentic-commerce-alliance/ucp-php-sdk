@@ -1,6 +1,7 @@
 FROM composer:2 AS composer
 
-FROM php:8.2-cli-bookworm
+ARG PHP_VERSION=8.2
+FROM php:${PHP_VERSION}-cli-bookworm
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends $PHPIZE_DEPS git unzip libsqlite3-dev libpq-dev libicu-dev libonig-dev libxml2-dev \
