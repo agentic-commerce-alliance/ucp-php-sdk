@@ -4,7 +4,13 @@ UCP PHP SDK for Symfony and plain PHP.
 
 This repo contains the shared SDK, a Symfony bundle, two example apps, local Docker tooling, and the docs needed to build future platform integrations on top.
 
-For technical notes and agent-facing examples, start with [AGENTS.md](AGENTS.md).
+## Read this first
+
+**New to UCP?** UCP (Unified Commerce Protocol) is an open protocol that lets agents and external clients discover and use a merchant's commerce capabilities — catalog, cart, checkout, tokenization, identity linking, and order read — over a standard contract. This SDK implements the merchant side in PHP. Spec: <https://ucp.dev/specification/overview/> (protocol target `2026-04-08`).
+
+**Want to integrate?** Start with the **[Getting Started guide](docs/getting-started.md)** — it takes you from `composer require` to your first request, for both the Symfony bundle and the framework-free core. Then run an [example app](#example-apps).
+
+For technical notes and agent-facing examples, see [AGENTS.md](AGENTS.md).
 
 Project policies:
 
@@ -45,6 +51,8 @@ The Symfony bundle owns HTTP wiring:
 Commerce platforms can either implement the capability contracts directly or add platform adapters on top. The adapter-backed wrappers are convenience helpers, not a required layer. A Shopware plugin such as `SwagAgenticCommerce` should stay DAL-first and use the shared SDK through the public contracts. The SDK now keeps full UCP transport parity at the generic layer: REST runtime, A2A runtime, embedded transport hooks/controllers, and MCP profile metadata. Shopware-specific MCP tooling and DAL wiring still belong in the Shopware plugin.
 
 ## Quickstart
+
+This section sets up the local development toolchain. To integrate the SDK into your own application instead, follow the [Getting Started guide](docs/getting-started.md).
 
 Build the local toolchain and install dependencies:
 
@@ -99,7 +107,10 @@ docker compose run --rm php composer mutation
 docker compose run --rm php composer mutation:changed
 docker compose run --rm php composer mutation:gate
 docker compose run --rm php composer mutation:full
+docker compose run --rm php composer mutation:security
 ```
+
+`composer mutation:security` is a focused, opt-in mutation run over the crypto and signing code in `packages/core/src/Internal/Security` (the security-critical paths the main mutation config excludes for speed). It enforces an 80% MSI on that code and is not part of the `qa` gate; run it when changing signing, canonicalization, or key-management logic.
 
 `composer qa` now enforces both the internal coverage gate and the fast scoped mutation gate. Use `composer mutation:changed` for a fast local diff-based mutation run over changed files and related tests, and `composer mutation:full` for the slower broad sweep.
 
@@ -133,6 +144,8 @@ For live deployments and release readiness, use the [production operator checkli
 
 ## Architecture Docs
 
+- [docs/getting-started.md](docs/getting-started.md)
+- [docs/troubleshooting.md](docs/troubleshooting.md)
 - [docs/concepts-and-flows.md](docs/concepts-and-flows.md)
 - [docs/extension-contract.md](docs/extension-contract.md)
 - [docs/platform-adapters.md](docs/platform-adapters.md)
@@ -163,6 +176,8 @@ In scope:
 - A2A
 - embedded transport hooks
 - MCP profile metadata when an explicit MCP endpoint is provided by the adopter
+
+> **MCP is metadata-only.** The shared SDK advertises MCP profile metadata but does **not** generate or handle a runtime `/ucp/mcp` endpoint. You must supply one via `transport_endpoints.mcp`. A working MCP runtime is the adopter's responsibility — in Shopware it depends on the 6.7 core Store API MCP endpoint, which is a prerequisite that may not exist yet. Do not expect a live MCP transport from this package alone. See [docs/full-ucp-parity-plan.md](docs/full-ucp-parity-plan.md).
 
 Out of scope in this shared SDK:
 

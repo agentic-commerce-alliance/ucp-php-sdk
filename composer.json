@@ -60,7 +60,7 @@
         "cs:fix": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --using-cache=no",
         "phpstan": "vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --memory-limit=1G",
         "dead-code:phpstan": "vendor/bin/phpstan analyse --configuration=phpstan-dead-code.neon.dist --memory-limit=1G",
-        "reports:prepare": "@php -r \"foreach (['var/reports/pdepend', 'var/reports/coverage', 'var/reports/coverage/html', 'var/reports/dead-code', 'var/reports/infection', 'var/reports/infection-full'] as \\$dir) { is_dir(\\$dir) || mkdir(\\$dir, 0777, true); }\"",
+        "reports:prepare": "@php -r \"foreach (['var/reports/pdepend', 'var/reports/coverage', 'var/reports/coverage/html', 'var/reports/dead-code', 'var/reports/infection', 'var/reports/infection-full', 'var/reports/infection-security'] as \\$dir) { is_dir(\\$dir) || mkdir(\\$dir, 0777, true); }\"",
         "metrics:prepare": "@reports:prepare",
         "metrics:pdepend": [
             "@metrics:prepare",
@@ -101,6 +101,11 @@
         ],
         "mutation:gate": [
             "@mutation"
+        ],
+        "mutation:security": [
+            "@reports:prepare",
+            "Composer\\Config::disableProcessTimeout",
+            "sh scripts/run-infection.sh --configuration=infection.security.json.dist"
         ],
         "test": [
             "@test:core",

@@ -1,0 +1,25 @@
+{
+    "$schema": "https://infection.github.io/schema.json",
+    "minMsi": 80,
+    "minCoveredMsi": 80,
+    "source": {
+        "directories": [
+            "packages/core/src/Internal/Security"
+        ],
+        "excludes": [
+            "packages/core/src/Internal/Security/UnsupportedMerchantAuthorizationService.php"
+        ]
+    },
+    "logs": {
+        "text": "var/reports/infection-security/summary.log",
+        "html": "var/reports/infection-security/index.html"
+    },
+    "phpUnit": {
+        "configDir": ".",
+        "customPath": "vendor/bin/phpunit"
+    },
+    "mutators": {
+        "@default": true
+    },
+    "tmpDir": "var/infection-security"
+}
