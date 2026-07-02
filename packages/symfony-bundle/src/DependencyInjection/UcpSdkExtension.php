@@ -91,9 +91,11 @@ use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\SymfonyEventDispatcher;
 use Ucp\Sdk\Symfony\Bridge\SymfonyHttpClient;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
+use Ucp\Sdk\Symfony\Command\DeleteSigningKeyCommand;
 use Ucp\Sdk\Symfony\Command\GenerateSigningKeyCommand;
 use Ucp\Sdk\Symfony\Command\ListSigningKeysCommand;
 use Ucp\Sdk\Symfony\Command\PurgeSignatureNoncesCommand;
+use Ucp\Sdk\Symfony\Command\RetireSigningKeyCommand;
 use Ucp\Sdk\Symfony\Command\ShowPublicSigningKeysCommand;
 use Ucp\Sdk\Symfony\Command\StorageCleanupCommand;
 use Ucp\Sdk\Symfony\Controller\A2aController;
@@ -394,6 +396,8 @@ final class UcpSdkExtension extends Extension
         ]))->addTag('console.command');
         $container->autowire(ListSigningKeysCommand::class)->addTag('console.command');
         $container->autowire(ShowPublicSigningKeysCommand::class)->addTag('console.command');
+        $container->autowire(RetireSigningKeyCommand::class)->addTag('console.command');
+        $container->autowire(DeleteSigningKeyCommand::class)->addTag('console.command');
         $container->autowire(StorageCleanupCommand::class)->addTag('console.command');
         $container->autowire(PurgeSignatureNoncesCommand::class)->addTag('console.command');
     }

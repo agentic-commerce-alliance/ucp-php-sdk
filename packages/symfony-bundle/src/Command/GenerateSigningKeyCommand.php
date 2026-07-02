@@ -13,9 +13,10 @@ use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 #[AsCommand(name: 'ucp:signing-keys:generate', description: 'Generate and store a signing key for the UCP SDK.')]
-/** @internal */
-final class GenerateSigningKeyCommand extends Command
+class GenerateSigningKeyCommand extends Command
 {
+    use InteractsWithSigningKeyTenant;
+
     public function __construct(
         private readonly SigningKeyManagerInterface $signingKeyManager,
         private readonly ManagedSigningKeyRepositoryInterface $repository,
@@ -32,6 +33,7 @@ final class GenerateSigningKeyCommand extends Command
             ->addOption('kid', null, InputOption::VALUE_REQUIRED, 'Key identifier', $this->defaultKid)
             ->addOption('algorithm', null, InputOption::VALUE_REQUIRED, 'Signing algorithm', $this->defaultAlgorithm)
             ->addOption('retire-after', null, InputOption::VALUE_REQUIRED, 'Retirement interval in ISO-8601 duration form', $this->defaultRetireAfter);
+        $this->configureTenantOption();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -39,6 +41,7 @@ final class GenerateSigningKeyCommand extends Command
         $kid = (string) $input->getOption('kid');
         $algorithm = (string) $input->getOption('algorithm');
         $retireAfter = $input->getOption('retire-after');
+        $tenantIdentifier = $this->resolveTenantIdentifier($input);
 
         $key = $this->signingKeyManager->generate($kid, $algorithm);
         if (is_string($retireAfter) && $retireAfter !== '') {
@@ -58,9 +61,14 @@ final class GenerateSigningKeyCommand extends Command
                 $retireAt,
             );
         }
-        $this->repository->saveManaged($key);
+        $this->saveManagedKeyForTenant($this->repository, $tenantIdentifier, $key);
 
-        $output->writeln(sprintf('Generated signing key "%s" using %s.', $key->kid, $key->algorithm));
+        $output->writeln(sprintf(
+            'Generated signing key "%s" using %s%s.',
+            $key->kid,
+            $key->algorithm,
+            null !== $tenantIdentifier ? sprintf(' for tenant "%s"', $tenantIdentifier) : '',
+        ));
 
         return Command::SUCCESS;
     }
