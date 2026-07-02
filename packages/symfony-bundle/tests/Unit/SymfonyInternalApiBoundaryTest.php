@@ -50,7 +50,7 @@ final class SymfonyInternalApiBoundaryTest extends TestCase
                 }
 
                 $path = $file->getPathname();
-                if (str_ends_with($path, 'Bridge/EmbeddedPageRendererInterface.php')) {
+                if ($this->isPublicApi($path)) {
                     continue;
                 }
 
@@ -61,6 +61,33 @@ final class SymfonyInternalApiBoundaryTest extends TestCase
         sort($files);
 
         return $files;
+    }
+
+    /**
+     * Classes that are intentionally part of the public/extensible API and are
+     * therefore not marked @internal.
+     */
+    private function isPublicApi(string $path): bool
+    {
+        $publicApiSuffixes = [
+            'Bridge/EmbeddedPageRendererInterface.php',
+            // Signing-key commands are an extension point: integrators subclass
+            // them (and the shared trait) to add tenant resolution.
+            'Command/GenerateSigningKeyCommand.php',
+            'Command/ListSigningKeysCommand.php',
+            'Command/ShowPublicSigningKeysCommand.php',
+            'Command/RetireSigningKeyCommand.php',
+            'Command/DeleteSigningKeyCommand.php',
+            'Command/InteractsWithSigningKeyTenant.php',
+        ];
+
+        foreach ($publicApiSuffixes as $suffix) {
+            if (str_ends_with($path, $suffix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function projectRoot(): string
