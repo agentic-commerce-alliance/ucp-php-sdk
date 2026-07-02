@@ -7,6 +7,7 @@
 - signing-key commands (`ucp:signing-keys:generate` / `list` / `show-public`) now accept an optional `--tenant` identifier and route to the tenant-aware repository when one is provided; without it they behave exactly as before (global scope) (#73)
 - new `ucp:signing-keys:retire` and `ucp:signing-keys:delete` commands complete the key lifecycle (both tenant-aware) (#73)
 - the signing-key commands are no longer `final`/`@internal` and expose a `resolveTenantIdentifier()` extension point, so integrators (e.g. the Shopware plugin) can map a domain-specific option to the tenant instead of shipping their own commands (#73)
+- `resolveTenantIdentifier()` now receives the command's `OutputInterface`, so an override can prompt interactively or print guidance; an override may throw to abort the command (the exception surfaces as a non-zero exit)
 - enforce UCP request-time negotiation so requests are validated against the negotiated protocol version and capabilities (#65)
 - runtime capability enablement, allowing capabilities to be toggled on at runtime rather than only at build time (#50)
 - improved remote profile validation for discovered/remote UCP profiles (#47)

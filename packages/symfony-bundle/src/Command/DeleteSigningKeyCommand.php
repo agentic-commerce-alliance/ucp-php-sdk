@@ -37,7 +37,7 @@ class DeleteSigningKeyCommand extends Command
             return Command::INVALID;
         }
 
-        $tenantIdentifier = $this->resolveTenantIdentifier($input);
+        $tenantIdentifier = $this->resolveTenantIdentifier($input, $output);
 
         if (!$this->deleteManagedKeyForTenant($this->repository, $tenantIdentifier, $kid)) {
             $output->writeln(sprintf('<error>Signing key "%s" not found.</error>', $kid));

@@ -28,7 +28,7 @@ class ListSigningKeysCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $tenantIdentifier = $this->resolveTenantIdentifier($input);
+        $tenantIdentifier = $this->resolveTenantIdentifier($input, $output);
 
         $keys = array_map(static fn ($key): array => [
             'kid' => $key->kid,

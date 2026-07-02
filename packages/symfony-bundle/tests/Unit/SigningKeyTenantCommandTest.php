@@ -6,6 +6,8 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Security\PublicSigningKey;
@@ -90,6 +92,41 @@ final class SigningKeyTenantCommandTest extends TestCase
 
         self::assertSame(0, $status);
         self::assertNull($repository->findManagedForTenant('tenant-a', 'a-key'));
+    }
+
+    #[Test]
+    public function anOverrideReceivesOutputAndCanResolveTheTenant(): void
+    {
+        $repository = new InMemoryTenantSigningKeyRepository();
+        $command = new class (new StubSigningKeyManager(), $repository) extends GenerateSigningKeyCommand {
+            protected function resolveTenantIdentifier(InputInterface $input, OutputInterface $output): string
+            {
+                $output->writeln('resolved tenant from a domain option');
+
+                return 'resolved-tenant';
+            }
+        };
+
+        $tester = new CommandTester($command);
+        $tester->execute(['--kid' => 'k1']);
+
+        self::assertStringContainsString('resolved tenant from a domain option', $tester->getDisplay());
+        self::assertArrayHasKey('k1', $repository->byTenant['resolved-tenant'] ?? []);
+    }
+
+    #[Test]
+    public function anOverrideMayThrowToAbort(): void
+    {
+        $command = new class (new StubSigningKeyManager(), new InMemoryTenantSigningKeyRepository()) extends GenerateSigningKeyCommand {
+            protected function resolveTenantIdentifier(InputInterface $input, OutputInterface $output): string
+            {
+                throw new \RuntimeException('cannot resolve tenant');
+            }
+        };
+
+        $this->expectException(\RuntimeException::class);
+
+        (new CommandTester($command))->execute(['--kid' => 'k1']);
     }
 }
 
