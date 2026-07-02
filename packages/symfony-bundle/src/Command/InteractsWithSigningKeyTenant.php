@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Command;
 
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
@@ -32,10 +33,17 @@ trait InteractsWithSigningKeyTenant
 
     /**
      * Resolve the tenant identifier for this invocation. Returns null for the
-     * global/default scope. Override to map a domain-specific option.
+     * global/default scope.
+     *
+     * Override to map a domain-specific option (e.g. a Shopware sales channel)
+     * to a tenant. The command's output is provided so an override can prompt
+     * interactively or print guidance; throw to abort the command (the caller
+     * lets the exception surface as a non-zero exit).
      */
-    protected function resolveTenantIdentifier(InputInterface $input): ?string
+    protected function resolveTenantIdentifier(InputInterface $input, OutputInterface $output): ?string
     {
+        unset($output);
+
         $value = $input->hasOption('tenant') ? $input->getOption('tenant') : null;
 
         return \is_string($value) && '' !== $value ? $value : null;

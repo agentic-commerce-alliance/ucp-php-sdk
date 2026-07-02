@@ -30,7 +30,7 @@ class ShowPublicSigningKeysCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $tenantIdentifier = $this->resolveTenantIdentifier($input);
+        $tenantIdentifier = $this->resolveTenantIdentifier($input, $output);
 
         $payload = array_map(
             fn ($key): array => $this->signingKeyManager->toPublicKey($key)->toJwk(),

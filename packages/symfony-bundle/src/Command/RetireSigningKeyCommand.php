@@ -38,7 +38,7 @@ class RetireSigningKeyCommand extends Command
             return Command::INVALID;
         }
 
-        $tenantIdentifier = $this->resolveTenantIdentifier($input);
+        $tenantIdentifier = $this->resolveTenantIdentifier($input, $output);
 
         $existing = $this->findManagedKeyForTenant($this->repository, $tenantIdentifier, $kid);
         if (null === $existing) {

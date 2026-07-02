@@ -41,7 +41,7 @@ class GenerateSigningKeyCommand extends Command
         $kid = (string) $input->getOption('kid');
         $algorithm = (string) $input->getOption('algorithm');
         $retireAfter = $input->getOption('retire-after');
-        $tenantIdentifier = $this->resolveTenantIdentifier($input);
+        $tenantIdentifier = $this->resolveTenantIdentifier($input, $output);
 
         $key = $this->signingKeyManager->generate($kid, $algorithm);
         if (is_string($retireAfter) && $retireAfter !== '') {
