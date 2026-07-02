@@ -12,9 +12,10 @@ use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\SigningKeyManagerInterface;
 
 #[AsCommand(name: 'ucp:signing-keys:show-public', description: 'Show the public signing keys published in discovery.')]
-/** @internal */
-final class ShowPublicSigningKeysCommand extends Command
+class ShowPublicSigningKeysCommand extends Command
 {
+    use InteractsWithSigningKeyTenant;
+
     public function __construct(
         private readonly ManagedSigningKeyRepositoryInterface $repository,
         private readonly SigningKeyManagerInterface $signingKeyManager,
@@ -22,11 +23,18 @@ final class ShowPublicSigningKeysCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this->configureTenantOption();
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $tenantIdentifier = $this->resolveTenantIdentifier($input);
+
         $payload = array_map(
             fn ($key): array => $this->signingKeyManager->toPublicKey($key)->toJwk(),
-            $this->repository->active(),
+            $this->activeKeysForTenant($this->repository, $tenantIdentifier),
         );
 
         $output->writeln(json_encode($payload, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
