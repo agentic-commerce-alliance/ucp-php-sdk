@@ -44,6 +44,32 @@ final class DefaultJsonCanonicalizationTest extends TestCase
     }
 
     #[Test]
+    public function itOrdersObjectKeysWithEqualPrefixes(): void
+    {
+        $service = new DefaultJsonCanonicalization();
+
+        $result = $service->canonicalize([
+            'cart/line' => 2,
+            'cart' => 1,
+            'cart💳' => 3,
+        ]);
+
+        self::assertSame('{"cart":1,"cart/line":2,"cart💳":3}', $result);
+    }
+
+    #[Test]
+    public function itDoesNotEscapeSlashesOrUnicodeCharacters(): void
+    {
+        $service = new DefaultJsonCanonicalization();
+
+        $result = $service->canonicalize([
+            'https://merchant.example/ü' => 'https://agent.example/支付',
+        ]);
+
+        self::assertSame('{"https://merchant.example/ü":"https://agent.example/支付"}', $result);
+    }
+
+    #[Test]
     public function itUsesShortestJsonNumberRepresentations(): void
     {
         $service = new DefaultJsonCanonicalization();
@@ -51,9 +77,22 @@ final class DefaultJsonCanonicalizationTest extends TestCase
         $result = $service->canonicalize([
             'big' => 1.0e30,
             'negativeZero' => -0.0,
+            'one' => 1.0,
+            'positiveZero' => 0.0,
             'small' => 0.002,
         ]);
 
-        self::assertSame('{"big":1e+30,"negativeZero":0,"small":0.002}', $result);
+        self::assertSame('{"big":1e+30,"negativeZero":0,"one":1,"positiveZero":0,"small":0.002}', $result);
+    }
+
+    #[Test]
+    public function itRejectsNonFiniteFloats(): void
+    {
+        $service = new DefaultJsonCanonicalization();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('NaN and Infinity are not allowed in canonical JSON.');
+
+        $service->canonicalize(['total' => INF]);
     }
 }

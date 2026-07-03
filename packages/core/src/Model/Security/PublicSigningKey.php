@@ -9,6 +9,11 @@ use Ucp\Sdk\Exception\ValidationException;
 
 final class PublicSigningKey
 {
+    private const SUPPORTED_ALGORITHM_CURVES = [
+        'ES256' => 'P-256',
+        'ES384' => 'P-384',
+    ];
+
     /**
      * @param array<string, string> $jwk
      */
@@ -56,10 +61,10 @@ final class PublicSigningKey
         $use = self::requiredString($entry, 'use', $kid);
         $curve = self::requiredString($entry, 'crv', $kid);
 
-        self::assertSupported($kid, 'alg', $algorithm, 'ES256');
+        $expectedCurve = self::expectedCurve($kid, $algorithm);
         self::assertSupported($kid, 'kty', $keyType, 'EC');
         self::assertSupported($kid, 'use', $use, 'sig');
-        self::assertSupported($kid, 'crv', $curve, 'P-256');
+        self::assertSupported($kid, 'crv', $curve, $expectedCurve);
 
         $x = self::optionalString($entry, 'x');
         $y = self::optionalString($entry, 'y');
@@ -123,6 +128,15 @@ final class PublicSigningKey
         if ($actual !== $expected) {
             throw new ValidationException(sprintf('Public signing key "%s" uses unsupported %s "%s".', $kid, $field, $actual));
         }
+    }
+
+    private static function expectedCurve(string $kid, string $algorithm): string
+    {
+        if (! array_key_exists($algorithm, self::SUPPORTED_ALGORITHM_CURVES)) {
+            throw new ValidationException(sprintf('Public signing key "%s" uses unsupported alg "%s".', $kid, $algorithm));
+        }
+
+        return self::SUPPORTED_ALGORITHM_CURVES[$algorithm];
     }
 
     private static function normalizePublicKeyPem(string $publicKeyPem, string $kid): string
