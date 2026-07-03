@@ -30,6 +30,21 @@ final class PublicSigningKeyTest extends TestCase
         self::assertSame($jwk['y'], $key->y);
     }
 
+    #[Test]
+    public function itParsesSupportedEs384SigningKeys(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $jwk = $manager->toPublicKey($manager->generate('kid-es384', 'ES384'))->toJwk();
+
+        $key = PublicSigningKey::fromJwk($jwk);
+
+        self::assertSame('kid-es384', $key->kid);
+        self::assertSame('ES384', $key->algorithm);
+        self::assertSame('P-384', $key->curve);
+        self::assertSame($jwk['x'], $key->x);
+        self::assertSame($jwk['y'], $key->y);
+    }
+
     /**
      * @param array<string, mixed> $jwk
      */
@@ -92,11 +107,24 @@ final class PublicSigningKeyTest extends TestCase
                 'kty' => 'EC',
                 'alg' => 'ES256',
                 'use' => 'sig',
-                'crv' => 'P-384',
+                'crv' => 'P-521',
                 'x' => 'abc',
                 'y' => 'def',
             ],
-            'Public signing key "kid-1" uses unsupported crv "P-384".',
+            'Public signing key "kid-1" uses unsupported crv "P-521".',
+        ];
+
+        yield 'curve incompatible with algorithm' => [
+            [
+                'kid' => 'kid-1',
+                'kty' => 'EC',
+                'alg' => 'ES384',
+                'use' => 'sig',
+                'crv' => 'P-256',
+                'x' => 'abc',
+                'y' => 'def',
+            ],
+            'Public signing key "kid-1" uses unsupported crv "P-256".',
         ];
 
         yield 'missing key material' => [

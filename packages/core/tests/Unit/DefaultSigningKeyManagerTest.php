@@ -39,4 +39,19 @@ final class DefaultSigningKeyManagerTest extends TestCase
         self::assertSame($jwk['x'], $publicKey->x);
         self::assertSame($jwk['y'], $publicKey->y);
     }
+
+    #[Test]
+    public function itCreatesEs384PublicKeysFromJwks(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $jwk = $manager->toPublicKey($manager->generate('kid-jwk-es384', 'ES384'))->toJwk();
+
+        $publicKey = $manager->publicKeyFromJwk($jwk);
+
+        self::assertSame('kid-jwk-es384', $publicKey->kid);
+        self::assertSame('ES384', $publicKey->algorithm);
+        self::assertSame('P-384', $publicKey->curve);
+        self::assertSame($jwk['x'], $publicKey->x);
+        self::assertSame($jwk['y'], $publicKey->y);
+    }
 }

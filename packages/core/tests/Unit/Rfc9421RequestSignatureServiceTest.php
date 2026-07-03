@@ -62,6 +62,28 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
     }
 
     #[Test]
+    public function itVerifiesEs384RequestsWithSigningKeysParsedFromDiscoveryProfileJson(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-profile-round-trip-es384', 'ES384');
+        $profile = new PlatformProfile('2026-04-08', [], [], [], [$manager->toPublicKey($managedKey)]);
+        $profilePayload = json_decode(json_encode($profile->toArray(), \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($profilePayload);
+        $parsedProfile = PlatformProfile::fromArray($profilePayload);
+        $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $created = time();
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+
+        $signedHeaders = $service->sign($request, $managedKey, $created, $created + 120);
+        $verifiedRequest = new HttpRequest($request->method, $request->absoluteUri, $signedHeaders, $request->query, $request->body);
+        $result = $service->verify($verifiedRequest, $parsedProfile->signingKeys);
+
+        self::assertTrue($result->verified, $result->failureReason ?? '');
+        self::assertSame('kid-profile-round-trip-es384', $result->kid);
+        self::assertSame('ES384', $result->algorithm);
+    }
+
+    #[Test]
     public function itEmbedsExplicitCreatedAndExpiresValuesWhenSigning(): void
     {
         $manager = new DefaultSigningKeyManager();
@@ -77,6 +99,20 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         self::assertStringContainsString('keyid="kid-explicit"', $signedHeaders['Signature-Input']);
         self::assertStringContainsString('alg="ES256"', $signedHeaders['Signature-Input']);
         self::assertStringStartsWith('sig=:', $signedHeaders['Signature']);
+    }
+
+    #[Test]
+    public function itDefaultsExpiresToCreatedPlusTheConfiguredLifetimeWhenSigning(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-default-expiry');
+        $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService(), maxLifetimeSeconds: 420);
+
+        $signedHeaders = $service->sign($request, $managedKey, 1_700_000_000);
+
+        self::assertStringContainsString('created=1700000000', $signedHeaders['Signature-Input']);
+        self::assertStringContainsString('expires=1700000420', $signedHeaders['Signature-Input']);
     }
 
     #[Test]
@@ -130,6 +166,27 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         self::assertFalse($result->verified);
         self::assertSame('Invalid Content-Digest header.', $result->failureReason);
         self::assertFalse($result->contentDigestVerified);
+    }
+
+    #[Test]
+    public function itMarksContentDigestAsVerifiedWhenOnlyTheSignatureFails(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-invalid-signature');
+        $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $created = time();
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+
+        $signedHeaders = $service->sign($request, $managedKey, $created, $created + 120);
+        $signedHeaders['Signature'] = 'sig=:' . base64_encode('invalid-signature') . ':';
+        $result = $service->verify(
+            new HttpRequest($request->method, $request->absoluteUri, $signedHeaders, $request->query, $request->body),
+            [$manager->toPublicKey($managedKey)],
+        );
+
+        self::assertFalse($result->verified);
+        self::assertSame('Request signature verification failed.', $result->failureReason);
+        self::assertTrue($result->contentDigestVerified);
     }
 
     #[Test]
