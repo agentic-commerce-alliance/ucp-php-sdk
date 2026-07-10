@@ -96,4 +96,63 @@ final class HttpPayloadMapperTest extends TestCase
 
         $mapper->decode($request);
     }
+
+    #[Test]
+    public function itMapsCheckoutCompletePaymentAndAp2Payload(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => [
+                'instruments' => [[
+                    'type' => 'tokenized',
+                    'handler_id' => 'com.example.psp',
+                    'credential' => ['token' => 'payment_mandate'],
+                ]],
+            ],
+            'ap2' => [
+                'checkout_mandate' => 'checkout_mandate',
+            ],
+        ]);
+
+        self::assertSame('checkout-1', $request->id);
+        $payment = $request->payment;
+        self::assertNotNull($payment);
+        self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
+        self::assertSame('payment_mandate', $payment->instruments[0]->credential['token']);
+        self::assertSame('checkout_mandate', $request->ap2?->checkoutMandate);
+    }
+
+    #[Test]
+    public function itMapsCheckoutCompleteRequestsWithoutPaymentOrAp2Payload(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', []);
+
+        self::assertSame('checkout-1', $request->id);
+        self::assertNull($request->payment);
+        self::assertNull($request->ap2);
+    }
+
+    #[Test]
+    public function itIgnoresMalformedCheckoutCompleteInstrumentRows(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => [
+                'instruments' => ['not-an-instrument', ['handler_id' => 'com.example.psp']],
+            ],
+            'ap2' => [
+                'checkout_mandate' => '',
+            ],
+        ]);
+
+        $payment = $request->payment;
+        self::assertNotNull($payment);
+        self::assertCount(1, $payment->instruments);
+        self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
+        self::assertNull($request->ap2?->checkoutMandate);
+    }
 }

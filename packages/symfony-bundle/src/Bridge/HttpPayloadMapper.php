@@ -6,17 +6,20 @@ namespace Ucp\Sdk\Symfony\Bridge;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Ucp\Sdk\Model\Ap2\Ap2CheckoutData;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
 use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Checkout\BuyerConsent;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
 use Ucp\Sdk\Model\Checkout\FulfillmentSelection;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
+use Ucp\Sdk\Model\Checkout\PaymentSelection;
 use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Signals;
@@ -138,6 +141,37 @@ final class HttpPayloadMapper
             $this->toConsent($payload['buyer_consent'] ?? null),
             isset($payload['payment']) && is_array($payload['payment']) ? $this->toPaymentInstrument($payload['payment']) : null,
         );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function toCheckoutCompleteRequest(string $id, array $payload): CheckoutCompleteRequest
+    {
+        return new CheckoutCompleteRequest(
+            $id,
+            isset($payload['payment']) && is_array($payload['payment'])
+                ? $this->toPaymentSelection($payload['payment'])
+                : null,
+            isset($payload['ap2']) && is_array($payload['ap2'])
+                ? new Ap2CheckoutData($this->nullableString($payload['ap2']['checkout_mandate'] ?? null))
+                : null,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function toPaymentSelection(array $payload): PaymentSelection
+    {
+        $instruments = [];
+        foreach (is_array($payload['instruments'] ?? null) ? $payload['instruments'] : [] as $row) {
+            if (is_array($row)) {
+                $instruments[] = $this->toPaymentInstrument($row);
+            }
+        }
+
+        return new PaymentSelection($instruments);
     }
 
     /**
