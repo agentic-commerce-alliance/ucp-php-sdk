@@ -24,6 +24,7 @@ use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchResponse;
 use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Checkout\Checkout;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
@@ -236,6 +237,41 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         ], $validator->calls);
     }
 
+    #[Test]
+    public function checkoutCompletePassesParsedPaymentAndAp2Request(): void
+    {
+        $capability = new ShoppingOperationCapabilityFake();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            [
+                'payment' => ['instruments' => [[
+                    'type' => 'tokenized',
+                    'handler_id' => 'com.example.psp',
+                    'credential' => ['token' => 'payment_mandate'],
+                ]]],
+                'ap2' => ['checkout_mandate' => 'checkout_mandate'],
+            ],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ));
+
+        $completedRequest = $capability->completedRequest;
+        self::assertNotNull($completedRequest);
+        self::assertSame('checkout-1', $completedRequest->id);
+        self::assertSame('checkout_mandate', $completedRequest->ap2?->checkoutMandate);
+        self::assertSame('com.example.psp', $completedRequest->payment?->instruments[0]->handlerId);
+    }
+
     /**
      * @return list<ShoppingOperationRequest>
      */
@@ -302,6 +338,8 @@ final class ShoppingOperationCapabilityFake implements CatalogCapabilityInterfac
 {
     public ?CatalogProductRequest $productRequest = null;
 
+    public ?CheckoutCompleteRequest $completedRequest = null;
+
     public function describe(): CapabilityDescriptor
     {
         return new CapabilityDescriptor('dev.ucp.shopping', '2026-04-08', 'spec', 'schema');
@@ -364,9 +402,11 @@ final class ShoppingOperationCapabilityFake implements CatalogCapabilityInterfac
         return $this->checkout($request->id);
     }
 
-    public function completeCheckout(string $id, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context): Checkout
     {
-        return $this->checkout($id, CheckoutStatus::Completed);
+        $this->completedRequest = $request;
+
+        return $this->checkout($request->id, CheckoutStatus::Completed);
     }
 
     public function cancelCheckout(string $id, RequestContext $context): Checkout

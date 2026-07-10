@@ -11,6 +11,7 @@ use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
 use Ucp\Sdk\Model\Checkout\Checkout;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\OrderConfirmation;
@@ -111,8 +112,9 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         return $checkout;
     }
 
-    public function completeCheckout(string $id, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context): Checkout
     {
+        $id = $request->id;
         $checkout = $this->getCheckout($id, $context);
         $orderId = 'ord_' . substr($checkout->id, 4);
 

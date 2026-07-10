@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Contract;
 
 use Ucp\Sdk\Model\Checkout\Checkout;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\RequestContext;
@@ -22,7 +23,7 @@ interface CheckoutCapabilityInterface extends CapabilityInterface
 
     public function updateCheckout(CheckoutUpdateRequest $request, RequestContext $context): Checkout;
 
-    public function completeCheckout(string $id, RequestContext $context): Checkout;
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context): Checkout;
 
     public function cancelCheckout(string $id, RequestContext $context): Checkout;
 }

@@ -241,8 +241,14 @@ final class ShoppingOperationExecutor
     private function checkoutComplete(ShoppingOperationRequest $request): UcpOperationResponse
     {
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
-        $id = $this->requiredId($request);
-        return $this->response('checkout.complete', $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request), UcpCapability::Checkout, $request->context);
+        $completeRequest = $this->payloadMapper->toCheckoutCompleteRequest($this->requiredId($request), $request->payload);
+
+        return $this->response(
+            'checkout.complete',
+            $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($completeRequest, $request->context), $request),
+            UcpCapability::Checkout,
+            $request->context,
+        );
     }
 
     private function checkoutCancel(ShoppingOperationRequest $request): UcpOperationResponse
