@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Ucp\Sdk\Contract\Ap2CheckoutMandateVerifierInterface;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CartCapabilityInterface;
 use Ucp\Sdk\Contract\CatalogCapabilityInterface;
@@ -272,6 +273,34 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         self::assertSame('com.example.psp', $completedRequest->payment?->instruments[0]->handlerId);
     }
 
+    #[Test]
+    public function checkoutCompleteInvokesAp2VerifierBeforeAdapterCompletion(): void
+    {
+        $capability = new ShoppingOperationCapabilityFake();
+        $verifier = new RecordingAp2CheckoutMandateVerifier($capability);
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+            [$verifier],
+        );
+
+        $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['ap2' => ['checkout_mandate' => 'checkout_mandate']],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ));
+
+        self::assertSame('checkout-1', $verifier->request?->id);
+        self::assertSame('checkout-1', $verifier->currentCheckout?->id);
+        self::assertTrue($verifier->calledBeforeAdapterCompletion);
+    }
+
     /**
      * @return list<ShoppingOperationRequest>
      */
@@ -293,6 +322,26 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             new ShoppingOperationRequest('checkout.cancel', [], $context, 'checkout-1'),
             new ShoppingOperationRequest('order.get', [], $context, 'order-1'),
         ];
+    }
+}
+
+final class RecordingAp2CheckoutMandateVerifier implements Ap2CheckoutMandateVerifierInterface
+{
+    public ?CheckoutCompleteRequest $request = null;
+
+    public ?Checkout $currentCheckout = null;
+
+    public bool $calledBeforeAdapterCompletion = false;
+
+    public function __construct(private readonly ShoppingOperationCapabilityFake $capability)
+    {
+    }
+
+    public function verify(CheckoutCompleteRequest $request, Checkout $currentCheckout, RequestContext $context): void
+    {
+        $this->request = $request;
+        $this->currentCheckout = $currentCheckout;
+        $this->calledBeforeAdapterCompletion = $this->capability->completedRequest === null;
     }
 }
 

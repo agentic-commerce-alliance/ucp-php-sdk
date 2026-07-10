@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Operation;
 
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Ucp\Sdk\Contract\Ap2CheckoutMandateVerifierInterface;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CartCapabilityInterface;
 use Ucp\Sdk\Contract\CatalogCapabilityInterface;
@@ -42,6 +43,7 @@ final class ShoppingOperationExecutor
      * @param iterable<CheckoutRequestValidatorInterface> $requestValidators
      * @param iterable<CheckoutResponseAugmenterInterface> $responseAugmenters
      * @param iterable<PaymentMandateVerifierInterface> $mandateVerifiers
+     * @param iterable<Ap2CheckoutMandateVerifierInterface> $ap2CheckoutMandateVerifiers
      */
     public function __construct(
         private readonly CapabilityRegistryInterface $capabilityRegistry,
@@ -51,6 +53,7 @@ final class ShoppingOperationExecutor
         private readonly iterable $responseAugmenters,
         private readonly iterable $mandateVerifiers,
         private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly iterable $ap2CheckoutMandateVerifiers = [],
     ) {
     }
 
@@ -242,10 +245,19 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $completeRequest = $this->payloadMapper->toCheckoutCompleteRequest($this->requiredId($request), $request->payload);
+        $checkoutCapability = $this->checkout($request->context);
+
+        $verifiers = is_array($this->ap2CheckoutMandateVerifiers) ? $this->ap2CheckoutMandateVerifiers : iterator_to_array($this->ap2CheckoutMandateVerifiers, false);
+        if ($verifiers !== []) {
+            $currentCheckout = $checkoutCapability->getCheckout($completeRequest->id, $request->context);
+            foreach ($verifiers as $verifier) {
+                $verifier->verify($completeRequest, $currentCheckout, $request->context);
+            }
+        }
 
         return $this->response(
             'checkout.complete',
-            $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($completeRequest, $request->context), $request),
+            $this->finalizeCheckout($checkoutCapability->completeCheckout($completeRequest, $request->context), $request),
             UcpCapability::Checkout,
             $request->context,
         );

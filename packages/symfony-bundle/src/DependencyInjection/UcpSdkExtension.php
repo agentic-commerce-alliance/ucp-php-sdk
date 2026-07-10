@@ -21,6 +21,7 @@ use Ucp\Sdk\Adapter\DiscountAdapterInterface;
 use Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface;
 use Ucp\Sdk\Adapter\OrderAdapterInterface;
 use Ucp\Sdk\Adapter\PaymentAdapterInterface;
+use Ucp\Sdk\Contract\Ap2CheckoutMandateVerifierInterface;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CheckoutRequestValidatorInterface;
 use Ucp\Sdk\Contract\CheckoutResponseAugmenterInterface;
@@ -132,6 +133,7 @@ final class UcpSdkExtension extends Extension
         $container->registerForAutoconfiguration(CheckoutRequestValidatorInterface::class)->addTag('ucp_sdk.checkout_request_validator');
         $container->registerForAutoconfiguration(CheckoutResponseAugmenterInterface::class)->addTag('ucp_sdk.checkout_response_augmenter');
         $container->registerForAutoconfiguration(PaymentMandateVerifierInterface::class)->addTag('ucp_sdk.payment_mandate_verifier');
+        $container->registerForAutoconfiguration(Ap2CheckoutMandateVerifierInterface::class)->addTag('ucp_sdk.ap2_checkout_mandate_verifier');
         $container->registerForAutoconfiguration(OrderWebhookEnricherInterface::class)->addTag('ucp_sdk.order_webhook_enricher');
         $container->registerForAutoconfiguration(EmbeddedPageRendererInterface::class)->addTag('ucp_sdk.embedded_renderer');
         $container->registerForAutoconfiguration(CatalogAdapterInterface::class)->addTag('ucp_sdk.adapter.catalog');
@@ -378,7 +380,8 @@ final class UcpSdkExtension extends Extension
         $container->autowire(ShoppingOperationExecutor::class)
             ->setArgument('$requestValidators', new TaggedIteratorArgument('ucp_sdk.checkout_request_validator'))
             ->setArgument('$responseAugmenters', new TaggedIteratorArgument('ucp_sdk.checkout_response_augmenter'))
-            ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'));
+            ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'))
+            ->setArgument('$ap2CheckoutMandateVerifiers', new TaggedIteratorArgument('ucp_sdk.ap2_checkout_mandate_verifier'));
 
         $container->autowire(ProfileController::class)->addTag('controller.service_arguments');
         $container->autowire(CatalogController::class)->addTag('controller.service_arguments');
