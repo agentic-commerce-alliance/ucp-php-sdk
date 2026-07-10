@@ -14,6 +14,7 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Ucp\Sdk\Exception\Ap2Exception;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\NegotiationException;
@@ -196,6 +197,29 @@ final class EventListenersTest extends TestCase
         $listener->onKernelException($event);
 
         self::assertSame(422, $event->getResponse()?->getStatusCode());
+    }
+
+    #[Test]
+    public function itMapsAp2ExceptionsToStableProtocolErrorCodes(): void
+    {
+        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()));
+        $kernel = $this->createMock(HttpKernelInterface::class);
+
+        $event = new ExceptionEvent(
+            $kernel,
+            Request::create('/ucp/v1/checkout-sessions/checkout-1/complete', 'POST'),
+            HttpKernelInterface::MAIN_REQUEST,
+            new Ap2Exception('mandate_required', 'AP2 checkout mandate is required.'),
+        );
+        $listener->onKernelException($event);
+
+        $response = $event->getResponse();
+        self::assertNotNull($response);
+        self::assertSame(422, $response->getStatusCode());
+
+        $payload = json_decode((string) $response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertSame('mandate_required', $payload['messages'][0]['code']);
+        self::assertSame('AP2 checkout mandate is required.', $payload['messages'][0]['content']);
     }
 
     #[Test]

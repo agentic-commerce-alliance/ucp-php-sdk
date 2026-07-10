@@ -8,6 +8,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Ucp\Sdk\Exception\Ap2Exception;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\NegotiationException;
@@ -35,6 +36,22 @@ final class ExceptionListener
         }
 
         $throwable = $event->getThrowable();
+
+        if ($throwable instanceof Ap2Exception) {
+            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 422, [
+                [
+                    'type' => 'error',
+                    'content' => $throwable->getMessage(),
+                    'code' => $throwable->errorCode,
+                ],
+                ...array_map(
+                    static fn (string $violation): array => ['type' => 'error', 'content' => $violation],
+                    $throwable->getViolations(),
+                ),
+            ]));
+
+            return;
+        }
 
         if ($throwable instanceof ValidationException) {
             $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 422, array_map(
