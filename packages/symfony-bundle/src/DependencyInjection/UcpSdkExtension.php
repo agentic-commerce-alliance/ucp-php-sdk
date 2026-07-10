@@ -37,8 +37,10 @@ use Ucp\Sdk\Internal\Negotiation\DefaultCapabilityNegotiator;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
 use Ucp\Sdk\Internal\Security\ContentDigestService;
+use Ucp\Sdk\Internal\Security\DefaultCheckoutMerchantAuthorizationSigner;
 use Ucp\Sdk\Internal\Security\DefaultJsonCanonicalization;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
+use Ucp\Sdk\Internal\Security\DetachedJwsService;
 use Ucp\Sdk\Internal\Security\RepositoryBackedSignatureReplayGuard;
 use Ucp\Sdk\Internal\Security\Rfc9421RequestSignatureService;
 use Ucp\Sdk\Internal\Security\UnsupportedMerchantAuthorizationService;
@@ -60,6 +62,7 @@ use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
+use Ucp\Sdk\Service\CheckoutMerchantAuthorizationSignerInterface;
 use Ucp\Sdk\Service\DeterministicJsonInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\HttpClientInterface;
@@ -284,6 +287,14 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(RequestSignatureServiceInterface::class, new Alias(Rfc9421RequestSignatureService::class, true));
         $container->setDefinition(UnsupportedMerchantAuthorizationService::class, new Definition(UnsupportedMerchantAuthorizationService::class));
         $container->setAlias(MerchantAuthorizationServiceInterface::class, new Alias(UnsupportedMerchantAuthorizationService::class, true));
+        $container->setDefinition(DetachedJwsService::class, new Definition(DetachedJwsService::class, [
+            new Reference(DeterministicJsonInterface::class),
+        ]));
+        $container->setDefinition(DefaultCheckoutMerchantAuthorizationSigner::class, new Definition(DefaultCheckoutMerchantAuthorizationSigner::class, [
+            new Reference(ManagedSigningKeyRepositoryInterface::class),
+            new Reference(DetachedJwsService::class),
+        ]));
+        $container->setAlias(CheckoutMerchantAuthorizationSignerInterface::class, new Alias(DefaultCheckoutMerchantAuthorizationSigner::class, true));
         $container->setDefinition(HttpAgentProfileFetcher::class, new Definition(HttpAgentProfileFetcher::class, [
             new Reference(HttpClientInterface::class),
             new Reference(PlatformProfileCacheRepositoryInterface::class),
