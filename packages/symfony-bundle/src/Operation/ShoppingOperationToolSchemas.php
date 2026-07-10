@@ -45,6 +45,16 @@ final class ShoppingOperationToolSchemas
         'additionalProperties' => false,
     ];
 
+    public const CHECKOUT_COMPLETE_INPUT = [
+        'type' => 'object',
+        'properties' => [
+            'id' => self::ID,
+            'payload' => self::CHECKOUT_COMPLETE_PAYLOAD,
+        ],
+        'required' => ['id'],
+        'additionalProperties' => false,
+    ];
+
     private const ID = [
         'type' => 'string',
         'minLength' => 1,
@@ -87,6 +97,21 @@ final class ShoppingOperationToolSchemas
             'discounts' => ['type' => 'object'],
             'fulfillment' => ['type' => 'object'],
             'buyer_consent' => ['type' => 'object'],
+        ],
+        'additionalProperties' => true,
+    ];
+
+    private const CHECKOUT_COMPLETE_PAYLOAD = [
+        'type' => 'object',
+        'description' => 'UCP checkout.complete request payload with optional payment selection and AP2 mandate data.',
+        'properties' => [
+            'payment' => ['type' => 'object'],
+            'ap2' => [
+                'type' => 'object',
+                'properties' => [
+                    'checkout_mandate' => ['type' => 'string'],
+                ],
+            ],
         ],
         'additionalProperties' => true,
     ];
