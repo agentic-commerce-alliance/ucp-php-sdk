@@ -29,7 +29,7 @@ Do not keep a separate root `RELEASE_INFO.md` file for per-version notes. That c
 
 Current package line:
 
-- `shopware/ucp-php-sdk-core`
+- `ucp-php-sdk/core`
 - `ucp-php-sdk/symfony-bundle`
 
 Current maturity:
@@ -43,6 +43,31 @@ Recommended tag examples:
 - `0.0.1-alpha2`
 - `0.0.1-beta1`
 - `0.0.1`
+
+## Packagist Distribution
+
+The two publishable packages live in this monorepo under `packages/`, but
+Packagist serves one package per repository (it reads each repository's root
+`composer.json`). They are mirrored into standalone read-only repositories by
+the `split-packages` workflow:
+
+| Monorepo path | Package | Mirror repository |
+| --- | --- | --- |
+| `packages/core` | `ucp-php-sdk/core` | `agentic-commerce-alliance/ucp-php-sdk-core` |
+| `packages/symfony-bundle` | `ucp-php-sdk/symfony-bundle` | `agentic-commerce-alliance/ucp-php-sdk-symfony-bundle` |
+
+One-time setup:
+
+1. Create the two mirror repositories in the `agentic-commerce-alliance` org.
+2. Add a `SPLIT_TOKEN` repository/org secret with write access to both mirrors.
+3. Register both mirrors on Packagist and enable the GitHub service hook so new
+   tags publish automatically.
+
+Ongoing:
+
+- A push to `main` keeps the mirrors in sync.
+- A pushed release tag (below) is propagated to both mirrors; Packagist
+  publishes the matching version.
 
 ## Before Tagging
 
@@ -99,7 +124,7 @@ Each GitHub Release should include:
 - release maturity:
   - alpha, beta, or stable
 - package install targets:
-  - `shopware/ucp-php-sdk-core`
+  - `ucp-php-sdk/core`
   - `ucp-php-sdk/symfony-bundle`
 - protocol target:
   - currently UCP `2026-04-08`
@@ -154,7 +179,7 @@ Do not create new files like `RELEASE_INFO.md`, `ALPHA_NOTES.md`, or `CURRENT_RE
 
 ## Packages
 
-- `shopware/ucp-php-sdk-core`
+- `ucp-php-sdk/core`
 - `ucp-php-sdk/symfony-bundle`
 
 ## Included Scope

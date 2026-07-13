@@ -1,0 +1,54 @@
+name: split-packages
+
+# Mirrors each monorepo package into its own read-only repository so Packagist
+# can serve them as installable Composer packages (Packagist resolves one
+# package per repository from that repository's root composer.json).
+#
+# Setup required before this workflow can push (see docs/release-process.md):
+#   1. Create the read-only target repositories in the org:
+#        - agentic-commerce-alliance/ucp-php-sdk-core        (ucp-php-sdk/core)
+#        - agentic-commerce-alliance/ucp-php-sdk-symfony-bundle (ucp-php-sdk/symfony-bundle)
+#   2. Add a repository/org secret SPLIT_TOKEN: a PAT (or org app token) with
+#      write access to both target repositories.
+#   3. Register both target repositories on Packagist and enable the GitHub
+#      auto-update webhook.
+#
+# A push to main keeps the mirrors in sync; a pushed tag propagates the same
+# tag to the mirrors, which Packagist publishes as the released version.
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - local_path: packages/core
+            split_repository: ucp-php-sdk-core
+          - local_path: packages/symfony-bundle
+            split_repository: ucp-php-sdk-symfony-bundle
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Split ${{ matrix.split_repository }}
+        uses: danharrin/monorepo-split-github-action@v2.3.0
+        with:
+          tag: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          package_directory: ${{ matrix.local_path }}
+          repository_organization: agentic-commerce-alliance
+          repository_name: ${{ matrix.split_repository }}
+          user_name: ${{ github.actor }}
+          user_email: '${{ github.actor }}@users.noreply.github.com'
+          api_token: ${{ secrets.SPLIT_TOKEN }}
