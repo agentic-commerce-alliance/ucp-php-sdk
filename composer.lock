@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5785ddea67ec5ab89d542bc4dbbe4fc2",
+    "content-hash": "5a999a27475721a7b0b8f37859537989",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -590,33 +590,6 @@
                 "source": "https://github.com/php-fig/log/tree/3.0.2"
             },
             "time": "2024-09-11T13:17:53+00:00"
-        },
-        {
-            "name": "shopware/ucp-php-sdk-core",
-            "version": "0.0.1",
-            "dist": {
-                "type": "path",
-                "url": "packages/core",
-                "reference": "730518d510d21bad6cda326f52debc953e7f2e90"
-            },
-            "require": {
-                "php": "^8.1",
-                "phpseclib/phpseclib": "^3.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Ucp\\Sdk\\": "src/"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "description": "Core library for the UCP PHP SDK",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
         },
         {
             "name": "symfony/cache",
@@ -2632,24 +2605,51 @@
             "time": "2026-04-18T13:18:21+00:00"
         },
         {
+            "name": "ucp-php-sdk/core",
+            "version": "0.0.1",
+            "dist": {
+                "type": "path",
+                "url": "packages/core",
+                "reference": "c327a5cb1789186ff0f92f89cfb9c57764eb2b3a"
+            },
+            "require": {
+                "php": "^8.1",
+                "phpseclib/phpseclib": "^3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Ucp\\Sdk\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Core library for the UCP PHP SDK",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "ucp-php-sdk/symfony-bundle",
             "version": "0.0.1",
             "dist": {
                 "type": "path",
                 "url": "packages/symfony-bundle",
-                "reference": "6c243829d7959137d81fd561e1433e394d5a5c60"
+                "reference": "45b5a09bb5cba09e0782b2136a39d6da4dc91f19"
             },
             "require": {
                 "doctrine/dbal": "^3.7 || ^4.0",
                 "php": "^8.1",
-                "shopware/ucp-php-sdk-core": "^0.0.1",
                 "symfony/config": "^6.4 || ^7.0",
                 "symfony/dependency-injection": "^6.4 || ^7.0",
                 "symfony/framework-bundle": "^6.4 || ^7.0",
                 "symfony/http-client": "^6.4 || ^7.0",
                 "symfony/http-foundation": "^6.4 || ^7.0",
                 "symfony/http-kernel": "^6.4 || ^7.0",
-                "symfony/routing": "^6.4 || ^7.0"
+                "symfony/routing": "^6.4 || ^7.0",
+                "ucp-php-sdk/core": "^0.0.1"
             },
             "type": "library",
             "autoload": {
@@ -10058,7 +10058,7 @@
         }
     ],
     "aliases": [],
-    "minimum-stability": "alpha",
+    "minimum-stability": "stable",
     "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,

@@ -30,8 +30,8 @@ consume the SDK.
 - License for repo-owned Composer packages is `MIT`.
 - Current release track is `0.0.1`.
 - Composer package names are:
-  - `shopware/ucp-php-sdk`
-  - `shopware/ucp-php-sdk-core`
+  - `ucp-php-sdk/monorepo`
+  - `ucp-php-sdk/core`
   - `ucp-php-sdk/symfony-bundle`
 - The shared SDK is shop-agnostic. Do not add Shopware classes or Shopware-only concepts to `packages/core` or `packages/symfony-bundle`.
 - The example apps are plain Symfony apps. Do not add Shopware code there.
@@ -39,7 +39,7 @@ consume the SDK.
 - Scope now targets full UCP parity at the shared SDK layer: REST, A2A runtime, embedded transport hooks/controllers, and MCP profile metadata are shared SDK concerns when they stay shop-agnostic.
 - Doctrine DBAL is only the default Symfony storage adapter for SDK state. It is not the platform model for Shopware.
 - Platform-specific work belongs in its own integration package. Shopware-specific work should be DAL-first there.
-- The root workspace package is not the main install target for external projects. External consumers should require `shopware/ucp-php-sdk-core` or `ucp-php-sdk/symfony-bundle`.
+- The root workspace package is not the main install target for external projects. External consumers should require `ucp-php-sdk/core` or `ucp-php-sdk/symfony-bundle`.
 - Top-level `ucp` is reserved for the protocol envelope in normal API responses. Do not put business payload data under that key.
 - Discovery is a raw profile document and is not wrapped by the normal success envelope.
 - Default OAuth state is security-sensitive SDK state. Codes are hashed, refresh tokens are encrypted, and cleanup is expected.

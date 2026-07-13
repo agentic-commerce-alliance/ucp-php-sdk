@@ -1,11 +1,11 @@
 {
-    "name": "shopware/ucp-php-sdk",
+    "name": "ucp-php-sdk/monorepo",
     "description": "UCP PHP SDK for Symfony and plain PHP",
     "type": "project",
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "shopware/ucp-php-sdk-core": "^0.0.1",
+        "ucp-php-sdk/core": "^0.0.1",
         "ucp-php-sdk/symfony-bundle": "^0.0.1"
     },
     "require-dev": {
@@ -29,7 +29,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "shopware/ucp-php-sdk-core": "0.0.1"
+                    "ucp-php-sdk/core": "0.0.1"
                 }
             }
         },
@@ -139,6 +139,6 @@
             "php": "8.2.0"
         }
     },
-    "minimum-stability": "alpha",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }

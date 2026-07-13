@@ -24,7 +24,7 @@ If private vulnerability reporting is not available yet:
 Please include:
 
 - affected package:
-  - `shopware/ucp-php-sdk-core`
+  - `ucp-php-sdk/core`
   - `ucp-php-sdk/symfony-bundle`
 - affected version or commit
 - impact summary

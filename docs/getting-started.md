@@ -45,7 +45,7 @@ A runnable reference for Path A lives in
 composer require ucp-php-sdk/symfony-bundle:^0.0.1
 ```
 
-This pulls in `shopware/ucp-php-sdk-core` automatically.
+This pulls in `ucp-php-sdk/core` automatically.
 
 ### 2. Register the bundle
 
@@ -182,7 +182,7 @@ curl http://127.0.0.1:8080/.well-known/ucp
 Install the core only:
 
 ```bash
-composer require shopware/ucp-php-sdk-core:^0.0.1
+composer require ucp-php-sdk/core:^0.0.1
 ```
 
 The core gives you the protocol models, capability/adapter contracts, and the protocol
