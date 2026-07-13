@@ -51,4 +51,7 @@ jobs:
           repository_name: ${{ matrix.split_repository }}
           user_name: ${{ github.actor }}
           user_email: '${{ github.actor }}@users.noreply.github.com'
-          api_token: ${{ secrets.SPLIT_TOKEN }}
+        # The action reads the push token from the environment (PAT,
+        # GITLAB_TOKEN, or GITHUB_TOKEN) — it has no token input.
+        env:
+          GITHUB_TOKEN: ${{ secrets.SPLIT_TOKEN }}
