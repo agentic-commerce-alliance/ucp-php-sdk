@@ -79,13 +79,13 @@ docker compose run --rm php composer public-api:check
 1. Create the tag locally:
 
 ```bash
-git tag 0.0.1-alpha1
+git tag 0.0.1
 ```
 
 2. Push the tag:
 
 ```bash
-git push origin 0.0.1-alpha1
+git push origin 0.0.1
 ```
 
 3. Create a GitHub Release from that tag.

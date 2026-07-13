@@ -28,7 +28,7 @@ consume the SDK.
 ## Core Decisions
 
 - License for repo-owned Composer packages is `MIT`.
-- Current release track is `0.0.1-alpha1`.
+- Current release track is `0.0.1`.
 - Composer package names are:
   - `shopware/ucp-php-sdk`
   - `shopware/ucp-php-sdk-core`

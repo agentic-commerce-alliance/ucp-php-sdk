@@ -67,9 +67,9 @@ Run the tests:
 docker compose run --rm php composer test
 ```
 
-## Alpha Install
+## Install
 
-Current release track: `0.0.1-alpha1`.
+Current release track: `0.0.1`.
 
 Release organization:
 
@@ -80,13 +80,13 @@ Release organization:
 Framework-free install:
 
 ```bash
-composer require shopware/ucp-php-sdk-core:^0.0.1@alpha
+composer require shopware/ucp-php-sdk-core:^0.0.1
 ```
 
 Symfony install:
 
 ```bash
-composer require ucp-php-sdk/symfony-bundle:^0.0.1@alpha
+composer require ucp-php-sdk/symfony-bundle:^0.0.1
 ```
 
 Run the full QA pipeline:

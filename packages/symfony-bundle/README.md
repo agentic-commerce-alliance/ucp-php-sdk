@@ -20,7 +20,7 @@ Use this package when the host app is Symfony and you want the SDK wired into HT
 Install:
 
 ```bash
-composer require ucp-php-sdk/symfony-bundle:^0.0.1@alpha
+composer require ucp-php-sdk/symfony-bundle:^0.0.1
 ```
 
 The default bundle stack gives you:

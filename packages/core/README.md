@@ -20,7 +20,7 @@ Use this package when you want to build UCP support without taking a dependency 
 Install:
 
 ```bash
-composer require shopware/ucp-php-sdk-core:^0.0.1@alpha
+composer require shopware/ucp-php-sdk-core:^0.0.1
 ```
 
 Recommended integration pattern:
