@@ -19,8 +19,8 @@ Project policies:
 
 ## Packages
 
-- `shopware/ucp-php-sdk` is the root workspace package for this repo.
-- `shopware/ucp-php-sdk-core` is the framework-free core package.
+- `ucp-php-sdk/monorepo` is the root workspace package for this repo.
+- `ucp-php-sdk/core` is the framework-free core package.
 - `ucp-php-sdk/symfony-bundle` is the Symfony integration package.
 
 External consumers should install the core package or the Symfony bundle directly. The root package is the workspace package for this monorepo.
@@ -67,9 +67,9 @@ Run the tests:
 docker compose run --rm php composer test
 ```
 
-## Alpha Install
+## Install
 
-Current release track: `0.0.1-alpha1`.
+Current release track: `0.0.1`.
 
 Release organization:
 
@@ -80,13 +80,13 @@ Release organization:
 Framework-free install:
 
 ```bash
-composer require shopware/ucp-php-sdk-core:^0.0.1@alpha
+composer require ucp-php-sdk/core:^0.0.1
 ```
 
 Symfony install:
 
 ```bash
-composer require ucp-php-sdk/symfony-bundle:^0.0.1@alpha
+composer require ucp-php-sdk/symfony-bundle:^0.0.1
 ```
 
 Run the full QA pipeline:

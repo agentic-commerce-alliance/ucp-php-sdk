@@ -16,7 +16,7 @@ updates:
       - dependencies
       - composer
     ignore:
-      - dependency-name: shopware/ucp-php-sdk-core
+      - dependency-name: ucp-php-sdk/core
       - dependency-name: ucp-php-sdk/symfony-bundle
 
   - package-ecosystem: composer
