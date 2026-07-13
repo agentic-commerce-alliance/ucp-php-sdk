@@ -43,7 +43,7 @@ jobs:
           fetch-depth: 0
 
       - name: Split ${{ matrix.split_repository }}
-        uses: danharrin/monorepo-split-github-action@v2.3.0
+        uses: danharrin/monorepo-split-github-action@v2.4.5
         with:
           tag: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           package_directory: ${{ matrix.local_path }}
