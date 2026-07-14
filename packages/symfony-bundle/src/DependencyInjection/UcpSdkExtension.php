@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Alias;
 use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
@@ -385,6 +386,7 @@ final class UcpSdkExtension extends Extension
         $container->autowire(IdempotencyResponseListener::class)
             ->addTag('kernel.event_listener', ['event' => 'kernel.response', 'method' => 'onKernelResponse']);
         $container->autowire(ExceptionListener::class)
+            ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->addTag('kernel.event_listener', ['event' => 'kernel.exception', 'method' => 'onKernelException']);
 
         $container->setDefinition(GenerateSigningKeyCommand::class, new Definition(GenerateSigningKeyCommand::class, [
