@@ -15,3 +15,9 @@ RUN apt-get update \
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /workspace
+
+# The repository is bind-mounted from the host and therefore owned by a different user than the
+# container's root. Mark it as a safe directory so tooling that shells out to git works — notably
+# roave/backward-compatibility-check resolving the baseline tag (`git rev-parse <tag>`), which runs
+# git directly rather than through scripts/run-composer-in-ci.sh.
+RUN git config --global --add safe.directory /workspace
