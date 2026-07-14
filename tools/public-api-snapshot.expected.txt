@@ -109,6 +109,10 @@ interface Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface
   - provide(Ucp\Sdk\Model\Profile\ProfileBuildInput $input): array
 interface Ucp\Sdk\Contract\TokenizationCapabilityInterface
   - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
+enum Ucp\Sdk\Enum\AdjustmentStatus
+  - static cases(): array
+  - static from(string|int $value): static
+  - static tryFrom(string|int $value): ?static
 enum Ucp\Sdk\Enum\CheckoutStatus
   - static cases(): array
   - static from(string|int $value): static
@@ -273,8 +277,14 @@ class Ucp\Sdk\Model\Negotiation\NegotiationSession
   - __construct(string $id, string $platformProfileUri, string $protocolVersion, array $activeCapabilities, array $paymentHandlerIds = [], ?string $tenantIdentifier = null, ?string $lastUsedAt = null)
 class Ucp\Sdk\Model\OAuthState
   - __construct(string $code, string $clientId, string $subject, ?string $refreshToken = null, ?int $expiresAt = null)
+class Ucp\Sdk\Model\Order\Adjustment
+  - __construct(string $id, string $type, string $occurredAt, Ucp\Sdk\Enum\AdjustmentStatus $status, array $lineItems = [], array $totals = [], ?string $description = null, array $extra = [])
+  - toArray(): array
+class Ucp\Sdk\Model\Order\AdjustmentLineItem
+  - __construct(string $id, int $quantity)
+  - toArray(): array
 class Ucp\Sdk\Model\Order\OrderView
-  - __construct(string $id, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $createdAt = null, array $extra = [], ?string $checkoutId = null, ?string $permalinkUrl = null, ?array $fulfillment = null)
+  - __construct(string $id, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $createdAt = null, array $extra = [], ?string $checkoutId = null, ?string $permalinkUrl = null, ?array $fulfillment = null, array $adjustments = [])
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Profile\CapabilityDescriptor
