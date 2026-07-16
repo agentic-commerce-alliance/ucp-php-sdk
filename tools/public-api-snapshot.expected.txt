@@ -14,7 +14,7 @@ class Ucp\Sdk\Adapter\AdapterBackedCatalogCapability
 class Ucp\Sdk\Adapter\AdapterBackedCheckoutCapability
   - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CheckoutAdapterInterface $adapter)
   - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
-  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
   - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
@@ -48,7 +48,7 @@ interface Ucp\Sdk\Adapter\CatalogAdapterInterface
   - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): array
 interface Ucp\Sdk\Adapter\CheckoutAdapterInterface
   - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
-  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
@@ -64,6 +64,8 @@ interface Ucp\Sdk\Adapter\PaymentAdapterInterface
   - prepareInstrument(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
   - supportsTokenization(): bool
   - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): ?array
+interface Ucp\Sdk\Contract\Ap2CheckoutMandateVerifierInterface
+  - verify(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\Checkout\Checkout $currentCheckout, Ucp\Sdk\Model\RequestContext $context): void
 interface Ucp\Sdk\Contract\CapabilityInterface
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
 interface Ucp\Sdk\Contract\CartCapabilityInterface
@@ -77,7 +79,7 @@ interface Ucp\Sdk\Contract\CatalogCapabilityInterface
   - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\CatalogSearchResponse
 interface Ucp\Sdk\Contract\CheckoutCapabilityInterface
   - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
-  - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
@@ -162,6 +164,9 @@ class Ucp\Sdk\Event\ProfileBuiltEvent
   - getInput(): Ucp\Sdk\Model\Profile\ProfileBuildInput
   - getProfile(): Ucp\Sdk\Model\Profile\PlatformProfile
   - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
+class Ucp\Sdk\Exception\Ap2Exception
+  - __construct(string $errorCode, string $message, array $violations = [])
+  - getViolations(): array
 class Ucp\Sdk\Exception\ConfigurationException
 class Ucp\Sdk\Exception\IdempotencyConflictException
 class Ucp\Sdk\Exception\NegotiationException
@@ -175,6 +180,12 @@ class Ucp\Sdk\Exception\UnsupportedCapabilityException
 class Ucp\Sdk\Exception\ValidationException
   - __construct(string $message, array $violations = [])
   - getViolations(): array
+class Ucp\Sdk\Model\Ap2\Ap2CheckoutData
+  - __construct(?string $checkoutMandate)
+class Ucp\Sdk\Model\Ap2\Ap2VerificationResult
+  - __construct(bool $verified, array $claims = [], ?string $errorCode = null, ?string $failureReason = null)
+  - static failed(string $errorCode, string $failureReason): self
+  - static verified(array $claims): self
 class Ucp\Sdk\Model\Cart\Cart
   - __construct(string $id, array $lineItems, string $currency, array $totals = [], array $messages = [])
   - jsonSerialize(): array
@@ -210,6 +221,9 @@ class Ucp\Sdk\Model\Checkout\Checkout
   - __construct(string $id, Ucp\Sdk\Enum\CheckoutStatus $status, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $continueUrl = null, ?string $expiresAt = null, ?Ucp\Sdk\Model\Checkout\OrderConfirmation $order = null, array $extra = [])
   - jsonSerialize(): array
   - toArray(): array
+  - withExtra(array $extra): self
+class Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest
+  - __construct(string $id, ?Ucp\Sdk\Model\Checkout\PaymentSelection $payment = null, ?Ucp\Sdk\Model\Ap2\Ap2CheckoutData $ap2 = null)
 class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
   - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null)
 class Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest
@@ -223,6 +237,8 @@ class Ucp\Sdk\Model\Checkout\OrderConfirmation
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\PaymentInstrument
   - __construct(string $type, string $handlerId, array $credential = [])
+class Ucp\Sdk\Model\Checkout\PaymentSelection
+  - __construct(array $instruments)
 class Ucp\Sdk\Model\Common\Buyer
   - __construct(?string $email = null, ?string $firstName = null, ?string $lastName = null, ?string $phoneNumber = null)
   - toArray(): array
@@ -236,6 +252,7 @@ class Ucp\Sdk\Model\Common\Message
   - __construct(string $type, string $content, ?string $severity = null, ?string $code = null, ?string $path = null)
   - toArray(): array
 class Ucp\Sdk\Model\Common\MonetaryAmount
+  - static exponent(string $currency): int
   - static fromMajorUnits(float $amount, string $currency = 'EUR'): self
   - toPriceArray(): array
 class Ucp\Sdk\Model\Common\Money
@@ -381,6 +398,8 @@ interface Ucp\Sdk\Service\CapabilityRegistryInterface
   - all(): array
   - find(string $name): ?Ucp\Sdk\Contract\CapabilityInterface
   - firstImplementing(string $interface): ?Ucp\Sdk\Contract\CapabilityInterface
+interface Ucp\Sdk\Service\CheckoutMerchantAuthorizationSignerInterface
+  - sign(array $checkoutPayload, Ucp\Sdk\Model\RequestContext $context): string
 interface Ucp\Sdk\Service\DeterministicJsonInterface
   - canonicalize(array $payload): string
 interface Ucp\Sdk\Service\EventDispatcherInterface
