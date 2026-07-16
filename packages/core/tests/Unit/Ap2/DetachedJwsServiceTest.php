@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Tests\Unit\Ap2;
 
+use phpseclib3\Crypt\EC;
+use phpseclib3\Crypt\PublicKeyLoader;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Internal\Security\DefaultJsonCanonicalization;
@@ -60,6 +62,63 @@ final class DetachedJwsServiceTest extends TestCase
             $jws,
             [$keyManager->toPublicKey($key)],
         ));
+    }
+
+    #[Test]
+    public function itRejectsJwsWithAnAttachedPayloadSegment(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $key = $keyManager->generate('default', 'ES256');
+        $service = new DetachedJwsService(new DefaultJsonCanonicalization());
+        $payload = ['id' => 'checkout-1'];
+
+        [$protected, , $signature] = explode('.', $service->signWithoutAp2($payload, $key));
+
+        self::assertFalse($service->verifyWithoutAp2($payload, $protected . '.attached-payload.' . $signature, [$keyManager->toPublicKey($key)]));
+        self::assertFalse($service->verifyWithoutAp2($payload, $protected . '.' . $signature, [$keyManager->toPublicKey($key)]));
+    }
+
+    #[Test]
+    public function itRejectsValidSignaturesWhoseHeaderClaimsAnotherAlgorithm(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $key = $keyManager->generate('default', 'ES256');
+        $canonicalizer = new DefaultJsonCanonicalization();
+        $service = new DetachedJwsService($canonicalizer);
+        $payload = ['id' => 'checkout-1'];
+
+        $protected = rtrim(strtr(base64_encode(json_encode([
+            'alg' => 'ES384',
+            'kid' => 'default',
+            'b64' => false,
+            'crit' => ['b64'],
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)), '+/', '-_'), '=');
+
+        $privateKey = PublicKeyLoader::loadPrivateKey($key->privateKeyPem);
+        self::assertInstanceOf(EC\PrivateKey::class, $privateKey);
+        $signature = $privateKey->withSignatureFormat('IEEE')->withHash('sha256')->sign($protected . '.' . $canonicalizer->canonicalize($payload));
+        $jws = $protected . '..' . rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+        self::assertFalse($service->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($key)]));
+    }
+
+    #[Test]
+    public function itVerifiesWithTheFirstKeyMatchingTheHeaderKid(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $signingKey = $keyManager->generate('signer', 'ES256');
+        $decoyKey = $keyManager->generate('decoy', 'ES256');
+        $rotatedKey = $keyManager->generate('signer', 'ES256');
+        $service = new DetachedJwsService(new DefaultJsonCanonicalization());
+        $payload = ['id' => 'checkout-1'];
+
+        $jws = $service->signWithoutAp2($payload, $signingKey);
+
+        self::assertTrue($service->verifyWithoutAp2($payload, $jws, [
+            $keyManager->toPublicKey($decoyKey),
+            $keyManager->toPublicKey($signingKey),
+            $keyManager->toPublicKey($rotatedKey),
+        ]));
     }
 
     #[Test]

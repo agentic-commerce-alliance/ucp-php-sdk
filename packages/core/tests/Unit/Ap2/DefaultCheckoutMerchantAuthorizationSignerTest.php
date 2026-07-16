@@ -47,6 +47,22 @@ final class DefaultCheckoutMerchantAuthorizationSignerTest extends TestCase
     }
 
     #[Test]
+    public function itUsesTheFirstActiveEs256Key(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $firstKey = $keyManager->generate('merchant-key-first', 'ES256');
+        $secondKey = $keyManager->generate('merchant-key-second', 'ES256');
+        $detachedJws = new DetachedJwsService(new DefaultJsonCanonicalization());
+        $signer = new DefaultCheckoutMerchantAuthorizationSigner(new Ap2SignerKeyRepositoryFake([$firstKey, $secondKey]), $detachedJws);
+
+        $payload = ['id' => 'checkout-1', 'totals' => []];
+        $jws = $signer->sign($payload, new RequestContext('shop.example'));
+
+        self::assertTrue($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($firstKey)]));
+        self::assertFalse($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($secondKey)]));
+    }
+
+    #[Test]
     public function itFailsWhenOnlyNonEs256KeysAreActive(): void
     {
         $keyManager = new DefaultSigningKeyManager();
