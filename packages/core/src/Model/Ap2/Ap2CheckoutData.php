@@ -15,9 +15,4 @@ final class Ap2CheckoutData
         public readonly ?string $checkoutMandate,
     ) {
     }
-
-    public function requiresVerification(): bool
-    {
-        return is_string($this->checkoutMandate) && $this->checkoutMandate !== '';
-    }
 }

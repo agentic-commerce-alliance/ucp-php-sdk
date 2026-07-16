@@ -33,11 +33,4 @@ final class CheckoutCompleteRequestTest extends TestCase
         self::assertNull($request->payment);
         self::assertNull($request->ap2);
     }
-
-    public function testAp2DataRequiresVerificationOnlyForNonEmptyMandates(): void
-    {
-        self::assertTrue((new Ap2CheckoutData('checkout_mandate'))->requiresVerification());
-        self::assertFalse((new Ap2CheckoutData(''))->requiresVerification());
-        self::assertFalse((new Ap2CheckoutData(null))->requiresVerification());
-    }
 }

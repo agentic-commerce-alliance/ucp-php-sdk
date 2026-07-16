@@ -30,7 +30,7 @@ final class DetachedJwsService
      */
     public function signWithoutAp2(array $payload, ManagedSigningKey $key): string
     {
-        $protected = $this->encodeBase64Url(json_encode([
+        $protected = Base64Url::encode(json_encode([
             'alg' => 'ES256',
             'kid' => $key->kid,
             'b64' => false,
@@ -51,7 +51,7 @@ final class DetachedJwsService
 
         $signature = $privateKey->withSignatureFormat('IEEE')->withHash('sha256')->sign($signingInput);
 
-        return $protected . '..' . $this->encodeBase64Url($signature);
+        return $protected . '..' . Base64Url::encode($signature);
     }
 
     /**
@@ -67,7 +67,7 @@ final class DetachedJwsService
 
         [$protected, , $encodedSignature] = $segments;
 
-        $header = json_decode($this->decodeBase64Url($protected), true);
+        $header = json_decode(Base64Url::decode($protected) ?? '', true);
         if (! is_array($header) || ($header['alg'] ?? null) !== 'ES256' || ($header['b64'] ?? null) !== false) {
             return false;
         }
@@ -103,8 +103,8 @@ final class DetachedJwsService
             return false;
         }
 
-        $rawSignature = $this->decodeBase64Url($encodedSignature);
-        if (strlen($rawSignature) !== 64) {
+        $rawSignature = Base64Url::decode($encodedSignature);
+        if ($rawSignature === null || strlen($rawSignature) !== 64) {
             return false;
         }
 
@@ -121,17 +121,5 @@ final class DetachedJwsService
         unset($payload['ap2']);
 
         return $this->canonicalizer->canonicalize($payload);
-    }
-
-    private function encodeBase64Url(string $value): string
-    {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
-    }
-
-    private function decodeBase64Url(string $value): string
-    {
-        $decoded = base64_decode(strtr($value, '-_', '+/'), true);
-
-        return $decoded === false ? '' : $decoded;
     }
 }
