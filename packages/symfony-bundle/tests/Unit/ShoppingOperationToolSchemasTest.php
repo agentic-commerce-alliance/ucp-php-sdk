@@ -15,8 +15,9 @@ final class ShoppingOperationToolSchemasTest extends TestCase
     {
         $schema = ShoppingOperationToolSchemas::CHECKOUT_COMPLETE_INPUT;
 
-        self::assertSame(['id'], $schema['required']);
+        self::assertSame(['id', 'payload'], $schema['required']);
         self::assertSame('object', $schema['properties']['payload']['type']);
+        self::assertSame(['payment'], $schema['properties']['payload']['required']);
         self::assertArrayHasKey('payment', $schema['properties']['payload']['properties']);
         self::assertArrayHasKey('ap2', $schema['properties']['payload']['properties']);
         self::assertSame(

@@ -51,7 +51,7 @@ final class ShoppingOperationToolSchemas
             'id' => self::ID,
             'payload' => self::CHECKOUT_COMPLETE_PAYLOAD,
         ],
-        'required' => ['id'],
+        'required' => ['id', 'payload'],
         'additionalProperties' => false,
     ];
 
@@ -103,9 +103,15 @@ final class ShoppingOperationToolSchemas
 
     private const CHECKOUT_COMPLETE_PAYLOAD = [
         'type' => 'object',
-        'description' => 'UCP checkout.complete request payload with optional payment selection and AP2 mandate data.',
+        'description' => 'UCP checkout.complete request payload with the selected payment instruments and optional AP2 mandate data.',
+        'required' => ['payment'],
         'properties' => [
-            'payment' => ['type' => 'object'],
+            'payment' => [
+                'type' => 'object',
+                'properties' => [
+                    'instruments' => ['type' => 'array'],
+                ],
+            ],
             'ap2' => [
                 'type' => 'object',
                 'properties' => [
