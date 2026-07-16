@@ -144,8 +144,24 @@ final class HttpPayloadMapperTest extends TestCase
             'payment' => [
                 'instruments' => ['not-an-instrument', ['handler_id' => 'com.example.psp']],
             ],
-            'ap2' => [
-                'checkout_mandate' => '',
+        ]);
+
+        $payment = $request->payment;
+        self::assertNotNull($payment);
+        self::assertCount(1, $payment->instruments);
+        self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
+    }
+
+    #[Test]
+    public function itMapsBareInstrumentCheckoutCompletePaymentPayloads(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => [
+                'type' => 'tokenized',
+                'handler_id' => 'com.example.psp',
+                'credential' => ['token' => 'payment_mandate'],
             ],
         ]);
 
@@ -153,6 +169,30 @@ final class HttpPayloadMapperTest extends TestCase
         self::assertNotNull($payment);
         self::assertCount(1, $payment->instruments);
         self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
-        self::assertNull($request->ap2?->checkoutMandate);
+        self::assertSame('payment_mandate', $payment->instruments[0]->credential['token']);
+    }
+
+    #[Test]
+    public function itRejectsMalformedCheckoutMandates(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => ['not' => 'a-string']],
+        ]);
+    }
+
+    #[Test]
+    public function itRejectsEmptyCheckoutMandates(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => ''],
+        ]);
     }
 }

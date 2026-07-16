@@ -154,7 +154,7 @@ final class HttpPayloadMapper
                 ? $this->toPaymentSelection($payload['payment'])
                 : null,
             isset($payload['ap2']) && is_array($payload['ap2'])
-                ? new Ap2CheckoutData($this->nullableString($payload['ap2']['checkout_mandate'] ?? null))
+                ? new Ap2CheckoutData($this->toCheckoutMandate($payload['ap2']))
                 : null,
         );
     }
@@ -164,14 +164,37 @@ final class HttpPayloadMapper
      */
     public function toPaymentSelection(array $payload): PaymentSelection
     {
+        // Tolerate a bare instrument object (the shape checkout.update accepts)
+        // in place of the spec's nested `instruments` list.
+        $rows = is_array($payload['instruments'] ?? null)
+            ? $payload['instruments']
+            : (isset($payload['handler_id']) || isset($payload['credential']) ? [$payload] : []);
+
         $instruments = [];
-        foreach (is_array($payload['instruments'] ?? null) ? $payload['instruments'] : [] as $row) {
+        foreach ($rows as $row) {
             if (is_array($row)) {
                 $instruments[] = $this->toPaymentInstrument($row);
             }
         }
 
         return new PaymentSelection($instruments);
+    }
+
+    /**
+     * @param array<string, mixed> $ap2
+     */
+    private function toCheckoutMandate(array $ap2): ?string
+    {
+        if (! array_key_exists('checkout_mandate', $ap2)) {
+            return null;
+        }
+
+        $mandate = $ap2['checkout_mandate'];
+        if (! is_string($mandate) || $mandate === '') {
+            throw new BadRequestHttpException('ap2.checkout_mandate must be a non-empty string.');
+        }
+
+        return $mandate;
     }
 
     /**
