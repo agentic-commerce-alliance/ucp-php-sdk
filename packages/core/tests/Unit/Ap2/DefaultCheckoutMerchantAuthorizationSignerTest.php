@@ -32,6 +32,35 @@ final class DefaultCheckoutMerchantAuthorizationSignerTest extends TestCase
     }
 
     #[Test]
+    public function itSkipsActiveKeysWithUnsupportedAlgorithms(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $es384Key = $keyManager->generate('merchant-key-es384', 'ES384');
+        $es256Key = $keyManager->generate('merchant-key-es256', 'ES256');
+        $detachedJws = new DetachedJwsService(new DefaultJsonCanonicalization());
+        $signer = new DefaultCheckoutMerchantAuthorizationSigner(new Ap2SignerKeyRepositoryFake([$es384Key, $es256Key]), $detachedJws);
+
+        $payload = ['id' => 'checkout-1', 'totals' => []];
+        $jws = $signer->sign($payload, new RequestContext('shop.example'));
+
+        self::assertTrue($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($es256Key)]));
+    }
+
+    #[Test]
+    public function itFailsWhenOnlyNonEs256KeysAreActive(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $signer = new DefaultCheckoutMerchantAuthorizationSigner(
+            new Ap2SignerKeyRepositoryFake([$keyManager->generate('merchant-key-es384', 'ES384')]),
+            new DetachedJwsService(new DefaultJsonCanonicalization()),
+        );
+
+        $this->expectException(SignatureException::class);
+
+        $signer->sign(['id' => 'checkout-1'], new RequestContext('shop.example'));
+    }
+
+    #[Test]
     public function itFailsWithoutAnActiveSigningKey(): void
     {
         $signer = new DefaultCheckoutMerchantAuthorizationSigner(

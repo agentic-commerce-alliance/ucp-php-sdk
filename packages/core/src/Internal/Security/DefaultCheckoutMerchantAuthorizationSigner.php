@@ -25,9 +25,17 @@ final class DefaultCheckoutMerchantAuthorizationSigner implements CheckoutMercha
             ? $this->signingKeyRepository->activeForTenant($context->runtimeConfiguration?->tenantIdentifier)
             : $this->signingKeyRepository->active();
 
-        $key = $keys[0] ?? null;
+        $key = null;
+        foreach ($keys as $candidate) {
+            // DetachedJwsService emits ES256-only JWS; other active keys (e.g. ES384) must not be used.
+            if ($candidate->algorithm === 'ES256') {
+                $key = $candidate;
+                break;
+            }
+        }
+
         if ($key === null) {
-            throw new SignatureException('No active signing key is available for AP2 merchant authorizations.');
+            throw new SignatureException('No active ES256 signing key is available for AP2 merchant authorizations.');
         }
 
         return $this->detachedJwsService->signWithoutAp2($checkoutPayload, $key);
