@@ -14,6 +14,7 @@ use Ucp\Sdk\Contract\CatalogCapabilityInterface;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Contract\DiscountCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
+use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Model\Cart\Cart;
@@ -29,6 +30,7 @@ use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
+use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities;
 use Ucp\Sdk\Model\Order\OrderView;
@@ -36,6 +38,7 @@ use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
+use Ucp\Sdk\Service\CheckoutMerchantAuthorizationSignerInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
@@ -301,6 +304,97 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         self::assertTrue($verifier->calledBeforeAdapterCompletion);
     }
 
+    #[Test]
+    public function checkoutCompleteRunsPaymentMandateVerifiersOnSubmittedInstruments(): void
+    {
+        $capability = new ShoppingOperationCapabilityFake();
+        $verifier = new RecordingPaymentMandateVerifier($capability);
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [$verifier],
+            new EventDispatcher(),
+        );
+
+        $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            [
+                'payment' => ['instruments' => [[
+                    'type' => 'tokenized',
+                    'handler_id' => 'com.example.psp',
+                    'credential' => ['token' => 'payment_mandate'],
+                ]]],
+            ],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ));
+
+        self::assertSame('com.example.psp', $verifier->instrument?->handlerId);
+        self::assertTrue($verifier->calledBeforeAdapterCompletion);
+    }
+
+    #[Test]
+    public function checkoutCompleteEmbedsMerchantAuthorizationForAp2Requests(): void
+    {
+        $capability = new ShoppingOperationCapabilityFake();
+        $signer = new RecordingCheckoutMerchantAuthorizationSigner();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+            [],
+            $signer,
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['ap2' => ['checkout_mandate' => 'checkout_mandate']],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ));
+
+        self::assertSame('checkout-1', $signer->signedPayload['id'] ?? null);
+        self::assertArrayNotHasKey('ap2', $signer->signedPayload ?? []);
+        $ap2 = $response->toArray()['ap2'] ?? null;
+        self::assertIsArray($ap2);
+        self::assertSame('signed-jws', $ap2['merchant_authorization'] ?? null);
+    }
+
+    #[Test]
+    public function checkoutCompleteDoesNotSignResponsesWithoutAp2Data(): void
+    {
+        $capability = new ShoppingOperationCapabilityFake();
+        $signer = new RecordingCheckoutMerchantAuthorizationSigner();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+            [],
+            $signer,
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['payment' => ['instruments' => []]],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ));
+
+        self::assertNull($signer->signedPayload);
+        self::assertArrayNotHasKey('ap2', $response->toArray());
+    }
+
     /**
      * @return list<ShoppingOperationRequest>
      */
@@ -322,6 +416,36 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             new ShoppingOperationRequest('checkout.cancel', [], $context, 'checkout-1'),
             new ShoppingOperationRequest('order.get', [], $context, 'order-1'),
         ];
+    }
+}
+
+final class RecordingPaymentMandateVerifier implements PaymentMandateVerifierInterface
+{
+    public ?PaymentInstrument $instrument = null;
+
+    public bool $calledBeforeAdapterCompletion = false;
+
+    public function __construct(private readonly ShoppingOperationCapabilityFake $capability)
+    {
+    }
+
+    public function verify(PaymentInstrument $instrument, RequestContext $context): void
+    {
+        $this->instrument = $instrument;
+        $this->calledBeforeAdapterCompletion = $this->capability->completedRequest === null;
+    }
+}
+
+final class RecordingCheckoutMerchantAuthorizationSigner implements CheckoutMerchantAuthorizationSignerInterface
+{
+    /** @var array<string, mixed>|null */
+    public ?array $signedPayload = null;
+
+    public function sign(array $checkoutPayload, RequestContext $context): string
+    {
+        $this->signedPayload = $checkoutPayload;
+
+        return 'signed-jws';
     }
 }
 

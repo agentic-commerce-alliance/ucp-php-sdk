@@ -78,4 +78,25 @@ final class Checkout implements UcpOperationPayload
     {
         return $this->toArray();
     }
+
+    /**
+     * @param array<string, mixed> $extra
+     */
+    public function withExtra(array $extra): self
+    {
+        return new self(
+            $this->id,
+            $this->status,
+            $this->currency,
+            $this->lineItems,
+            $this->totals,
+            $this->messages,
+            $this->links,
+            $this->buyer,
+            $this->continueUrl,
+            $this->expiresAt,
+            $this->order,
+            array_merge($this->extra, $extra),
+        );
+    }
 }

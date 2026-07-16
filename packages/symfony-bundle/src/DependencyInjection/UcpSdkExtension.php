@@ -381,7 +381,8 @@ final class UcpSdkExtension extends Extension
             ->setArgument('$requestValidators', new TaggedIteratorArgument('ucp_sdk.checkout_request_validator'))
             ->setArgument('$responseAugmenters', new TaggedIteratorArgument('ucp_sdk.checkout_response_augmenter'))
             ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'))
-            ->setArgument('$ap2CheckoutMandateVerifiers', new TaggedIteratorArgument('ucp_sdk.ap2_checkout_mandate_verifier'));
+            ->setArgument('$ap2CheckoutMandateVerifiers', new TaggedIteratorArgument('ucp_sdk.ap2_checkout_mandate_verifier'))
+            ->setArgument('$checkoutMerchantAuthorizationSigner', $config['ap2']['enabled'] ? new Reference(CheckoutMerchantAuthorizationSignerInterface::class) : null);
 
         $container->autowire(ProfileController::class)->addTag('controller.service_arguments');
         $container->autowire(CatalogController::class)->addTag('controller.service_arguments');

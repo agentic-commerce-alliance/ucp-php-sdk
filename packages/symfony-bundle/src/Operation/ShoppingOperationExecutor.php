@@ -33,6 +33,7 @@ use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
 use Ucp\Sdk\Model\Protocol\UcpOperationResponse;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
+use Ucp\Sdk\Service\CheckoutMerchantAuthorizationSignerInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
@@ -54,6 +55,7 @@ final class ShoppingOperationExecutor
         private readonly iterable $mandateVerifiers,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly iterable $ap2CheckoutMandateVerifiers = [],
+        private readonly ?CheckoutMerchantAuthorizationSignerInterface $checkoutMerchantAuthorizationSigner = null,
     ) {
     }
 
@@ -247,20 +249,31 @@ final class ShoppingOperationExecutor
         $completeRequest = $this->payloadMapper->toCheckoutCompleteRequest($this->requiredId($request), $request->payload);
         $checkoutCapability = $this->checkout($request->context);
 
-        $verifiers = is_array($this->ap2CheckoutMandateVerifiers) ? $this->ap2CheckoutMandateVerifiers : iterator_to_array($this->ap2CheckoutMandateVerifiers, false);
-        if ($verifiers !== []) {
-            $currentCheckout = $checkoutCapability->getCheckout($completeRequest->id, $request->context);
-            foreach ($verifiers as $verifier) {
-                $verifier->verify($completeRequest, $currentCheckout, $request->context);
+        if ($completeRequest->payment !== null) {
+            foreach ($completeRequest->payment->instruments as $instrument) {
+                foreach ($this->mandateVerifiers as $verifier) {
+                    $verifier->verify($instrument, $request->context);
+                }
+
+                $this->eventDispatcher->dispatch(new PaymentMandateVerificationEvent($instrument, $request->context));
             }
         }
 
-        return $this->response(
-            'checkout.complete',
-            $this->finalizeCheckout($checkoutCapability->completeCheckout($completeRequest, $request->context), $request),
-            UcpCapability::Checkout,
-            $request->context,
-        );
+        $currentCheckout = null;
+        foreach ($this->ap2CheckoutMandateVerifiers as $verifier) {
+            $currentCheckout ??= $checkoutCapability->getCheckout($completeRequest->id, $request->context);
+            $verifier->verify($completeRequest, $currentCheckout, $request->context);
+        }
+
+        $checkout = $this->finalizeCheckout($checkoutCapability->completeCheckout($completeRequest, $request->context), $request);
+
+        if ($this->checkoutMerchantAuthorizationSigner !== null && $completeRequest->ap2 !== null) {
+            $ap2 = is_array($checkout->extra['ap2'] ?? null) ? $checkout->extra['ap2'] : [];
+            $ap2['merchant_authorization'] = $this->checkoutMerchantAuthorizationSigner->sign($checkout->toArray(), $request->context);
+            $checkout = $checkout->withExtra(['ap2' => $ap2]);
+        }
+
+        return $this->response('checkout.complete', $checkout, UcpCapability::Checkout, $request->context);
     }
 
     private function checkoutCancel(ShoppingOperationRequest $request): UcpOperationResponse
