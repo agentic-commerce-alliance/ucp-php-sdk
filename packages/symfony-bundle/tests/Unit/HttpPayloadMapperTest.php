@@ -111,7 +111,7 @@ final class HttpPayloadMapperTest extends TestCase
                 ]],
             ],
             'ap2' => [
-                'checkout_mandate' => 'checkout_mandate',
+                'checkout_mandate' => 'eyJhbGciOiJFUzI1NiJ9.eyJjaGVja291dCI6dHJ1ZX0.c2lnbmF0dXJl~ZGlzY2xvc3VyZQ',
             ],
         ]);
 
@@ -120,7 +120,7 @@ final class HttpPayloadMapperTest extends TestCase
         self::assertNotNull($payment);
         self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
         self::assertSame('payment_mandate', $payment->instruments[0]->credential['token']);
-        self::assertSame('checkout_mandate', $request->ap2?->checkoutMandate);
+        self::assertSame('eyJhbGciOiJFUzI1NiJ9.eyJjaGVja291dCI6dHJ1ZX0.c2lnbmF0dXJl~ZGlzY2xvc3VyZQ', $request->ap2?->checkoutMandate);
     }
 
     #[Test]
@@ -194,5 +194,30 @@ final class HttpPayloadMapperTest extends TestCase
         $mapper->toCheckoutCompleteRequest('checkout-1', [
             'ap2' => ['checkout_mandate' => ''],
         ]);
+    }
+
+    #[Test]
+    public function itRejectsCheckoutMandatesThatAreNotSdJwtFormatted(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('ap2.checkout_mandate must be an SD-JWT formatted string.');
+
+        $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => 'not a mandate'],
+        ]);
+    }
+
+    #[Test]
+    public function itAcceptsSdJwtCheckoutMandatesWithEmptyPayloadAndDisclosureSegments(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => 'eyJhbGciOiJFUzI1NiJ9..c2lnbmF0dXJl'],
+        ]);
+
+        self::assertSame('eyJhbGciOiJFUzI1NiJ9..c2lnbmF0dXJl', $request->ap2?->checkoutMandate);
     }
 }

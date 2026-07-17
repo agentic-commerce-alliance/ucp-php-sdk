@@ -14,7 +14,7 @@ class Ucp\Sdk\Adapter\AdapterBackedCatalogCapability
 class Ucp\Sdk\Adapter\AdapterBackedCheckoutCapability
   - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CheckoutAdapterInterface $adapter)
   - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
-  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context, ?Ucp\Sdk\Model\Checkout\Checkout $verifiedCheckout = null): Ucp\Sdk\Model\Checkout\Checkout
   - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
   - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
@@ -48,7 +48,7 @@ interface Ucp\Sdk\Adapter\CatalogAdapterInterface
   - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): array
 interface Ucp\Sdk\Adapter\CheckoutAdapterInterface
   - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
-  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context, ?Ucp\Sdk\Model\Checkout\Checkout $verifiedCheckout = null): Ucp\Sdk\Model\Checkout\Checkout
   - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
@@ -79,7 +79,7 @@ interface Ucp\Sdk\Contract\CatalogCapabilityInterface
   - search(Ucp\Sdk\Model\Catalog\CatalogSearchRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Catalog\CatalogSearchResponse
 interface Ucp\Sdk\Contract\CheckoutCapabilityInterface
   - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
-  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckout(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context, ?Ucp\Sdk\Model\Checkout\Checkout $verifiedCheckout = null): Ucp\Sdk\Model\Checkout\Checkout
   - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - updateCheckout(Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
@@ -182,10 +182,6 @@ class Ucp\Sdk\Exception\ValidationException
   - getViolations(): array
 class Ucp\Sdk\Model\Ap2\Ap2CheckoutData
   - __construct(?string $checkoutMandate)
-class Ucp\Sdk\Model\Ap2\Ap2VerificationResult
-  - __construct(bool $verified, array $claims = [], ?string $errorCode = null, ?string $failureReason = null)
-  - static failed(string $errorCode, string $failureReason): self
-  - static verified(array $claims): self
 class Ucp\Sdk\Model\Cart\Cart
   - __construct(string $id, array $lineItems, string $currency, array $totals = [], array $messages = [])
   - jsonSerialize(): array

@@ -29,7 +29,7 @@ final class DetachedJwsServiceTest extends TestCase
     }
 
     #[Test]
-    public function itProducesCompactDetachedJwsWithUnencodedPayloadHeader(): void
+    public function itProducesCompactDetachedJwsWithAlgAndKidHeaderOnly(): void
     {
         $keyManager = new DefaultSigningKeyManager();
         $key = $keyManager->generate('merchant-key', 'ES256');
@@ -42,10 +42,27 @@ final class DetachedJwsServiceTest extends TestCase
         self::assertSame('', $segments[1]);
 
         $header = json_decode(base64_decode(strtr($segments[0], '-_', '+/')), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame('ES256', $header['alg']);
-        self::assertSame('merchant-key', $header['kid']);
-        self::assertFalse($header['b64']);
-        self::assertSame(['b64'], $header['crit']);
+        self::assertSame(['alg' => 'ES256', 'kid' => 'merchant-key'], $header);
+    }
+
+    #[Test]
+    public function itSignsOverTheBase64UrlEncodedCanonicalPayload(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $key = $keyManager->generate('merchant-key', 'ES256');
+        $canonicalizer = new DefaultJsonCanonicalization();
+        $service = new DetachedJwsService($canonicalizer);
+        $payload = ['id' => 'checkout-1', 'totals' => []];
+
+        [$protected, , $encodedSignature] = explode('.', $service->signWithoutAp2($payload, $key));
+
+        $encodedPayload = rtrim(strtr(base64_encode($canonicalizer->canonicalize($payload)), '+/', '-_'), '=');
+        $publicKey = PublicKeyLoader::loadPublicKey($keyManager->toPublicKey($key)->publicKeyPem ?? '');
+        self::assertInstanceOf(EC\PublicKey::class, $publicKey);
+        self::assertTrue($publicKey->withSignatureFormat('IEEE')->withHash('sha256')->verify(
+            $protected . '.' . $encodedPayload,
+            base64_decode(strtr($encodedSignature, '-_', '+/')),
+        ));
     }
 
     #[Test]
@@ -87,19 +104,41 @@ final class DetachedJwsServiceTest extends TestCase
         $service = new DetachedJwsService($canonicalizer);
         $payload = ['id' => 'checkout-1'];
 
-        $protected = rtrim(strtr(base64_encode(json_encode([
-            'alg' => 'ES384',
-            'kid' => 'default',
-            'b64' => false,
-            'crit' => ['b64'],
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)), '+/', '-_'), '=');
-
-        $privateKey = PublicKeyLoader::loadPrivateKey($key->privateKeyPem);
-        self::assertInstanceOf(EC\PrivateKey::class, $privateKey);
-        $signature = $privateKey->withSignatureFormat('IEEE')->withHash('sha256')->sign($protected . '.' . $canonicalizer->canonicalize($payload));
-        $jws = $protected . '..' . rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+        $jws = $this->forgeDetachedJws(['alg' => 'ES384', 'kid' => 'default'], $payload, $key->privateKeyPem, $canonicalizer);
 
         self::assertFalse($service->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($key)]));
+    }
+
+    #[Test]
+    public function itRejectsJwsWithUnencodedPayloadOrCritHeaders(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $key = $keyManager->generate('default', 'ES256');
+        $canonicalizer = new DefaultJsonCanonicalization();
+        $service = new DetachedJwsService($canonicalizer);
+        $payload = ['id' => 'checkout-1'];
+
+        $withB64 = $this->forgeDetachedJws(['alg' => 'ES256', 'kid' => 'default', 'b64' => false, 'crit' => ['b64']], $payload, $key->privateKeyPem, $canonicalizer);
+        $withCrit = $this->forgeDetachedJws(['alg' => 'ES256', 'kid' => 'default', 'crit' => ['exp']], $payload, $key->privateKeyPem, $canonicalizer);
+
+        self::assertFalse($service->verifyWithoutAp2($payload, $withB64, [$keyManager->toPublicKey($key)]));
+        self::assertFalse($service->verifyWithoutAp2($payload, $withCrit, [$keyManager->toPublicKey($key)]));
+    }
+
+    /**
+     * @param array<string, mixed> $header
+     * @param array<string, mixed> $payload
+     */
+    private function forgeDetachedJws(array $header, array $payload, string $privateKeyPem, DefaultJsonCanonicalization $canonicalizer): string
+    {
+        $protected = rtrim(strtr(base64_encode(json_encode($header, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)), '+/', '-_'), '=');
+        $encodedPayload = rtrim(strtr(base64_encode($canonicalizer->canonicalize($payload)), '+/', '-_'), '=');
+
+        $privateKey = PublicKeyLoader::loadPrivateKey($privateKeyPem);
+        self::assertInstanceOf(EC\PrivateKey::class, $privateKey);
+        $signature = $privateKey->withSignatureFormat('IEEE')->withHash('sha256')->sign($protected . '.' . $encodedPayload);
+
+        return $protected . '..' . rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
     }
 
     #[Test]

@@ -12,9 +12,10 @@ use Ucp\Sdk\Model\Security\PublicSigningKey;
 use Ucp\Sdk\Service\DeterministicJsonInterface;
 
 /**
- * ES256 detached JWS (RFC 7515 Appendix F, RFC 7797 unencoded payload) over
- * canonicalized checkout payloads. The top-level `ap2` member is removed before
- * canonicalization so the signature can be embedded into the payload it covers.
+ * ES256 detached JWS (RFC 7515 Appendix F) over the base64url-encoded JCS
+ * canonicalization of checkout payloads. The top-level `ap2` member is removed
+ * before canonicalization so the signature can be embedded into the payload it
+ * covers.
  *
  * @internal
  */
@@ -33,11 +34,9 @@ final class DetachedJwsService
         $protected = Base64Url::encode(json_encode([
             'alg' => 'ES256',
             'kid' => $key->kid,
-            'b64' => false,
-            'crit' => ['b64'],
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
 
-        $signingInput = $protected . '.' . $this->canonicalPayload($payload);
+        $signingInput = $protected . '.' . Base64Url::encode($this->canonicalPayload($payload));
 
         try {
             $privateKey = PublicKeyLoader::loadPrivateKey($key->privateKeyPem);
@@ -68,11 +67,12 @@ final class DetachedJwsService
         [$protected, , $encodedSignature] = $segments;
 
         $header = json_decode(Base64Url::decode($protected) ?? '', true);
-        if (! is_array($header) || ($header['alg'] ?? null) !== 'ES256' || ($header['b64'] ?? null) !== false) {
+        if (! is_array($header) || ($header['alg'] ?? null) !== 'ES256') {
             return false;
         }
 
-        if (($header['crit'] ?? null) !== ['b64']) {
+        // RFC 7797 unencoded payloads and other crit extensions are not supported.
+        if (array_key_exists('b64', $header) || array_key_exists('crit', $header)) {
             return false;
         }
 
@@ -108,7 +108,7 @@ final class DetachedJwsService
             return false;
         }
 
-        $signingInput = $protected . '.' . $this->canonicalPayload($payload);
+        $signingInput = $protected . '.' . Base64Url::encode($this->canonicalPayload($payload));
 
         return $publicKey->withSignatureFormat('IEEE')->withHash('sha256')->verify($signingInput, $rawSignature);
     }

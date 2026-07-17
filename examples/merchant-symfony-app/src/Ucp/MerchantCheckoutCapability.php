@@ -10,6 +10,7 @@ use MerchantSymfonyApp\Support\PriceCalculator;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
+use Ucp\Sdk\Exception\Ap2Exception;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
@@ -112,10 +113,16 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         return $checkout;
     }
 
-    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
         $id = $request->id;
         $checkout = $this->getCheckout($id, $context);
+
+        // Refuse to complete terms the AP2 mandate verifiers never saw (verification/completion race).
+        if ($verifiedCheckout !== null && $this->terms($checkout) !== $this->terms($verifiedCheckout)) {
+            throw new Ap2Exception('mandate_scope_mismatch', 'The checkout changed after the AP2 mandate was verified; request a fresh mandate for the current terms.');
+        }
+
         $orderId = 'ord_' . substr($checkout->id, 4);
 
         $completed = new Checkout(
@@ -223,5 +230,19 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
     private function generateId(string $prefix): string
     {
         return $prefix . '_' . bin2hex(random_bytes(6));
+    }
+
+    /**
+     * The mandate-relevant checkout terms: what the buyer pays for and how much.
+     *
+     * @return array<string, mixed>
+     */
+    private function terms(Checkout $checkout): array
+    {
+        return [
+            'currency' => $checkout->currency,
+            'line_items' => array_map(static fn ($item): array => $item->toArray(), $checkout->lineItems),
+            'totals' => array_map(static fn ($money): array => $money->toArray(), $checkout->totals),
+        ];
     }
 }

@@ -47,19 +47,55 @@ final class DefaultCheckoutMerchantAuthorizationSignerTest extends TestCase
     }
 
     #[Test]
-    public function itUsesTheFirstActiveEs256Key(): void
+    public function itUsesTheNewestActiveEs256KeyRegardlessOfRepositoryOrder(): void
     {
         $keyManager = new DefaultSigningKeyManager();
-        $firstKey = $keyManager->generate('merchant-key-first', 'ES256');
-        $secondKey = $keyManager->generate('merchant-key-second', 'ES256');
+        $olderKey = self::withCreatedAt($keyManager->generate('merchant-key-older', 'ES256'), '2026-07-01T00:00:00+00:00');
+        $newerKey = self::withCreatedAt($keyManager->generate('merchant-key-newer', 'ES256'), '2026-07-15T00:00:00+00:00');
         $detachedJws = new DetachedJwsService(new DefaultJsonCanonicalization());
-        $signer = new DefaultCheckoutMerchantAuthorizationSigner(new Ap2SignerKeyRepositoryFake([$firstKey, $secondKey]), $detachedJws);
-
         $payload = ['id' => 'checkout-1', 'totals' => []];
+
+        foreach ([[$olderKey, $newerKey], [$newerKey, $olderKey]] as $repositoryOrder) {
+            $signer = new DefaultCheckoutMerchantAuthorizationSigner(new Ap2SignerKeyRepositoryFake($repositoryOrder), $detachedJws);
+            $jws = $signer->sign($payload, new RequestContext('shop.example'));
+
+            self::assertTrue($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($newerKey)]));
+            self::assertFalse($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($olderKey)]));
+        }
+    }
+
+    #[Test]
+    public function itBreaksCreatedAtTiesByKidAndSortsKeysWithoutCreatedAtLast(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $keyA = self::withCreatedAt($keyManager->generate('merchant-key-a', 'ES256'), '2026-07-01T00:00:00+00:00');
+        $keyB = self::withCreatedAt($keyManager->generate('merchant-key-b', 'ES256'), '2026-07-01T00:00:00+00:00');
+        $undatedKey = self::withCreatedAt($keyManager->generate('merchant-key-0-undated', 'ES256'), null);
+        $detachedJws = new DetachedJwsService(new DefaultJsonCanonicalization());
+        $payload = ['id' => 'checkout-1', 'totals' => []];
+
+        $signer = new DefaultCheckoutMerchantAuthorizationSigner(new Ap2SignerKeyRepositoryFake([$undatedKey, $keyB, $keyA]), $detachedJws);
         $jws = $signer->sign($payload, new RequestContext('shop.example'));
 
-        self::assertTrue($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($firstKey)]));
-        self::assertFalse($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($secondKey)]));
+        self::assertTrue($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($keyA)]));
+        self::assertFalse($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($keyB)]));
+        self::assertFalse($detachedJws->verifyWithoutAp2($payload, $jws, [$keyManager->toPublicKey($undatedKey)]));
+    }
+
+    private static function withCreatedAt(ManagedSigningKey $key, ?string $createdAt): ManagedSigningKey
+    {
+        return new ManagedSigningKey(
+            $key->kid,
+            $key->publicKeyPem,
+            $key->privateKeyPem,
+            $key->algorithm,
+            $key->keyType,
+            $key->use,
+            $key->status,
+            $key->curve,
+            $createdAt,
+            $key->retireAt,
+        );
     }
 
     #[Test]

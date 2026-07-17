@@ -115,7 +115,10 @@ final class ShoppingOperationToolSchemas
             'ap2' => [
                 'type' => 'object',
                 'properties' => [
-                    'checkout_mandate' => ['type' => 'string'],
+                    'checkout_mandate' => [
+                        'type' => 'string',
+                        'pattern' => '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+(~[A-Za-z0-9_-]+)*$',
+                    ],
                 ],
             ],
         ],

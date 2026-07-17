@@ -30,6 +30,11 @@ use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
 final class HttpPayloadMapper
 {
     /**
+     * SD-JWT+kb credential pattern for `ap2.checkout_mandate` per the AP2 mandates specification.
+     */
+    public const CHECKOUT_MANDATE_PATTERN = '/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+(~[A-Za-z0-9_-]+)*$/';
+
+    /**
      * @return array<string, mixed>
      */
     public function decode(Request $request): array
@@ -190,8 +195,8 @@ final class HttpPayloadMapper
         }
 
         $mandate = $ap2['checkout_mandate'];
-        if (! is_string($mandate) || $mandate === '') {
-            throw new BadRequestHttpException('ap2.checkout_mandate must be a non-empty string.');
+        if (! is_string($mandate) || preg_match(self::CHECKOUT_MANDATE_PATTERN, $mandate) !== 1) {
+            throw new BadRequestHttpException('ap2.checkout_mandate must be an SD-JWT formatted string.');
         }
 
         return $mandate;

@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Internal\Security;
 
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Model\RequestContext;
+use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\CheckoutMerchantAuthorizationSignerInterface;
@@ -25,19 +26,20 @@ final class DefaultCheckoutMerchantAuthorizationSigner implements CheckoutMercha
             ? $this->signingKeyRepository->activeForTenant($context->runtimeConfiguration?->tenantIdentifier)
             : $this->signingKeyRepository->active();
 
-        $key = null;
-        foreach ($keys as $candidate) {
-            // DetachedJwsService emits ES256-only JWS; other active keys (e.g. ES384) must not be used.
-            if ($candidate->algorithm === 'ES256') {
-                $key = $candidate;
-                break;
-            }
-        }
+        // DetachedJwsService emits ES256-only JWS; other active keys (e.g. ES384) must not be used.
+        $candidates = array_values(array_filter($keys, static fn (ManagedSigningKey $key): bool => $key->algorithm === 'ES256'));
 
-        if ($key === null) {
+        if ($candidates === []) {
             throw new SignatureException('No active ES256 signing key is available for AP2 merchant authorizations.');
         }
 
-        return $this->detachedJwsService->signWithoutAp2($checkoutPayload, $key);
+        // The repository does not guarantee an order, so pick deterministically: the newest key
+        // (ISO 8601 createdAt sorts lexicographically) wins, keys without createdAt sort last,
+        // and kid breaks ties. This keeps the signing key predictable during rotations.
+        usort($candidates, static function (ManagedSigningKey $a, ManagedSigningKey $b): int {
+            return ($b->createdAt ?? '') <=> ($a->createdAt ?? '') ?: $a->kid <=> $b->kid;
+        });
+
+        return $this->detachedJwsService->signWithoutAp2($checkoutPayload, $candidates[0]);
     }
 }

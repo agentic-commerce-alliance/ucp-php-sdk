@@ -16,6 +16,7 @@ use Ucp\Sdk\Contract\DiscountCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
+use Ucp\Sdk\Exception\Ap2Exception;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
@@ -46,6 +47,8 @@ use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 
 final class ShoppingOperationExecutorValidationTest extends TestCase
 {
+    private const CHECKOUT_MANDATE = 'eyJhbGciOiJFUzI1NiJ9.eyJjaGVja291dCI6dHJ1ZX0.c2lnbmF0dXJl~ZGlzY2xvc3VyZQ';
+
     #[Test]
     public function itValidatesRequestsAndResponsesForEveryShoppingOperation(): void
     {
@@ -263,7 +266,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
                     'handler_id' => 'com.example.psp',
                     'credential' => ['token' => 'payment_mandate'],
                 ]]],
-                'ap2' => ['checkout_mandate' => 'checkout_mandate'],
+                'ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE],
             ],
             new RequestContext('merchant.example'),
             'checkout-1',
@@ -272,7 +275,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         $completedRequest = $capability->completedRequest;
         self::assertNotNull($completedRequest);
         self::assertSame('checkout-1', $completedRequest->id);
-        self::assertSame('checkout_mandate', $completedRequest->ap2?->checkoutMandate);
+        self::assertSame(self::CHECKOUT_MANDATE, $completedRequest->ap2?->checkoutMandate);
         self::assertSame('com.example.psp', $completedRequest->payment?->instruments[0]->handlerId);
     }
 
@@ -294,7 +297,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
 
         $executor->execute(new ShoppingOperationRequest(
             'checkout.complete',
-            ['ap2' => ['checkout_mandate' => 'checkout_mandate']],
+            ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]],
             new RequestContext('merchant.example'),
             'checkout-1',
         ));
@@ -302,6 +305,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         self::assertSame('checkout-1', $verifier->request?->id);
         self::assertSame('checkout-1', $verifier->currentCheckout?->id);
         self::assertTrue($verifier->calledBeforeAdapterCompletion);
+        self::assertSame($verifier->currentCheckout, $capability->completedVerifiedCheckout);
     }
 
     #[Test]
@@ -355,7 +359,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
 
         $response = $executor->execute(new ShoppingOperationRequest(
             'checkout.complete',
-            ['ap2' => ['checkout_mandate' => 'checkout_mandate']],
+            ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]],
             new RequestContext('merchant.example'),
             'checkout-1',
         ));
@@ -393,6 +397,99 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
 
         self::assertNull($signer->signedPayload);
         self::assertArrayNotHasKey('ap2', $response->toArray());
+    }
+
+    #[Test]
+    public function checkoutCompleteRejectsAp2RequestsWithoutCheckoutMandate(): void
+    {
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        try {
+            $executor->execute(new ShoppingOperationRequest(
+                'checkout.complete',
+                ['ap2' => []],
+                new RequestContext('merchant.example'),
+                'checkout-1',
+            ));
+            self::fail('Expected a mandate_required rejection.');
+        } catch (Ap2Exception $exception) {
+            self::assertSame('mandate_required', $exception->errorCode);
+        }
+    }
+
+    #[Test]
+    public function checkoutCompleteRejectsMandatelessRequestsWhenAp2WasNegotiated(): void
+    {
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        try {
+            $executor->execute(new ShoppingOperationRequest(
+                'checkout.complete',
+                ['payment' => ['instruments' => []]],
+                $this->ap2NegotiatedContext(),
+                'checkout-1',
+            ));
+            self::fail('Expected a mandate_required rejection.');
+        } catch (Ap2Exception $exception) {
+            self::assertSame('mandate_required', $exception->errorCode);
+        }
+    }
+
+    #[Test]
+    public function checkoutResponsesCarryMerchantAuthorizationWhenAp2WasNegotiated(): void
+    {
+        $signer = new RecordingCheckoutMerchantAuthorizationSigner();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+            [],
+            $signer,
+        );
+        $context = $this->ap2NegotiatedContext();
+
+        $requests = [
+            new ShoppingOperationRequest('checkout.create', ['line_items' => []], $context),
+            new ShoppingOperationRequest('checkout.get', [], $context, 'checkout-1'),
+            new ShoppingOperationRequest('checkout.update', ['line_items' => []], $context, 'checkout-1'),
+            new ShoppingOperationRequest('checkout.complete', ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]], $context, 'checkout-1'),
+            new ShoppingOperationRequest('checkout.cancel', [], $context, 'checkout-1'),
+        ];
+
+        foreach ($requests as $request) {
+            $ap2 = $executor->execute($request)->toArray()['ap2'] ?? null;
+            self::assertIsArray($ap2, $request->operation);
+            self::assertSame('signed-jws', $ap2['merchant_authorization'] ?? null, $request->operation);
+        }
+    }
+
+    private function ap2NegotiatedContext(): RequestContext
+    {
+        return new RequestContext('merchant.example', negotiation: new NegotiatedCapabilities([
+            'dev.ucp.shopping.ap2_mandate' => [
+                new CapabilityDescriptor('dev.ucp.shopping.ap2_mandate', '2026-04-08', 'spec', 'schema'),
+            ],
+        ]));
     }
 
     /**
@@ -513,6 +610,8 @@ final class ShoppingOperationCapabilityFake implements CatalogCapabilityInterfac
 
     public ?CheckoutCompleteRequest $completedRequest = null;
 
+    public ?Checkout $completedVerifiedCheckout = null;
+
     public function describe(): CapabilityDescriptor
     {
         return new CapabilityDescriptor('dev.ucp.shopping', '2026-04-08', 'spec', 'schema');
@@ -575,9 +674,10 @@ final class ShoppingOperationCapabilityFake implements CatalogCapabilityInterfac
         return $this->checkout($request->id);
     }
 
-    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
         $this->completedRequest = $request;
+        $this->completedVerifiedCheckout = $verifiedCheckout;
 
         return $this->checkout($request->id, CheckoutStatus::Completed);
     }

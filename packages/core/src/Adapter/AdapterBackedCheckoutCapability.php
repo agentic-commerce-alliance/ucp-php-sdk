@@ -45,9 +45,9 @@ final class AdapterBackedCheckoutCapability implements CheckoutCapabilityInterfa
         return $this->adapter->updateCheckout($request, $context);
     }
 
-    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
-        return $this->adapter->completeCheckout($request, $context);
+        return $this->adapter->completeCheckout($request, $context, $verifiedCheckout);
     }
 
     public function cancelCheckout(string $id, RequestContext $context): Checkout

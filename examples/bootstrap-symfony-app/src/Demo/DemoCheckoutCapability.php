@@ -72,7 +72,7 @@ final class DemoCheckoutCapability implements CheckoutCapabilityInterface
         return $checkout;
     }
 
-    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
         $id = $request->id;
         $checkout = self::$checkouts[$id] ?? $this->createCheckout(new CheckoutCreateRequest([]), $context);
