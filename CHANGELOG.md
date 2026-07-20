@@ -27,6 +27,7 @@
 
 ### Fixed
 
+- restored PHP 8.1 compatibility of `MonetaryAmount`, which had regressed to a whole-class `readonly` declaration (8.2-only); the promoted constructor properties are individually `readonly` again
 - include the negotiated UCP metadata in REST response envelopes ([#68](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/68))
 - make the catalog-product REST binding protocol-conformant and emit the catalog-product capability ([#69](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/69))
 - require the UCP agent header on incoming requests ([#66](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/66))

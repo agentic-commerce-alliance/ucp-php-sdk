@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class MonetaryAmount
+final class MonetaryAmount
 {
     /**
      * ISO 4217 currencies whose minor unit is not the default two decimals.
@@ -14,8 +14,8 @@ final readonly class MonetaryAmount
     private const FOUR_DECIMAL_CURRENCIES = ['CLF', 'UYW'];
 
     private function __construct(
-        public int $minorUnits,
-        public string $currency,
+        public readonly int $minorUnits,
+        public readonly string $currency,
     ) {
     }
 
