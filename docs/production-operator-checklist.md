@@ -52,9 +52,10 @@ docker compose run --rm php php bin/console ucp:storage:cleanup
 
 ## AP2 Boundary
 
-- Treat AP2 merchant authorization as unsupported by default in the shared SDK.
-- Do not claim full AP2 credential-stack support unless a host app, platform plugin, or separate package replaces the default unsupported verifier.
-- Document AP2-related integration support in the platform-specific package, not in the shared SDK.
+- The shared SDK implements the AP2 mandates extension (`dev.ucp.shopping.ap2_mandate`): it advertises the capability, activates AP2 only when negotiated, rejects mandate-less completions with `mandate_required`, and signs `ap2.merchant_authorization` on every checkout response of a negotiated session.
+- The SDK ships **no** default mandate verifier. Register at least one `Ap2CheckoutMandateVerifierInterface` service before enabling AP2 in production — completion fails closed (`mandate_format_unsupported`) when no registered verifier supports the presented mandate, so an unverified mandate is never accepted.
+- Enable AP2 (`ucp_sdk.ap2.enabled`) only once a verifier is wired up and a signing key is provisioned; without a verifier every AP2 completion is rejected.
+- The credential-stack details (SD-JWT VC validation, key-binding checks) live in the verifier implementation, which belongs in a platform plugin or separate package, not the shared SDK.
 
 ## Alpha And Release Caveats
 

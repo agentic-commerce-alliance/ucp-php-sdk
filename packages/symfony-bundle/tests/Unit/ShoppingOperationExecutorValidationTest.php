@@ -256,6 +256,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             [],
             [],
             new EventDispatcher(),
+            [new RecordingAp2CheckoutMandateVerifier($capability)],
         );
 
         $executor->execute(new ShoppingOperationRequest(
@@ -268,7 +269,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
                 ]]],
                 'ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE],
             ],
-            new RequestContext('merchant.example'),
+            $this->ap2NegotiatedContext(),
             'checkout-1',
         ));
 
@@ -298,7 +299,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         $executor->execute(new ShoppingOperationRequest(
             'checkout.complete',
             ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]],
-            new RequestContext('merchant.example'),
+            $this->ap2NegotiatedContext(),
             'checkout-1',
         ));
 
@@ -353,14 +354,14 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             [],
             [],
             new EventDispatcher(),
-            [],
+            [new RecordingAp2CheckoutMandateVerifier($capability)],
             $signer,
         );
 
         $response = $executor->execute(new ShoppingOperationRequest(
             'checkout.complete',
             ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]],
-            new RequestContext('merchant.example'),
+            $this->ap2NegotiatedContext(),
             'checkout-1',
         ));
 
@@ -400,7 +401,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
     }
 
     #[Test]
-    public function checkoutCompleteRejectsAp2RequestsWithoutCheckoutMandate(): void
+    public function checkoutCompleteRejectsAp2MemberWhenNotNegotiated(): void
     {
         $executor = new ShoppingOperationExecutor(
             new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
@@ -415,13 +416,13 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         try {
             $executor->execute(new ShoppingOperationRequest(
                 'checkout.complete',
-                ['ap2' => []],
+                ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]],
                 new RequestContext('merchant.example'),
                 'checkout-1',
             ));
-            self::fail('Expected a mandate_required rejection.');
+            self::fail('Expected an ap2_not_negotiated rejection.');
         } catch (Ap2Exception $exception) {
-            self::assertSame('mandate_required', $exception->errorCode);
+            self::assertSame('ap2_not_negotiated', $exception->errorCode);
         }
     }
 
@@ -452,18 +453,80 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
     }
 
     #[Test]
-    public function checkoutResponsesCarryMerchantAuthorizationWhenAp2WasNegotiated(): void
+    public function checkoutCompleteFailsClosedWhenNoVerifierSupportsTheMandate(): void
     {
-        $signer = new RecordingCheckoutMerchantAuthorizationSigner();
+        $capability = new ShoppingOperationCapabilityFake();
+        $verifier = new RecordingAp2CheckoutMandateVerifier($capability, supports: false);
         $executor = new ShoppingOperationExecutor(
-            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationCapabilityRegistryFake($capability),
             new ShoppingOperationProtocolValidatorSpy(),
             new HttpPayloadMapper(),
             [],
             [],
             [],
             new EventDispatcher(),
+            [$verifier],
+        );
+
+        try {
+            $executor->execute(new ShoppingOperationRequest(
+                'checkout.complete',
+                ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]],
+                $this->ap2NegotiatedContext(),
+                'checkout-1',
+            ));
+            self::fail('Expected a mandate_format_unsupported rejection.');
+        } catch (Ap2Exception $exception) {
+            self::assertSame('mandate_format_unsupported', $exception->errorCode);
+        }
+
+        self::assertFalse($verifier->verifyCalled);
+        self::assertNull($capability->completedRequest);
+    }
+
+    #[Test]
+    public function checkoutCompleteFailsClosedWhenNoVerifierIsRegistered(): void
+    {
+        $capability = new ShoppingOperationCapabilityFake();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
             [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        try {
+            $executor->execute(new ShoppingOperationRequest(
+                'checkout.complete',
+                ['ap2' => ['checkout_mandate' => self::CHECKOUT_MANDATE]],
+                $this->ap2NegotiatedContext(),
+                'checkout-1',
+            ));
+            self::fail('Expected a mandate_format_unsupported rejection.');
+        } catch (Ap2Exception $exception) {
+            self::assertSame('mandate_format_unsupported', $exception->errorCode);
+        }
+
+        self::assertNull($capability->completedRequest);
+    }
+
+    #[Test]
+    public function checkoutResponsesCarryMerchantAuthorizationWhenAp2WasNegotiated(): void
+    {
+        $signer = new RecordingCheckoutMerchantAuthorizationSigner();
+        $capability = new ShoppingOperationCapabilityFake();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+            [new RecordingAp2CheckoutMandateVerifier($capability)],
             $signer,
         );
         $context = $this->ap2NegotiatedContext();
@@ -554,14 +617,24 @@ final class RecordingAp2CheckoutMandateVerifier implements Ap2CheckoutMandateVer
 
     public bool $calledBeforeAdapterCompletion = false;
 
-    public function __construct(private readonly ShoppingOperationCapabilityFake $capability)
+    public bool $verifyCalled = false;
+
+    public function __construct(
+        private readonly ShoppingOperationCapabilityFake $capability,
+        private readonly bool $supports = true,
+    ) {
+    }
+
+    public function supports(CheckoutCompleteRequest $request, Checkout $currentCheckout, RequestContext $context): bool
     {
+        return $this->supports;
     }
 
     public function verify(CheckoutCompleteRequest $request, Checkout $currentCheckout, RequestContext $context): void
     {
         $this->request = $request;
         $this->currentCheckout = $currentCheckout;
+        $this->verifyCalled = true;
         $this->calledBeforeAdapterCompletion = $this->capability->completedRequest === null;
     }
 }

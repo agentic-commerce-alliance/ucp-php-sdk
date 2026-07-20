@@ -22,6 +22,7 @@ use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Checkout\PaymentSelection;
 use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
+use Ucp\Sdk\Model\Common\PostalAddress;
 use Ucp\Sdk\Model\Common\Signals;
 use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
 use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
@@ -211,6 +212,10 @@ final class HttpPayloadMapper
             (string) ($payload['type'] ?? 'tokenized'),
             (string) ($payload['handler_id'] ?? ''),
             is_array($payload['credential'] ?? null) ? $payload['credential'] : [],
+            isset($payload['id']) && is_string($payload['id']) ? $payload['id'] : null,
+            isset($payload['selected']) ? (bool) $payload['selected'] : null,
+            is_array($payload['billing_address'] ?? null) ? PostalAddress::fromArray($payload['billing_address']) : null,
+            is_array($payload['display'] ?? null) ? $payload['display'] : null,
         );
     }
 

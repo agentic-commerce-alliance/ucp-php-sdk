@@ -13,6 +13,37 @@ use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 final class HttpPayloadMapperTest extends TestCase
 {
     #[Test]
+    public function itPreservesTheFullPaymentInstrumentOnCheckoutComplete(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => ['instruments' => [[
+                'id' => 'pi_123',
+                'type' => 'card',
+                'handler_id' => 'com.example.psp',
+                'selected' => true,
+                'credential' => ['token' => 'tok_abc'],
+                'billing_address' => ['street_address' => '1 Market St', 'address_country' => 'US', 'postal_code' => '94105'],
+                'display' => ['brand' => 'visa', 'last4' => '4242'],
+            ]]],
+        ]);
+
+        $instrument = $request->payment?->instruments[0];
+        self::assertNotNull($instrument);
+        self::assertSame('pi_123', $instrument->id);
+        self::assertSame('card', $instrument->type);
+        self::assertSame('com.example.psp', $instrument->handlerId);
+        self::assertTrue($instrument->selected);
+        self::assertSame(['token' => 'tok_abc'], $instrument->credential);
+        $billingAddress = $instrument->billingAddress;
+        self::assertNotNull($billingAddress);
+        self::assertSame('1 Market St', $billingAddress->streetAddress);
+        self::assertSame('US', $billingAddress->addressCountry);
+        self::assertSame(['brand' => 'visa', 'last4' => '4242'], $instrument->display);
+    }
+
+    #[Test]
     public function itDecodesFormEncodedOAuthTokenPayloads(): void
     {
         $request = Request::create(

@@ -80,6 +80,21 @@ final class Checkout implements UcpOperationPayload
     }
 
     /**
+     * A deterministic fingerprint of the economic terms an AP2 mandate authorizes: currency,
+     * line items, and totals. AP2 verifiers approve a checkout snapshot, and completion adapters
+     * compare this fingerprint against the stored state to refuse completing terms that changed
+     * after verification (the verification-to-completion race).
+     */
+    public function termsFingerprint(): string
+    {
+        return hash('sha256', (string) json_encode([
+            'currency' => $this->currency,
+            'line_items' => array_map(static fn (LineItem $item): array => $item->toArray(), $this->lineItems),
+            'totals' => array_map(static fn (Money $money): array => $money->toArray(), $this->totals),
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    /**
      * @param array<string, mixed> $extra
      */
     public function withExtra(array $extra): self

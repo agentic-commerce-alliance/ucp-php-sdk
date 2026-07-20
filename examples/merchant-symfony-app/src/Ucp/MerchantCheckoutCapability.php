@@ -116,30 +116,46 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
     public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
         $id = $request->id;
-        $checkout = $this->getCheckout($id, $context);
+        $expectedFingerprint = $verifiedCheckout?->termsFingerprint();
 
-        // Refuse to complete terms the AP2 mandate verifiers never saw (verification/completion race).
-        if ($verifiedCheckout !== null && $this->terms($checkout) !== $this->terms($verifiedCheckout)) {
-            throw new Ap2Exception('mandate_scope_mismatch', 'The checkout changed after the AP2 mandate was verified; request a fresh mandate for the current terms.');
-        }
+        // Read the checkout, guard it against the verified snapshot, and flip it to completed
+        // atomically under an exclusive lock, so a concurrent checkout.update cannot land between
+        // the AP2 mandate verification and completion (the verification/completion race).
+        $completed = $this->stateStore->mutate(self::COLLECTION, function (array &$records) use ($id, $expectedFingerprint): Checkout {
+            $current = $records[$id] ?? null;
+            if (! is_array($current)) {
+                throw new \RuntimeException(sprintf('Checkout "%s" was not found.', $id));
+            }
 
-        $orderId = 'ord_' . substr($checkout->id, 4);
+            $checkout = $this->modelFactory->checkoutFromArray($current);
 
-        $completed = new Checkout(
-            $checkout->id,
-            CheckoutStatus::Completed,
-            $checkout->currency,
-            $checkout->lineItems,
-            $checkout->totals,
-            array_merge($checkout->messages, [new Message('info', 'Checkout completed and converted into an order.')]),
-            $checkout->links,
-            $checkout->buyer,
-            $checkout->continueUrl,
-            $checkout->expiresAt,
-            new OrderConfirmation($orderId, $this->settings->orderPermalink($orderId)),
-            $checkout->extra,
-        );
+            // Refuse to complete terms the AP2 mandate verifiers never saw.
+            if ($expectedFingerprint !== null && $checkout->termsFingerprint() !== $expectedFingerprint) {
+                throw new Ap2Exception('mandate_scope_mismatch', 'The checkout changed after the AP2 mandate was verified; request a fresh mandate for the current terms.');
+            }
 
+            $orderId = 'ord_' . substr($checkout->id, 4);
+            $completed = new Checkout(
+                $checkout->id,
+                CheckoutStatus::Completed,
+                $checkout->currency,
+                $checkout->lineItems,
+                $checkout->totals,
+                array_merge($checkout->messages, [new Message('info', 'Checkout completed and converted into an order.')]),
+                $checkout->links,
+                $checkout->buyer,
+                $checkout->continueUrl,
+                $checkout->expiresAt,
+                new OrderConfirmation($orderId, $this->settings->orderPermalink($orderId)),
+                $checkout->extra,
+            );
+
+            $records[$id] = $completed->toArray();
+
+            return $completed;
+        });
+
+        $orderId = 'ord_' . substr($completed->id, 4);
         $this->stateStore->put(self::ORDER_COLLECTION, $orderId, [
             'id' => $orderId,
             'checkout_id' => $completed->id,
@@ -157,7 +173,6 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             'created_at' => gmdate('c'),
             'merchant_reference' => $completed->extra['merchant_reference'] ?? [],
         ]);
-        $this->stateStore->put(self::COLLECTION, $completed->id, $completed->toArray());
 
         return $completed;
     }
@@ -230,19 +245,5 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
     private function generateId(string $prefix): string
     {
         return $prefix . '_' . bin2hex(random_bytes(6));
-    }
-
-    /**
-     * The mandate-relevant checkout terms: what the buyer pays for and how much.
-     *
-     * @return array<string, mixed>
-     */
-    private function terms(Checkout $checkout): array
-    {
-        return [
-            'currency' => $checkout->currency,
-            'line_items' => array_map(static fn ($item): array => $item->toArray(), $checkout->lineItems),
-            'totals' => array_map(static fn ($money): array => $money->toArray(), $checkout->totals),
-        ];
     }
 }

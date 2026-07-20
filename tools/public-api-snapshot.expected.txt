@@ -64,7 +64,11 @@ interface Ucp\Sdk\Adapter\PaymentAdapterInterface
   - prepareInstrument(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
   - supportsTokenization(): bool
   - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): ?array
+class Ucp\Sdk\Capability\Ap2MandateCapability
+  - __construct(array $vpFormatsSupported = [], string $version = '2026-04-08')
+  - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
 interface Ucp\Sdk\Contract\Ap2CheckoutMandateVerifierInterface
+  - supports(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\Checkout\Checkout $currentCheckout, Ucp\Sdk\Model\RequestContext $context): bool
   - verify(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\Checkout\Checkout $currentCheckout, Ucp\Sdk\Model\RequestContext $context): void
 interface Ucp\Sdk\Contract\CapabilityInterface
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
@@ -216,6 +220,7 @@ class Ucp\Sdk\Model\Checkout\BuyerConsent
 class Ucp\Sdk\Model\Checkout\Checkout
   - __construct(string $id, Ucp\Sdk\Enum\CheckoutStatus $status, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $continueUrl = null, ?string $expiresAt = null, ?Ucp\Sdk\Model\Checkout\OrderConfirmation $order = null, array $extra = [])
   - jsonSerialize(): array
+  - termsFingerprint(): string
   - toArray(): array
   - withExtra(array $extra): self
 class Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest
@@ -232,7 +237,8 @@ class Ucp\Sdk\Model\Checkout\OrderConfirmation
   - __construct(string $id, ?string $permalinkUrl = null)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\PaymentInstrument
-  - __construct(string $type, string $handlerId, array $credential = [])
+  - __construct(string $type, string $handlerId, array $credential = [], ?string $id = null, ?bool $selected = null, ?Ucp\Sdk\Model\Common\PostalAddress $billingAddress = null, ?array $display = null)
+  - toArray(): array
 class Ucp\Sdk\Model\Checkout\PaymentSelection
   - __construct(array $instruments)
 class Ucp\Sdk\Model\Common\Buyer
@@ -248,11 +254,14 @@ class Ucp\Sdk\Model\Common\Message
   - __construct(string $type, string $content, ?string $severity = null, ?string $code = null, ?string $path = null)
   - toArray(): array
 class Ucp\Sdk\Model\Common\MonetaryAmount
-  - static exponent(string $currency): int
   - static fromMajorUnits(float $amount, string $currency = 'EUR'): self
   - toPriceArray(): array
 class Ucp\Sdk\Model\Common\Money
   - __construct(string $type, float $amount, ?string $displayText = null, string $currency = 'EUR')
+  - toArray(): array
+class Ucp\Sdk\Model\Common\PostalAddress
+  - __construct(?string $streetAddress = null, ?string $extendedAddress = null, ?string $addressLocality = null, ?string $addressRegion = null, ?string $addressCountry = null, ?string $postalCode = null, ?string $firstName = null, ?string $lastName = null, ?string $phoneNumber = null)
+  - static fromArray(array $payload): self
   - toArray(): array
 class Ucp\Sdk\Model\Common\Signals
   - __construct(array $values = [])

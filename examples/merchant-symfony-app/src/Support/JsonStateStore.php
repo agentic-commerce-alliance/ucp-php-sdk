@@ -65,6 +65,61 @@ final class JsonStateStore
         $this->write($collection, $records);
     }
 
+    /**
+     * Run a read-modify-write against a keyed collection while holding an exclusive lock, so a
+     * concurrent writer cannot interleave between the read and the write. The mutator receives
+     * the current records by reference, mutates them in place, and returns a value handed back
+     * to the caller. This is the reference pattern for completing a checkout atomically against
+     * a verified AP2 mandate snapshot (compare-and-set on the checkout's terms fingerprint).
+     *
+     * @param callable(array<string, array<string, mixed>>): mixed $mutator receives records by reference
+     */
+    public function mutate(string $collection, callable $mutator): mixed
+    {
+        $path = $this->path($collection);
+        $directory = dirname($path);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        $handle = fopen($path, 'c+');
+        if ($handle === false) {
+            throw new \RuntimeException(sprintf('Unable to open state file "%s".', $path));
+        }
+
+        try {
+            if (! flock($handle, LOCK_EX)) {
+                throw new \RuntimeException(sprintf('Unable to lock state file "%s".', $path));
+            }
+
+            $contents = stream_get_contents($handle);
+            $decoded = ($contents === false || $contents === '')
+                ? []
+                : json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+
+            $records = [];
+            if (is_array($decoded)) {
+                foreach ($decoded as $key => $value) {
+                    if (is_string($key) && is_array($value)) {
+                        $records[$key] = $value;
+                    }
+                }
+            }
+
+            $result = $mutator($records);
+
+            rewind($handle);
+            ftruncate($handle, 0);
+            fwrite($handle, json_encode($records, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+            fflush($handle);
+
+            return $result;
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
+    }
+
     public function remove(string $collection, string $id): void
     {
         $records = $this->loadMap($collection);

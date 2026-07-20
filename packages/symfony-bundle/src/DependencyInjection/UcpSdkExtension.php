@@ -21,6 +21,7 @@ use Ucp\Sdk\Adapter\DiscountAdapterInterface;
 use Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface;
 use Ucp\Sdk\Adapter\OrderAdapterInterface;
 use Ucp\Sdk\Adapter\PaymentAdapterInterface;
+use Ucp\Sdk\Capability\Ap2MandateCapability;
 use Ucp\Sdk\Contract\Ap2CheckoutMandateVerifierInterface;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CheckoutRequestValidatorInterface;
@@ -303,6 +304,13 @@ final class UcpSdkExtension extends Extension
             new Reference(UrlSafetyValidator::class),
         ]));
         $container->setAlias(AgentProfileFetcherInterface::class, new Alias(HttpAgentProfileFetcher::class, true));
+
+        if ($config['ap2']['enabled']) {
+            $container->setDefinition(Ap2MandateCapability::class, new Definition(Ap2MandateCapability::class, [
+                $config['ap2']['vp_formats_supported'],
+                $config['version'],
+            ]))->addTag('ucp_sdk.capability');
+        }
 
         $container->setDefinition(CapabilityRegistry::class, new Definition(CapabilityRegistry::class, [
             new TaggedIteratorArgument('ucp_sdk.capability'),

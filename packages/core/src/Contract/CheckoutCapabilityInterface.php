@@ -29,6 +29,12 @@ interface CheckoutCapabilityInterface extends CapabilityInterface
      * if its terms (line items, totals, currency) no longer match this snapshot — e.g. because
      * a concurrent update landed after verification — and should throw
      * Ucp\Sdk\Exception\Ap2Exception with the stable code `mandate_scope_mismatch` instead.
+     *
+     * The read-guard-write MUST be atomic: comparing the stored terms against the snapshot and
+     * then writing the completed checkout in two separate steps still lets a concurrent update
+     * slip in between them. Use a lock or a compare-and-set on the terms (see
+     * {@see Checkout::termsFingerprint()} and the merchant example's
+     * JsonStateStore::mutate() for the reference pattern).
      */
     public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout;
 

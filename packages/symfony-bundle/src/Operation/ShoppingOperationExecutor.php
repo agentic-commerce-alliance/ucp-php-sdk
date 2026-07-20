@@ -249,10 +249,16 @@ final class ShoppingOperationExecutor
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $completeRequest = $this->payloadMapper->toCheckoutCompleteRequest($this->requiredId($request), $request->payload);
         $checkoutCapability = $this->checkout($request->context);
+        $ap2Active = $this->ap2Negotiated($request->context);
 
-        // AP2 is active when negotiated or when the request carries an ap2 member;
-        // either way the spec requires rejecting completions without a mandate.
-        if (($this->ap2Negotiated($request->context) || $completeRequest->ap2 !== null) && $completeRequest->ap2?->checkoutMandate === null) {
+        // AP2 activates only through capability negotiation. An ap2 member on a session that
+        // never negotiated dev.ucp.shopping.ap2_mandate is a protocol violation, not an opt-in.
+        if (! $ap2Active && $completeRequest->ap2 !== null) {
+            throw new Ap2Exception('ap2_not_negotiated', 'The request carries an ap2 member, but the dev.ucp.shopping.ap2_mandate capability was not negotiated for this session.');
+        }
+
+        // When AP2 is negotiated the spec requires rejecting completions without a mandate.
+        if ($ap2Active && $completeRequest->ap2?->checkoutMandate === null) {
             throw new Ap2Exception('mandate_required', 'AP2 is active for this checkout, but the request is missing ap2.checkout_mandate.');
         }
 
@@ -266,12 +272,28 @@ final class ShoppingOperationExecutor
             }
         }
 
-        // The verifiers are a lazy tagged-service iterable, so the checkout is fetched inside the
-        // loop via `??=`: at most once, and not at all when no AP2 verifiers are registered.
+        // AP2 mandate verification runs only when AP2 is active and a mandate was supplied.
+        // Verifiers are a lazy tagged-service iterable, so the checkout is fetched inside the
+        // loop via `??=`: at most once, and not at all when there is nothing to verify.
+        // Reaching here with $ap2Active means the mandate_required guard above already
+        // confirmed a mandate is present.
         $currentCheckout = null;
-        foreach ($this->ap2CheckoutMandateVerifiers as $verifier) {
-            $currentCheckout ??= $checkoutCapability->getCheckout($completeRequest->id, $request->context);
-            $verifier->verify($completeRequest, $currentCheckout, $request->context);
+        if ($ap2Active) {
+            $verified = false;
+            foreach ($this->ap2CheckoutMandateVerifiers as $verifier) {
+                $currentCheckout ??= $checkoutCapability->getCheckout($completeRequest->id, $request->context);
+                if (! $verifier->supports($completeRequest, $currentCheckout, $request->context)) {
+                    continue;
+                }
+
+                $verifier->verify($completeRequest, $currentCheckout, $request->context);
+                $verified = true;
+            }
+
+            // Fail closed: never complete a mandate no registered verifier could vouch for.
+            if (! $verified) {
+                throw new Ap2Exception('mandate_format_unsupported', 'No registered AP2 mandate verifier supports the supplied checkout mandate.');
+            }
         }
 
         // Passing the verified snapshot lets the adapter refuse completion when the checkout
@@ -279,7 +301,6 @@ final class ShoppingOperationExecutor
         $checkout = $this->finalizeCheckout(
             $checkoutCapability->completeCheckout($completeRequest, $request->context, $currentCheckout),
             $request,
-            forceMerchantAuthorization: $completeRequest->ap2 !== null,
         );
 
         return $this->response('checkout.complete', $checkout, UcpCapability::Checkout, $request->context);
@@ -368,7 +389,7 @@ final class ShoppingOperationExecutor
         throw new UnsupportedCapabilityException(sprintf('%s capability is disabled by runtime configuration.', $label));
     }
 
-    private function finalizeCheckout(Checkout $checkout, ShoppingOperationRequest $request, bool $forceMerchantAuthorization = false): Checkout
+    private function finalizeCheckout(Checkout $checkout, ShoppingOperationRequest $request): Checkout
     {
         foreach ($this->responseAugmenters as $augmenter) {
             $checkout = $augmenter->augment($checkout, $request->context);
@@ -380,7 +401,7 @@ final class ShoppingOperationExecutor
 
         // Once AP2 is negotiated, every checkout response must carry the
         // business's merchant authorization signature.
-        if ($this->checkoutMerchantAuthorizationSigner !== null && ($forceMerchantAuthorization || $this->ap2Negotiated($request->context))) {
+        if ($this->checkoutMerchantAuthorizationSigner !== null && $this->ap2Negotiated($request->context)) {
             $ap2 = is_array($checkout->extra['ap2'] ?? null) ? $checkout->extra['ap2'] : [];
             $ap2['merchant_authorization'] = $this->checkoutMerchantAuthorizationSigner->sign($checkout->toArray(), $request->context);
             $checkout = $checkout->withExtra(['ap2' => $ap2]);
