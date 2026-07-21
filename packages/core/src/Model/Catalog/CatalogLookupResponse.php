@@ -6,13 +6,13 @@ namespace Ucp\Sdk\Model\Catalog;
 
 use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
 
-final readonly class CatalogLookupResponse implements UcpOperationPayload
+final class CatalogLookupResponse implements UcpOperationPayload
 {
     /**
      * @param list<Product> $products
      */
     public function __construct(
-        public array $products,
+        public readonly array $products,
     ) {
     }
 

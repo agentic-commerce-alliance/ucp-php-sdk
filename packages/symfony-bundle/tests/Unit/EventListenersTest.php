@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
@@ -132,6 +133,69 @@ final class EventListenersTest extends TestCase
         );
         $listener->onKernelException($runtimeEvent);
         self::assertSame(500, $runtimeEvent->getResponse()?->getStatusCode());
+    }
+
+    #[Test]
+    public function itLogsUnhandledServerExceptionsWithTheThrowable(): void
+    {
+        $throwable = new \RuntimeException('boom');
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with('Unhandled exception while processing a UCP request.', ['exception' => $throwable]);
+
+        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()), $logger);
+        $event = new ExceptionEvent(
+            $this->createMock(HttpKernelInterface::class),
+            Request::create('/.well-known/ucp', 'GET'),
+            HttpKernelInterface::MAIN_REQUEST,
+            $throwable,
+        );
+
+        $listener->onKernelException($event);
+
+        self::assertSame(500, $event->getResponse()?->getStatusCode());
+    }
+
+    #[Test]
+    public function itLogsConfigurationErrorsWithTheThrowable(): void
+    {
+        $throwable = new ConfigurationException('misconfigured');
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with('UCP request failed because of a server configuration error.', ['exception' => $throwable]);
+
+        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()), $logger);
+        $event = new ExceptionEvent(
+            $this->createMock(HttpKernelInterface::class),
+            Request::create('/.well-known/ucp', 'GET'),
+            HttpKernelInterface::MAIN_REQUEST,
+            $throwable,
+        );
+
+        $listener->onKernelException($event);
+
+        self::assertSame(500, $event->getResponse()?->getStatusCode());
+    }
+
+    #[Test]
+    public function itDoesNotLogExpectedClientErrors(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::never())->method('error');
+
+        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()), $logger);
+        $event = new ExceptionEvent(
+            $this->createMock(HttpKernelInterface::class),
+            Request::create('/ucp/v1/carts', 'POST'),
+            HttpKernelInterface::MAIN_REQUEST,
+            new ValidationException('invalid', ['$.field is required']),
+        );
+
+        $listener->onKernelException($event);
+
+        self::assertSame(422, $event->getResponse()?->getStatusCode());
     }
 
     #[Test]

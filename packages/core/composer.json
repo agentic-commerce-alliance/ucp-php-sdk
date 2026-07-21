@@ -1,5 +1,5 @@
 {
-    "name": "shopware/ucp-php-sdk-core",
+    "name": "ucp-php-sdk/core",
     "description": "Core library for the UCP PHP SDK",
     "type": "library",
     "license": "MIT",
