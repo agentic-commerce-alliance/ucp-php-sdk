@@ -17,6 +17,7 @@
 
 ### Changed
 
+- **breaking:** raised the minimum PHP requirement back to `^8.2` across the `core` and `symfony-bundle` packages, matching the root package and the `readonly class` models; PHP 8.1 is end-of-life and was no longer exercised by CI. Supersedes the `^8.1` lowering ([#13](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/13))
 - lowered the PHP requirement from `^8.2` to `^8.1`; `readonly class` declarations were replaced with individually `readonly`-annotated promoted properties across core, symfony-bundle, and examples ([#13](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/13))
 - removed Symfony dependencies from the framework-free core package ([#53](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/53))
 - adopted `phpseclib` for signing operations
