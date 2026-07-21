@@ -6,10 +6,10 @@ namespace Ucp\Sdk\Model\Catalog;
 
 use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
 
-final readonly class CatalogProductResponse implements UcpOperationPayload
+final class CatalogProductResponse implements UcpOperationPayload
 {
     public function __construct(
-        public Product $product,
+        public readonly Product $product,
     ) {
     }
 
