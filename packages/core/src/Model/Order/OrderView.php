@@ -20,6 +20,7 @@ final class OrderView implements UcpOperationPayload
      * @param list<Link> $links
      * @param array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>> $extra
      * @param array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>|null $fulfillment
+     * @param list<Adjustment> $adjustments
      */
     public function __construct(
         public readonly string $id,
@@ -34,6 +35,7 @@ final class OrderView implements UcpOperationPayload
         public readonly ?string $checkoutId = null,
         public readonly ?string $permalinkUrl = null,
         public readonly ?array $fulfillment = null,
+        public readonly array $adjustments = [],
     ) {
     }
 
@@ -55,7 +57,8 @@ final class OrderView implements UcpOperationPayload
      *     created_at?: string,
      *     checkout_id?: string,
      *     permalink_url?: string,
-     *     fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>
+     *     fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>,
+     *     adjustments?: list<array<string, mixed>>
      * }
      */
     public function toArray(): array
@@ -100,7 +103,11 @@ final class OrderView implements UcpOperationPayload
             $data['fulfillment'] = $this->fulfillment;
         }
 
-        /** @var array{id: string, currency: string, line_items: list<array{id: string, item: array{id: string, title: string, price: int, image_url?: string}, quantity: array{original: int, total: int, fulfilled: int}, totals: list<array{type: string, amount: int}>, status: string}>, totals: list<array<string, int|string>>, messages: list<array<string, string|null>>, links: list<array<string, string>>, buyer?: array<string, string>, created_at?: string, checkout_id?: string, permalink_url?: string, fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>} $payload */
+        if ([] !== $this->adjustments) {
+            $data['adjustments'] = array_map(static fn (Adjustment $adjustment): array => $adjustment->toArray(), $this->adjustments);
+        }
+
+        /** @var array{id: string, currency: string, line_items: list<array{id: string, item: array{id: string, title: string, price: int, image_url?: string}, quantity: array{original: int, total: int, fulfilled: int}, totals: list<array{type: string, amount: int}>, status: string}>, totals: list<array<string, int|string>>, messages: list<array<string, string|null>>, links: list<array<string, string>>, buyer?: array<string, string>, created_at?: string, checkout_id?: string, permalink_url?: string, fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>, adjustments?: list<array<string, mixed>>} $payload */
         $payload = array_merge($data, $this->extra);
 
         return $payload;
@@ -124,7 +131,8 @@ final class OrderView implements UcpOperationPayload
      *     created_at?: string,
      *     checkout_id?: string,
      *     permalink_url?: string,
-     *     fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>
+     *     fulfillment?: array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>>,
+     *     adjustments?: list<array<string, mixed>>
      * }
      */
     public function jsonSerialize(): array
