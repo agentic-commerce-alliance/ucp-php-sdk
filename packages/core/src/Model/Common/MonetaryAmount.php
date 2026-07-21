@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Common;
 
-final readonly class MonetaryAmount
+final class MonetaryAmount
 {
     private function __construct(
-        public int $minorUnits,
-        public string $currency,
+        public readonly int $minorUnits,
+        public readonly string $currency,
     ) {
     }
 

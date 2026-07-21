@@ -15,3 +15,10 @@ RUN apt-get update \
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /workspace
+
+# The repository is bind-mounted from the host and therefore owned by a different user than the
+# container's root, so git aborts with "detected dubious ownership". Mark every directory as safe
+# so tooling that shells out to git works — notably roave/backward-compatibility-check, which both
+# resolves the baseline tag (`git rev-parse <tag>`) and clones the worktree (`git clone /workspace`,
+# tripping the check on /workspace/.git). A wildcard is appropriate for this throwaway CI image.
+RUN git config --global --add safe.directory '*'

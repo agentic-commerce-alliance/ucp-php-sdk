@@ -20,7 +20,7 @@ use Ucp\Sdk\Enum\UcpResponseStatus;
  *     available_instruments?: list<array{type: string, constraints?: array<string, bool|float|int|string|null|list<bool|float|int|string|null>|array<string, bool|float|int|string|null>>}>
  * }
  */
-final readonly class UcpEnvelope implements \JsonSerializable
+final class UcpEnvelope implements \JsonSerializable
 {
     /**
      * @param array<string, list<UcpRegistryEntry>> $services
@@ -28,11 +28,11 @@ final readonly class UcpEnvelope implements \JsonSerializable
      * @param array<string, list<UcpRegistryEntry>> $paymentHandlers
      */
     public function __construct(
-        public string $version,
-        public UcpResponseStatus $status,
-        public array $services = [],
-        public array $capabilities = [],
-        public array $paymentHandlers = [],
+        public readonly string $version,
+        public readonly UcpResponseStatus $status,
+        public readonly array $services = [],
+        public readonly array $capabilities = [],
+        public readonly array $paymentHandlers = [],
     ) {
     }
 

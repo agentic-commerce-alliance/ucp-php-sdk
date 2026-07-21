@@ -7,7 +7,7 @@ template: |
 
   ## Packages
 
-  - `shopware/ucp-php-sdk-core`
+  - `ucp-php-sdk/core`
   - `ucp-php-sdk/symfony-bundle`
 
   ## Notes
