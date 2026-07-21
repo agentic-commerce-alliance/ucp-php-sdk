@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\EventListener;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -23,6 +24,7 @@ final class ExceptionListener
 {
     public function __construct(
         private readonly UcpResponseFactory $responseFactory,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -84,6 +86,7 @@ final class ExceptionListener
         }
 
         if ($throwable instanceof ConfigurationException) {
+            $this->logger?->error('UCP request failed because of a server configuration error.', ['exception' => $throwable]);
             $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 500));
 
             return;
@@ -96,6 +99,7 @@ final class ExceptionListener
             return;
         }
 
+        $this->logger?->error('Unhandled exception while processing a UCP request.', ['exception' => $throwable]);
         $event->setResponse($this->errorResponse($event->getRequest(), 'Internal server error.', 500));
     }
 

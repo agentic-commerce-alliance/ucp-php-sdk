@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Protocol;
 
-final readonly class UcpOperationResponse implements \JsonSerializable
+final class UcpOperationResponse implements \JsonSerializable
 {
     public function __construct(
-        private UcpOperationPayload $payload,
-        private UcpEnvelope $envelope,
+        private readonly UcpOperationPayload $payload,
+        private readonly UcpEnvelope $envelope,
     ) {
     }
 
