@@ -13,6 +13,8 @@ final class ProfileBuildInput
      * @param array<string, string> $supportedVersions
      * @param array<string, string> $transportEndpoints
      * @param list<string> $enabledCapabilities
+     * @param list<string> $allowedProfileHosts
+     * @param list<string> $allowedAgentDomains
      */
     public function __construct(
         public readonly string $version,
@@ -22,6 +24,8 @@ final class ProfileBuildInput
         public readonly array $transportEndpoints = [],
         public readonly ?string $tenantIdentifier = null,
         public readonly array $enabledCapabilities = [],
+        public readonly array $allowedProfileHosts = [],
+        public readonly array $allowedAgentDomains = [],
     ) {
     }
 }

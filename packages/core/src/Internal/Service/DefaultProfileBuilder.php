@@ -87,6 +87,14 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
             }
         }
 
+        $security = [];
+        if ($input->allowedProfileHosts !== []) {
+            $security['allowed_profile_hosts'] = $input->allowedProfileHosts;
+        }
+        if ($input->allowedAgentDomains !== []) {
+            $security['allowed_agent_domains'] = $input->allowedAgentDomains;
+        }
+
         $profile = new PlatformProfile(
             $input->version,
             $services,
@@ -94,6 +102,7 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
             $paymentHandlers,
             $signingKeys,
             $input->supportedVersions,
+            $security,
         );
 
         foreach ($this->contributors as $contributor) {

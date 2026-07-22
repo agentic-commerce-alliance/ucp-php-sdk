@@ -15,6 +15,7 @@ final class PlatformProfile
      * @param array<string, list<PaymentHandlerDescriptor>> $paymentHandlers
      * @param list<PublicSigningKey> $signingKeys
      * @param array<string, string> $supportedVersions
+     * @param array<string, list<string>> $security transport-level policy advertised in /.well-known/ucp
      */
     public function __construct(
         public readonly string $version,
@@ -23,6 +24,7 @@ final class PlatformProfile
         public readonly array $paymentHandlers,
         public readonly array $signingKeys = [],
         public readonly array $supportedVersions = [],
+        public readonly array $security = [],
     ) {
     }
 
@@ -40,6 +42,10 @@ final class PlatformProfile
 
         if ($this->supportedVersions !== []) {
             $ucp['supported_versions'] = $this->supportedVersions;
+        }
+
+        if ($this->security !== []) {
+            $ucp['security'] = $this->security;
         }
 
         return [
@@ -138,6 +144,7 @@ final class PlatformProfile
             $paymentHandlers,
             self::signingKeys($payload),
             self::stringMap(self::section($root, $payload, 'supported_versions')),
+            self::section($root, $payload, 'security'),
         );
     }
 

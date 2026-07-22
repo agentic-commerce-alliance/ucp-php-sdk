@@ -304,7 +304,7 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         );
 
         $this->expectException(SignatureException::class);
-        $this->expectExceptionMessage('Platform profile host is not allowed by the current runtime configuration.');
+        $this->expectExceptionMessage('Platform profile host "public.example" is not allowed: no profile hosts are configured for this shop. Use the shop\'s own well-known host.');
 
         $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
             'UCP-Agent' => 'platform; profile="https://public.example/.well-known/ucp"',
@@ -350,10 +350,30 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         );
 
         $this->expectException(SignatureException::class);
-        $this->expectExceptionMessage('Platform profile host is not allowed by the current runtime configuration.');
+        $this->expectExceptionMessage('Platform profile host "bad.example" is not allowed. Allowed hosts: trusted.example.');
 
         $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
             'UCP-Agent' => 'platform; profile="https://bad.example/.well-known/ucp"',
+        ]));
+    }
+
+    #[Test]
+    public function itRejectsDisallowedPlatformAgentDomains(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['trusted.example'],
+            ['agent.example'],
+        );
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform agent domain "trusted.example" is not allowed. Allowed agent domains: agent.example.');
+
+        $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://trusted.example/.well-known/ucp"',
         ]));
     }
 }

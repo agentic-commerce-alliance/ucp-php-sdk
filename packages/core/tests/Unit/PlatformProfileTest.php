@@ -199,4 +199,37 @@ final class PlatformProfileTest extends TestCase
             ],
         ]);
     }
+
+    public function testSecurityBlockIsEmittedWhenPresent(): void
+    {
+        $profile = new PlatformProfile(
+            '2026-04-08', [], [], [], [], [],
+            ['allowed_profile_hosts' => ['shop.example.com'], 'allowed_agent_domains' => ['agent.example.com']],
+        );
+
+        $array = $profile->toArray();
+
+        self::assertSame(
+            ['allowed_profile_hosts' => ['shop.example.com'], 'allowed_agent_domains' => ['agent.example.com']],
+            $array['ucp']['security'],
+        );
+    }
+
+    public function testSecurityBlockOmittedWhenEmpty(): void
+    {
+        $profile = new PlatformProfile('2026-04-08', [], [], [], [], []);
+        self::assertArrayNotHasKey('security', $profile->toArray()['ucp']);
+    }
+
+    public function testSecurityRoundTripsThroughFromArray(): void
+    {
+        $array = (new PlatformProfile(
+            '2026-04-08', [], [], [], [], [],
+            ['allowed_profile_hosts' => ['shop.example.com']],
+        ))->toArray();
+
+        $roundTripped = json_decode(json_encode($array, \JSON_THROW_ON_ERROR), true);
+
+        self::assertSame(['allowed_profile_hosts' => ['shop.example.com']], PlatformProfile::fromArray($roundTripped)->security);
+    }
 }

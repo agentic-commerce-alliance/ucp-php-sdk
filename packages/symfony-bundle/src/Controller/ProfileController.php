@@ -39,6 +39,8 @@ final class ProfileController
             transportEndpoints: $runtimeConfiguration->transportEndpoints,
             tenantIdentifier: $runtimeConfiguration->tenantIdentifier,
             enabledCapabilities: $runtimeConfiguration->enabledCapabilities,
+            allowedProfileHosts: $runtimeConfiguration->allowedProfileHosts,
+            allowedAgentDomains: $runtimeConfiguration->allowedAgentDomains,
         ));
 
         return new JsonResponse($profile->toArray());

@@ -165,7 +165,10 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
                 return;
             }
 
-            throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
+            throw new SignatureException(sprintf(
+                'Platform profile host "%s" is not allowed: no profile hosts are configured for this shop. Use the shop\'s own well-known host.',
+                $host,
+            ));
         }
 
         $allowed = false;
@@ -178,7 +181,11 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         }
 
         if (! $allowed) {
-            throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
+            throw new SignatureException(sprintf(
+                'Platform profile host "%s" is not allowed. Allowed hosts: %s.',
+                $host,
+                implode(', ', $allowedProfileHosts),
+            ));
         }
 
         if ($allowedAgentDomains !== []) {
@@ -192,7 +199,11 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             }
 
             if (! $allowed) {
-                throw new SignatureException('Platform agent domain is not allowed for the current runtime configuration.');
+                throw new SignatureException(sprintf(
+                    'Platform agent domain "%s" is not allowed. Allowed agent domains: %s.',
+                    $host,
+                    implode(', ', $allowedAgentDomains),
+                ));
             }
         }
     }
