@@ -2,9 +2,29 @@
 
 ## Unreleased
 
+## 0.0.2 - 2026-07-22
+
 ### Added
 
-- CI now lints the published `core` and `symfony-bundle` sources on PHP 8.1, so 8.2-only syntax can no longer regress the declared `^8.1` support (the test/mutation toolchain still requires 8.2, so only linting runs on 8.1)
+- typed order adjustment models for cancellations, refunds, returns, credits, and disputes ([#89](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/89))
+
+### Changed
+
+- `MonetaryAmount` now converts major to minor units using ISO 4217 minor-unit exponents per currency and normalizes currency codes to uppercase ([#92](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/92))
+
+### Fixed
+
+- restored PHP 8.1 compatibility for the published packages and added a PHP 8.1 source-lint CI lane to prevent regressions ([#94](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/94))
+- fixed repository resolution in the tag-triggered draft-release workflow ([#88](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/88))
+
+### Dependencies
+
+- updated the monorepo split action and development tooling ([#81](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/81), [#83](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/83), [#86](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/86), [#91](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/91))
+
+## 0.0.1 - 2026-07-13
+
+### Added
+
 - signing-key commands (`ucp:signing-keys:generate` / `list` / `show-public`) now accept an optional `--tenant` identifier and route to the tenant-aware repository when one is provided; without it they behave exactly as before (global scope) ([#73](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/73))
 - new `ucp:signing-keys:retire` and `ucp:signing-keys:delete` commands complete the key lifecycle (both tenant-aware) ([#73](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/73))
 - the signing-key commands are no longer `final`/`@internal` and expose a `resolveTenantIdentifier()` extension point, so integrators (e.g. the Shopware plugin) can map a domain-specific option to the tenant instead of shipping their own commands ([#73](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/73))
@@ -18,7 +38,6 @@
 
 ### Changed
 
-- `MonetaryAmount` now converts major to minor units using ISO 4217 minor-unit exponents per currency (zero-decimal e.g. JPY/KRW, three-decimal e.g. KWD/BHD, and four-decimal CLF/UYW) instead of always multiplying by 100, and normalizes the stored currency code to uppercase
 - lowered the PHP requirement from `^8.2` to `^8.1`; `readonly class` declarations were replaced with individually `readonly`-annotated promoted properties across core, symfony-bundle, and examples ([#13](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/13))
 - removed Symfony dependencies from the framework-free core package ([#53](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/53))
 - adopted `phpseclib` for signing operations
@@ -28,7 +47,6 @@
 
 ### Fixed
 
-- restored PHP 8.1 compatibility of the published packages: the `readonly class` declarations on `MonetaryAmount`, `CatalogLookupResponse`, `CatalogProductResponse`, `UcpEnvelope`, and `UcpOperationResponse` (8.2-only syntax) are now plain `final` classes with individually `readonly` promoted properties, so the `^8.1` constraint they declare holds
 - include the negotiated UCP metadata in REST response envelopes ([#68](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/68))
 - make the catalog-product REST binding protocol-conformant and emit the catalog-product capability ([#69](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/69))
 - require the UCP agent header on incoming requests ([#66](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/66))
