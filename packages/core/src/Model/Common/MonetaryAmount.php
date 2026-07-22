@@ -8,6 +8,10 @@ final class MonetaryAmount
 {
     /**
      * ISO 4217 currencies whose minor unit is not the default two decimals.
+     *
+     * Sourced from the SIX Group ISO 4217 maintenance agency table
+     * (https://www.six-group.com/en/products-services/financial-information/data-standards.html),
+     * "List One" published 2024-01-01. Verified 2026-07-22.
      */
     private const ZERO_DECIMAL_CURRENCIES = ['BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'UYI', 'VND', 'VUV', 'XAF', 'XOF', 'XPF'];
     private const THREE_DECIMAL_CURRENCIES = ['BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND'];
@@ -21,13 +25,20 @@ final class MonetaryAmount
 
     public static function fromMajorUnits(float $amount, string $currency = 'EUR'): self
     {
+        $currency = strtoupper($currency);
+
         return new self((int) round($amount * 10 ** self::exponent($currency)), $currency);
     }
 
-    public static function exponent(string $currency): int
+    /**
+     * Number of minor-unit decimals for the given (already-uppercased) currency.
+     *
+     * Unknown codes and ISO 4217 entries whose minor unit is listed as "N.A."
+     * (e.g. XAU, XDR) fall back to 2. This is the SDK's chosen default, not a
+     * value defined by ISO 4217.
+     */
+    private static function exponent(string $currency): int
     {
-        $currency = strtoupper($currency);
-
         if (in_array($currency, self::ZERO_DECIMAL_CURRENCIES, true)) {
             return 0;
         }

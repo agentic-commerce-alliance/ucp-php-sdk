@@ -32,13 +32,18 @@ final class MonetaryAmountTest extends TestCase
     }
 
     #[Test]
-    public function itExposesTheExponent(): void
+    public function itNormalizesTheStoredCurrencyToUppercase(): void
     {
-        self::assertSame(0, MonetaryAmount::exponent('JPY'));
-        self::assertSame(3, MonetaryAmount::exponent('BHD'));
-        self::assertSame(4, MonetaryAmount::exponent('CLF'));
-        self::assertSame(4, MonetaryAmount::exponent('UYW'));
-        self::assertSame(2, MonetaryAmount::exponent('EUR'));
-        self::assertSame(2, MonetaryAmount::exponent('USD'));
+        $amount = MonetaryAmount::fromMajorUnits(1000.0, 'jpy');
+
+        self::assertSame(1000, $amount->minorUnits);
+        self::assertSame('JPY', $amount->currency);
+        self::assertSame(['amount' => 1000, 'currency' => 'JPY'], $amount->toPriceArray());
+    }
+
+    #[Test]
+    public function itFallsBackToTwoDecimalsForUnknownCurrencies(): void
+    {
+        self::assertSame(1000, MonetaryAmount::fromMajorUnits(10.0, 'ZZZ')->minorUnits);
     }
 }

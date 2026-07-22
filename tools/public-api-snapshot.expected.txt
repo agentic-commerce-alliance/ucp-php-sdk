@@ -236,7 +236,6 @@ class Ucp\Sdk\Model\Common\Message
   - __construct(string $type, string $content, ?string $severity = null, ?string $code = null, ?string $path = null)
   - toArray(): array
 class Ucp\Sdk\Model\Common\MonetaryAmount
-  - static exponent(string $currency): int
   - static fromMajorUnits(float $amount, string $currency = 'EUR'): self
   - toPriceArray(): array
 class Ucp\Sdk\Model\Common\Money
