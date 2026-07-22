@@ -88,6 +88,38 @@ final class HttpAgentProfileFetcherTest extends TestCase
     }
 
     #[Test]
+    public function itHonoursThePerCallAllowedProfileHostsOverride(): void
+    {
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $response = new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]);
+        $cacheRepository = new RecordingPlatformProfileCacheRepository();
+        $client = new RecordingHttpClient(
+            $response,
+            [
+                new RecordingChunk(content: $body),
+                new RecordingChunk(),
+            ],
+        );
+
+        // Empty constructor allowlist would reject any public host — only the
+        // per-call override (the resolved sales channel's hosts) lets it through.
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            $cacheRepository,
+            new UrlSafetyValidator(
+                [],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        $profile = $fetcher->fetchForAllowedHosts('https://platform.example/.well-known/ucp', ['platform.example']);
+
+        self::assertInstanceOf(PlatformProfile::class, $profile);
+        self::assertCount(1, $cacheRepository->savedProfiles);
+        self::assertSame(['platform.example' => '203.0.113.10'], $client->options['resolve']);
+    }
+
+    #[Test]
     public function itAllowsResponsesWhoseContentLengthExactlyMatchesTheConfiguredByteLimit(): void
     {
         $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
