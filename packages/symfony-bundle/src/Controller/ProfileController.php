@@ -41,6 +41,7 @@ final class ProfileController
             enabledCapabilities: $runtimeConfiguration->enabledCapabilities,
             allowedProfileHosts: $runtimeConfiguration->allowedProfileHosts,
             allowedAgentDomains: $runtimeConfiguration->allowedAgentDomains,
+            advertiseSecurityPolicy: $runtimeConfiguration->advertiseSecurityPolicy,
         ));
 
         return new JsonResponse($profile->toArray());

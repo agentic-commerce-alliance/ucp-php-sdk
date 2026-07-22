@@ -169,6 +169,7 @@ final class UcpSdkExtension extends Extension
             $config['webhooks']['max_response_body_bytes'],
             $config['profile_fetching_development_mode'],
             $config['enabled_capabilities'],
+            $config['advertise_security_policy'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -184,6 +185,7 @@ final class UcpSdkExtension extends Extension
             null,
             $config['transport_endpoints'],
             $config['profile_fetching_development_mode'],
+            $config['advertise_security_policy'],
         ]));
 
         $container->setDefinition(StaticRuntimeConfigurationResolver::class, new Definition(StaticRuntimeConfigurationResolver::class, [

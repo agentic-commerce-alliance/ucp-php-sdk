@@ -87,12 +87,16 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
             }
         }
 
+        // The allowlists are enforced regardless; publishing them under `ucp.security`
+        // is a separate, explicit opt-in so configuring enforcement never discloses it.
         $security = [];
-        if ($input->allowedProfileHosts !== []) {
-            $security['allowed_profile_hosts'] = $input->allowedProfileHosts;
-        }
-        if ($input->allowedAgentDomains !== []) {
-            $security['allowed_agent_domains'] = $input->allowedAgentDomains;
+        if ($input->advertiseSecurityPolicy) {
+            if ($input->allowedProfileHosts !== []) {
+                $security['allowed_profile_hosts'] = $input->allowedProfileHosts;
+            }
+            if ($input->allowedAgentDomains !== []) {
+                $security['allowed_agent_domains'] = $input->allowedAgentDomains;
+            }
         }
 
         $profile = new PlatformProfile(

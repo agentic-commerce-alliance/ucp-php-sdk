@@ -13,8 +13,10 @@ final class ProfileBuildInput
      * @param array<string, string> $supportedVersions
      * @param array<string, string> $transportEndpoints
      * @param list<string> $enabledCapabilities
-     * @param list<string> $allowedProfileHosts
-     * @param list<string> $allowedAgentDomains
+     * @param list<string> $allowedProfileHosts hosts whose agent profile this shop will fetch/trust (enforcement)
+     * @param list<string> $allowedAgentDomains  agent domains this shop transacts with (enforcement)
+     * @param bool          $advertiseSecurityPolicy publish the allowlists above under `ucp.security`;
+     *                                               enforcement is independent of this flag
      */
     public function __construct(
         public readonly string $version,
@@ -26,6 +28,7 @@ final class ProfileBuildInput
         public readonly array $enabledCapabilities = [],
         public readonly array $allowedProfileHosts = [],
         public readonly array $allowedAgentDomains = [],
+        public readonly bool $advertiseSecurityPolicy = false,
     ) {
     }
 }

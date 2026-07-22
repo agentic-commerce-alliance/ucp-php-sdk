@@ -48,6 +48,52 @@ final class DefaultProfileBuilderTest extends TestCase
         self::assertArrayHasKey('com.demo.tokenizer', $profile->paymentHandlers);
     }
 
+    public function testItDoesNotAdvertiseSecurityPolicyUnlessExplicitlyOptedIn(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new NullEventDispatcher(),
+        );
+
+        // Allowlists are configured (they are still enforced elsewhere) but advertising is off.
+        $profile = $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            allowedProfileHosts: ['acme.ai'],
+            allowedAgentDomains: ['acme.ai'],
+        ));
+
+        self::assertSame([], $profile->security);
+        self::assertArrayNotHasKey('security', $profile->toArray()['ucp']);
+    }
+
+    public function testItAdvertisesSecurityPolicyWhenOptedIn(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [],
+            [],
+            new NullEventDispatcher(),
+        );
+
+        $profile = $builder->build(new ProfileBuildInput(
+            '2026-04-08',
+            'https://shop.example',
+            allowedProfileHosts: ['acme.ai'],
+            allowedAgentDomains: ['acme.ai'],
+            advertiseSecurityPolicy: true,
+        ));
+
+        self::assertSame(
+            ['allowed_profile_hosts' => ['acme.ai'], 'allowed_agent_domains' => ['acme.ai']],
+            $profile->toArray()['ucp']['security'],
+        );
+    }
+
     public function testItOnlyAdvertisesEnabledCapabilitiesWhenAnAllowlistIsConfigured(): void
     {
         $cartCapability = $this->createMock(CapabilityInterface::class);

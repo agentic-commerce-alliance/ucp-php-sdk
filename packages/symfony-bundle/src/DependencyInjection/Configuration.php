@@ -26,6 +26,7 @@ final class Configuration implements ConfigurationInterface
                     ->scalarPrototype()->end()
                 ->end()
                 ->booleanNode('profile_fetching_development_mode')->defaultFalse()->end()
+                ->booleanNode('advertise_security_policy')->defaultFalse()->end()
                 ->enumNode('signature_policy')->values(['log', 'strict', 'off'])->defaultValue('log')->end()
                 ->booleanNode('idempotency_required')->defaultFalse()->end()
                 ->integerNode('idempotency_ttl')->defaultValue(86400)->min(1)->end()
