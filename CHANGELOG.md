@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `Catalog\Product` now accepts an optional `description` argument, letting adapters supply real product text instead of the title. The field is a trailing optional constructor parameter and defaults to the title, so existing call sites and serialized output are unchanged when it is omitted.
+
 ## 0.0.2 - 2026-07-22
 
 ### Added
