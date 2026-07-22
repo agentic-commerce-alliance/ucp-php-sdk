@@ -18,6 +18,7 @@
 
 ### Changed
 
+- `MonetaryAmount` now converts major to minor units using ISO 4217 minor-unit exponents per currency (zero-decimal e.g. JPY/KRW, three-decimal e.g. KWD/BHD, and four-decimal CLF/UYW) instead of always multiplying by 100, and normalizes the stored currency code to uppercase
 - lowered the PHP requirement from `^8.2` to `^8.1`; `readonly class` declarations were replaced with individually `readonly`-annotated promoted properties across core, symfony-bundle, and examples ([#13](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/13))
 - removed Symfony dependencies from the framework-free core package ([#53](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/53))
 - adopted `phpseclib` for signing operations
