@@ -143,4 +143,35 @@ final class UrlSafetyValidatorTest extends TestCase
 
         $validator->assertAllowed('https://platform.example/.well-known/ucp');
     }
+
+    #[Test]
+    public function itAllowsHostsFromThePerCallOverrideEvenWhenAbsentFromTheConstructorAllowlist(): void
+    {
+        self::expectNotToPerformAssertions();
+
+        // Empty constructor allowlist would reject any public host; the per-call
+        // override (e.g. a resolved sales channel's allowed profile hosts) wins.
+        $validator = new UrlSafetyValidator(
+            [],
+            static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+        );
+
+        $validator->validateAndResolve('https://platform.example/.well-known/ucp', ['platform.example']);
+    }
+
+    #[Test]
+    public function itRejectsHostsAbsentFromThePerCallOverrideEvenWhenOnTheConstructorAllowlist(): void
+    {
+        // The per-call override replaces the constructor allowlist entirely, so a
+        // host trusted globally is still rejected when the request scope excludes it.
+        $validator = new UrlSafetyValidator(
+            ['platform.example'],
+            static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+        );
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Profile host "platform.example" is not allowed.');
+
+        $validator->validateAndResolve('https://platform.example/.well-known/ucp', ['other.example']);
+    }
 }
