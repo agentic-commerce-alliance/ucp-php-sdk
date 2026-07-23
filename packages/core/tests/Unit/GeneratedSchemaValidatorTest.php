@@ -46,6 +46,9 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $validator->validate('checkout.create.request', ['line_items' => []]);
         // cart_id alone (cart-to-checkout conversion — the cart supplies line_items).
         $validator->validate('checkout.create.request', ['cart_id' => 'cart-1']);
+        // both present is allowed too: cart.json says overlapping fields are ignored, not rejected
+        // (this is why the schema uses anyOf, not oneOf).
+        $validator->validate('checkout.create.request', ['cart_id' => 'cart-1', 'line_items' => []]);
 
         $this->expectNotToPerformAssertions();
     }
