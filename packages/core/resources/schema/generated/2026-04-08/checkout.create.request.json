@@ -286,9 +286,22 @@
                     "description": "The payment instruments available for this payment. Each instrument is associated with a specific handler via the handler_id field. Handlers can extend the base payment_instrument schema to add handler-specific fields."
                 }
             }
+        },
+        "cart_id": {
+            "type": "string",
+            "description": "Cart ID to convert to checkout. Business MUST use cart contents (line_items, context, buyer) and MUST ignore overlapping fields in checkout payload."
         }
     },
-    "required": [
-        "line_items"
+    "anyOf": [
+        {
+            "required": [
+                "line_items"
+            ]
+        },
+        {
+            "required": [
+                "cart_id"
+            ]
+        }
     ]
 }

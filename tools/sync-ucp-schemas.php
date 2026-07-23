@@ -32,8 +32,67 @@ function main(array $argv): void
 
     $generator = new SchemaGenerator($schemaRoot);
     foreach (operationSchemas($schemaRoot) as $filename => $schema) {
-        writeJson($generatedRoot . '/' . $filename . '.json', $generator->generate($schema));
+        $generated = $generator->generate($schema);
+        if ($filename === 'checkout.create.request') {
+            $generated = allowCartIdInsteadOfLineItems($generated, $schemaRoot);
+        }
+
+        writeJson($generatedRoot . '/' . $filename . '.json', $generated);
     }
+}
+
+/**
+ * checkout.create accepts a cart_id (from the cart capability) as an alternative to line_items.
+ *
+ * Per shopping/cart.json, when cart_id is supplied the business uses the cart's contents
+ * (line_items, context, buyer) and ignores overlapping fields in the checkout payload — so
+ * requiring line_items in that case is contradictory. Reflect the true contract: the request
+ * carries cart_id, and either line_items or cart_id must be present.
+ *
+ * @param array<string, mixed> $schema
+ * @return array<string, mixed>
+ */
+function allowCartIdInsteadOfLineItems(array $schema, string $schemaRoot): array
+{
+    if (! isset($schema['properties']) || ! is_array($schema['properties'])) {
+        return $schema;
+    }
+
+    $schema['properties']['cart_id'] = cartIdPropertySchema($schemaRoot);
+
+    // line_items is no longer unconditionally required; either line_items or cart_id must be present.
+    unset($schema['required']);
+    $schema['anyOf'] = [
+        ['required' => ['line_items']],
+        ['required' => ['cart_id']],
+    ];
+
+    return $schema;
+}
+
+/**
+ * Reads the cart_id property definition from the cart capability (shopping/cart.json), keeping the
+ * spec as the single source of truth for its shape and description. The ucp_request projection
+ * annotation is dropped — it is a generation hint, not part of the emitted JSON Schema.
+ *
+ * @return array<string, mixed>
+ */
+function cartIdPropertySchema(string $schemaRoot): array
+{
+    $cart = json_decode((string) file_get_contents($schemaRoot . '/shopping/cart.json'), true, 512, JSON_THROW_ON_ERROR);
+    $variants = (is_array($cart) ? $cart['$defs']['checkout']['allOf'] ?? [] : []);
+    if (is_array($variants)) {
+        foreach ($variants as $variant) {
+            if (is_array($variant) && isset($variant['properties']['cart_id']) && is_array($variant['properties']['cart_id'])) {
+                $cartId = $variant['properties']['cart_id'];
+                unset($cartId['ucp_request']);
+
+                return $cartId;
+            }
+        }
+    }
+
+    fail('cart_id property not found in shopping/cart.json ($defs.checkout).');
 }
 
 /**
