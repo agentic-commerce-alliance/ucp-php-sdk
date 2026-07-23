@@ -13,7 +13,7 @@ The shared SDK currently provides the common protocol security pieces needed by 
 - idempotency handling
 - remote platform-profile fetch allowlists
 - request body size enforcement before signature verification and validation
-- an unsupported-by-default merchant-authorization hook that host apps can replace
+- negotiation-gated AP2 mandate verification (fail-closed) and ES256 `ap2.merchant_authorization` signing
 
 ## Key Lifecycle
 
@@ -54,15 +54,18 @@ The bundle exposes `ucp:storage:cleanup` to purge expired OAuth state, idempoten
 
 ## AP2 Boundary
 
-The shared SDK only provides helper-level merchant-authorization verification hooks.
+The shared SDK implements the AP2 mandates extension end to end at the protocol layer:
 
-The default shared implementation does not verify merchant authorization cryptographically.
-It only reports that the flow is unsupported unless a host app or platform plugin replaces it.
+- it advertises the `dev.ucp.shopping.ap2_mandate` capability (extending checkout) so AP2 activates only through capability negotiation — an `ap2` member on a session that did not negotiate the capability is rejected (`ap2_not_negotiated`);
+- a negotiated session must supply `ap2.checkout_mandate` on `checkout.complete`, or the request is rejected with `mandate_required`;
+- registered `Ap2CheckoutMandateVerifierInterface` services verify the mandate against the current checkout terms, and the completion is passed the verified checkout snapshot so adapters can refuse to complete terms that changed after verification (`mandate_scope_mismatch`);
+- every checkout response of a negotiated session is signed with an ES256 detached JWS as `ap2.merchant_authorization`.
 
-It does not provide:
+The SDK does **not** ship a default mandate verifier, so it fails closed: if no registered verifier supports the presented mandate the completion is rejected (`mandate_format_unsupported`) rather than accepted unverified. Verifiers combine with OR semantics — at least one supporting verifier must accept the mandate.
+
+The credential-stack internals a verifier needs are out of scope for the shared SDK:
 
 - a full SD-JWT VC stack
-- KB verification
-- a full AP2 mandate package
+- key-binding (KB) verification
 
-That work belongs in a separate package or in a platform plugin.
+That work belongs in the verifier implementation, in a separate package or a platform plugin.

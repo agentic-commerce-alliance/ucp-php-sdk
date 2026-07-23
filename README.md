@@ -183,4 +183,4 @@ Out of scope in this shared SDK:
 
 - Shopware-specific MCP tools and Store API wiring
 - Shopware admin UI and DAL definitions
-- full AP2 credential stack
+- the AP2 mandate **credential stack** (SD-JWT VC validation, key-binding checks): the SDK implements the AP2 protocol layer — capability negotiation, `mandate_required` enforcement, fail-closed mandate verification via `Ap2CheckoutMandateVerifierInterface`, and `ap2.merchant_authorization` signing — but ships no default verifier, so an integrator must register one

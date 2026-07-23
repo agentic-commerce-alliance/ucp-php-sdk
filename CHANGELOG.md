@@ -25,6 +25,11 @@
 
 ### Added
 
+- AP2 checkout mandate support: enabling `ucp_sdk.ap2` advertises the `dev.ucp.shopping.ap2_mandate` capability (extending checkout, with a configurable `vp_formats_supported`) so AP2 activates only through capability negotiation, as the spec requires. `checkout.complete` accepts an `ap2.checkout_mandate` (validated against the spec's SD-JWT pattern), tagged `Ap2CheckoutMandateVerifierInterface` services verify it against the current checkout before completion (failures map to a 422 with a stable AP2 error code and violations), and every checkout response of a negotiated session is signed with an ES256 detached JWS embedded as `ap2.merchant_authorization`
+- AP2 activation is negotiation-gated: a `checkout.complete` carrying an `ap2` member on a session that did not negotiate the capability is rejected (`ap2_not_negotiated`), and a negotiated session missing `ap2.checkout_mandate` is rejected (`mandate_required`)
+- AP2 mandate verification fails closed: verifiers expose `supports()` and combine with OR semantics (at least one supporting verifier must accept the mandate); if no registered verifier supports the mandate the completion is rejected (`mandate_format_unsupported`) instead of completing unverified
+- `checkout.complete` payment instruments now preserve the full normalized instrument (`id`, `selected`, `billing_address`, `display`) so completion adapters can tell which instrument was selected
+- payment instruments submitted via `checkout.complete` now run through the same payment mandate verifiers and `PaymentMandateVerificationEvent` as `checkout.update`
 - signing-key commands (`ucp:signing-keys:generate` / `list` / `show-public`) now accept an optional `--tenant` identifier and route to the tenant-aware repository when one is provided; without it they behave exactly as before (global scope) ([#73](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/73))
 - new `ucp:signing-keys:retire` and `ucp:signing-keys:delete` commands complete the key lifecycle (both tenant-aware) ([#73](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/73))
 - the signing-key commands are no longer `final`/`@internal` and expose a `resolveTenantIdentifier()` extension point, so integrators (e.g. the Shopware plugin) can map a domain-specific option to the tenant instead of shipping their own commands ([#73](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/73))
@@ -38,6 +43,8 @@
 
 ### Changed
 
+- **breaking:** `CheckoutCapabilityInterface::completeCheckout()` and `CheckoutAdapterInterface::completeCheckout()` now receive a `CheckoutCompleteRequest` (id, payment selection, AP2 data) instead of a string id, plus an optional `?Checkout $verifiedCheckout` snapshot — the checkout state the AP2 mandate verifiers approved; implementations must update their signatures and must not complete a checkout whose terms diverged from a provided snapshot (throw `Ap2Exception` with `mandate_scope_mismatch`), closing the verification-to-completion race
+- the AP2 merchant-authorization signer now picks its ES256 key deterministically when several are active (newest `createdAt` first, `kid` as tiebreaker) instead of relying on repository ordering
 - lowered the PHP requirement from `^8.2` to `^8.1`; `readonly class` declarations were replaced with individually `readonly`-annotated promoted properties across core, symfony-bundle, and examples ([#13](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/13))
 - removed Symfony dependencies from the framework-free core package ([#53](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/53))
 - adopted `phpseclib` for signing operations

@@ -200,6 +200,19 @@ $services->set(AdapterBackedCatalogCapability::class)
 
 Projects may also skip the adapter layer and register a direct `CatalogCapabilityInterface` implementation instead.
 
+## AP2 Mandates
+
+- The AP2 mandates extension (`dev.ucp.shopping.ap2_mandate`) is off by default. Enable it with `ucp_sdk.ap2.enabled: true`; the bundle then registers the `Ap2MandateCapability` descriptor (extending checkout, advertising `ucp_sdk.ap2.vp_formats_supported`) so AP2 activates through capability negotiation.
+- AP2 is active for a request only when the capability was negotiated. A `checkout.complete` carrying an `ap2` member on a non-negotiated session is rejected (`ap2_not_negotiated`); a negotiated session without `ap2.checkout_mandate` is rejected (`mandate_required`).
+- Register at least one mandate verifier — there is no default. Verifiers combine with OR semantics; completion fails closed (`mandate_format_unsupported`) if none supports the mandate:
+
+```php
+$services->set(PlatformAp2MandateVerifier::class)
+    ->tag('ucp_sdk.ap2_checkout_mandate_verifier');
+```
+
+- `Ap2CheckoutMandateVerifierInterface::supports()` selects which verifiers run; `verify()` throws `Ap2Exception` with a stable code on failure. Completion receives the verified `Checkout` snapshot — adapters MUST complete atomically against it (compare `Checkout::termsFingerprint()`) and throw `mandate_scope_mismatch` if the terms changed. Every checkout response of a negotiated session is signed as `ap2.merchant_authorization`.
+
 ## Do Not Do This
 
 - Do not put Shopware entity classes into `packages/core`.

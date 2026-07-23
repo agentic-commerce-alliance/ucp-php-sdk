@@ -13,6 +13,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "${CURRENT
 git config --global --add safe.directory "${REPO_ROOT}" >/dev/null 2>&1 || true
 
 THREADS="${MUTATION_THREADS:-7}"
+MEMORY_LIMIT="${MUTATION_MEMORY_LIMIT:-1G}"
 HAS_THREADS_ARG=0
 
 for ARG in "$@"; do
@@ -25,7 +26,7 @@ for ARG in "$@"; do
 done
 
 if [ "$HAS_THREADS_ARG" -eq 1 ]; then
-    exec php -d pcov.enabled=1 vendor/bin/infection "$@"
+    exec php -d pcov.enabled=1 -d memory_limit="${MEMORY_LIMIT}" vendor/bin/infection "$@"
 fi
 
-exec php -d pcov.enabled=1 vendor/bin/infection "$@" --threads="${THREADS}"
+exec php -d pcov.enabled=1 -d memory_limit="${MEMORY_LIMIT}" vendor/bin/infection "$@" --threads="${THREADS}"

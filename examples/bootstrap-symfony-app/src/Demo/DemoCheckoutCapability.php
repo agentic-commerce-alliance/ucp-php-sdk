@@ -7,6 +7,7 @@ namespace BootstrapSymfonyApp\Demo;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
 use Ucp\Sdk\Model\Checkout\Checkout;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\OrderConfirmation;
@@ -71,8 +72,9 @@ final class DemoCheckoutCapability implements CheckoutCapabilityInterface
         return $checkout;
     }
 
-    public function completeCheckout(string $id, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
+        $id = $request->id;
         $checkout = self::$checkouts[$id] ?? $this->createCheckout(new CheckoutCreateRequest([]), $context);
         $orderId = 'order-demo';
         DemoOrderCapability::remember(new OrderView(

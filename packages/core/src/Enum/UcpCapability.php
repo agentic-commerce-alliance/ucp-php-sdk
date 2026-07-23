@@ -11,5 +11,6 @@ enum UcpCapability: string
     case CatalogProduct = 'dev.ucp.shopping.catalog.product';
     case Cart = 'dev.ucp.shopping.cart';
     case Checkout = 'dev.ucp.shopping.checkout';
+    case Ap2Mandate = 'dev.ucp.shopping.ap2_mandate';
     case Order = 'dev.ucp.shopping.order';
 }

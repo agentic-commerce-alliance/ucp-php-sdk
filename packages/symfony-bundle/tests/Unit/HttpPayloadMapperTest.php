@@ -13,6 +13,37 @@ use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 final class HttpPayloadMapperTest extends TestCase
 {
     #[Test]
+    public function itPreservesTheFullPaymentInstrumentOnCheckoutComplete(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => ['instruments' => [[
+                'id' => 'pi_123',
+                'type' => 'card',
+                'handler_id' => 'com.example.psp',
+                'selected' => true,
+                'credential' => ['token' => 'tok_abc'],
+                'billing_address' => ['street_address' => '1 Market St', 'address_country' => 'US', 'postal_code' => '94105'],
+                'display' => ['brand' => 'visa', 'last4' => '4242'],
+            ]]],
+        ]);
+
+        $instrument = $request->payment?->instruments[0];
+        self::assertNotNull($instrument);
+        self::assertSame('pi_123', $instrument->id);
+        self::assertSame('card', $instrument->type);
+        self::assertSame('com.example.psp', $instrument->handlerId);
+        self::assertTrue($instrument->selected);
+        self::assertSame(['token' => 'tok_abc'], $instrument->credential);
+        $billingAddress = $instrument->billingAddress;
+        self::assertNotNull($billingAddress);
+        self::assertSame('1 Market St', $billingAddress->streetAddress);
+        self::assertSame('US', $billingAddress->addressCountry);
+        self::assertSame(['brand' => 'visa', 'last4' => '4242'], $instrument->display);
+    }
+
+    #[Test]
     public function itDecodesFormEncodedOAuthTokenPayloads(): void
     {
         $request = Request::create(
@@ -95,5 +126,129 @@ final class HttpPayloadMapperTest extends TestCase
         $this->expectExceptionMessage('JSON request body must be an object.');
 
         $mapper->decode($request);
+    }
+
+    #[Test]
+    public function itMapsCheckoutCompletePaymentAndAp2Payload(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => [
+                'instruments' => [[
+                    'type' => 'tokenized',
+                    'handler_id' => 'com.example.psp',
+                    'credential' => ['token' => 'payment_mandate'],
+                ]],
+            ],
+            'ap2' => [
+                'checkout_mandate' => 'eyJhbGciOiJFUzI1NiJ9.eyJjaGVja291dCI6dHJ1ZX0.c2lnbmF0dXJl~ZGlzY2xvc3VyZQ',
+            ],
+        ]);
+
+        self::assertSame('checkout-1', $request->id);
+        $payment = $request->payment;
+        self::assertNotNull($payment);
+        self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
+        self::assertSame('payment_mandate', $payment->instruments[0]->credential['token']);
+        self::assertSame('eyJhbGciOiJFUzI1NiJ9.eyJjaGVja291dCI6dHJ1ZX0.c2lnbmF0dXJl~ZGlzY2xvc3VyZQ', $request->ap2?->checkoutMandate);
+    }
+
+    #[Test]
+    public function itMapsCheckoutCompleteRequestsWithoutPaymentOrAp2Payload(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', []);
+
+        self::assertSame('checkout-1', $request->id);
+        self::assertNull($request->payment);
+        self::assertNull($request->ap2);
+    }
+
+    #[Test]
+    public function itIgnoresMalformedCheckoutCompleteInstrumentRows(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => [
+                'instruments' => ['not-an-instrument', ['handler_id' => 'com.example.psp']],
+            ],
+        ]);
+
+        $payment = $request->payment;
+        self::assertNotNull($payment);
+        self::assertCount(1, $payment->instruments);
+        self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
+    }
+
+    #[Test]
+    public function itMapsBareInstrumentCheckoutCompletePaymentPayloads(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => [
+                'type' => 'tokenized',
+                'handler_id' => 'com.example.psp',
+                'credential' => ['token' => 'payment_mandate'],
+            ],
+        ]);
+
+        $payment = $request->payment;
+        self::assertNotNull($payment);
+        self::assertCount(1, $payment->instruments);
+        self::assertSame('com.example.psp', $payment->instruments[0]->handlerId);
+        self::assertSame('payment_mandate', $payment->instruments[0]->credential['token']);
+    }
+
+    #[Test]
+    public function itRejectsMalformedCheckoutMandates(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => ['not' => 'a-string']],
+        ]);
+    }
+
+    #[Test]
+    public function itRejectsEmptyCheckoutMandates(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => ''],
+        ]);
+    }
+
+    #[Test]
+    public function itRejectsCheckoutMandatesThatAreNotSdJwtFormatted(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $this->expectException(BadRequestHttpException::class);
+        $this->expectExceptionMessage('ap2.checkout_mandate must be an SD-JWT formatted string.');
+
+        $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => 'not a mandate'],
+        ]);
+    }
+
+    #[Test]
+    public function itAcceptsSdJwtCheckoutMandatesWithEmptyPayloadAndDisclosureSegments(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'ap2' => ['checkout_mandate' => 'eyJhbGciOiJFUzI1NiJ9..c2lnbmF0dXJl'],
+        ]);
+
+        self::assertSame('eyJhbGciOiJFUzI1NiJ9..c2lnbmF0dXJl', $request->ap2?->checkoutMandate);
     }
 }

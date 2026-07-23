@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Adapter;
 
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Model\Checkout\Checkout;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
@@ -44,9 +45,9 @@ final class AdapterBackedCheckoutCapability implements CheckoutCapabilityInterfa
         return $this->adapter->updateCheckout($request, $context);
     }
 
-    public function completeCheckout(string $id, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
-        return $this->adapter->completeCheckout($id, $context);
+        return $this->adapter->completeCheckout($request, $context, $verifiedCheckout);
     }
 
     public function cancelCheckout(string $id, RequestContext $context): Checkout

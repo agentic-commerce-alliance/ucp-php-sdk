@@ -6,19 +6,23 @@ namespace Ucp\Sdk\Symfony\Bridge;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Ucp\Sdk\Model\Ap2\Ap2CheckoutData;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
 use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Checkout\BuyerConsent;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
 use Ucp\Sdk\Model\Checkout\FulfillmentSelection;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
+use Ucp\Sdk\Model\Checkout\PaymentSelection;
 use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
+use Ucp\Sdk\Model\Common\PostalAddress;
 use Ucp\Sdk\Model\Common\Signals;
 use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
 use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
@@ -26,6 +30,11 @@ use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
 /** @internal */
 final class HttpPayloadMapper
 {
+    /**
+     * SD-JWT+kb credential pattern for `ap2.checkout_mandate` per the AP2 mandates specification.
+     */
+    public const CHECKOUT_MANDATE_PATTERN = '/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+(~[A-Za-z0-9_-]+)*$/';
+
     /**
      * @return array<string, mixed>
      */
@@ -143,12 +152,70 @@ final class HttpPayloadMapper
     /**
      * @param array<string, mixed> $payload
      */
+    public function toCheckoutCompleteRequest(string $id, array $payload): CheckoutCompleteRequest
+    {
+        return new CheckoutCompleteRequest(
+            $id,
+            isset($payload['payment']) && is_array($payload['payment'])
+                ? $this->toPaymentSelection($payload['payment'])
+                : null,
+            isset($payload['ap2']) && is_array($payload['ap2'])
+                ? new Ap2CheckoutData($this->toCheckoutMandate($payload['ap2']))
+                : null,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function toPaymentSelection(array $payload): PaymentSelection
+    {
+        // Tolerate a bare instrument object (the shape checkout.update accepts)
+        // in place of the spec's nested `instruments` list.
+        $rows = is_array($payload['instruments'] ?? null)
+            ? $payload['instruments']
+            : (isset($payload['handler_id']) || isset($payload['credential']) ? [$payload] : []);
+
+        $instruments = [];
+        foreach ($rows as $row) {
+            if (is_array($row)) {
+                $instruments[] = $this->toPaymentInstrument($row);
+            }
+        }
+
+        return new PaymentSelection($instruments);
+    }
+
+    /**
+     * @param array<string, mixed> $ap2
+     */
+    private function toCheckoutMandate(array $ap2): ?string
+    {
+        if (! array_key_exists('checkout_mandate', $ap2)) {
+            return null;
+        }
+
+        $mandate = $ap2['checkout_mandate'];
+        if (! is_string($mandate) || preg_match(self::CHECKOUT_MANDATE_PATTERN, $mandate) !== 1) {
+            throw new BadRequestHttpException('ap2.checkout_mandate must be an SD-JWT formatted string.');
+        }
+
+        return $mandate;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function toPaymentInstrument(array $payload): PaymentInstrument
     {
         return new PaymentInstrument(
             (string) ($payload['type'] ?? 'tokenized'),
             (string) ($payload['handler_id'] ?? ''),
             is_array($payload['credential'] ?? null) ? $payload['credential'] : [],
+            isset($payload['id']) && is_string($payload['id']) ? $payload['id'] : null,
+            isset($payload['selected']) ? (bool) $payload['selected'] : null,
+            is_array($payload['billing_address'] ?? null) ? PostalAddress::fromArray($payload['billing_address']) : null,
+            is_array($payload['display'] ?? null) ? $payload['display'] : null,
         );
     }
 

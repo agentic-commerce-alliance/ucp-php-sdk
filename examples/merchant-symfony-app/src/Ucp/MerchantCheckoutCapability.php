@@ -10,7 +10,9 @@ use MerchantSymfonyApp\Support\PriceCalculator;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
+use Ucp\Sdk\Exception\Ap2Exception;
 use Ucp\Sdk\Model\Checkout\Checkout;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\OrderConfirmation;
@@ -111,26 +113,49 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         return $checkout;
     }
 
-    public function completeCheckout(string $id, RequestContext $context): Checkout
+    public function completeCheckout(CheckoutCompleteRequest $request, RequestContext $context, ?Checkout $verifiedCheckout = null): Checkout
     {
-        $checkout = $this->getCheckout($id, $context);
-        $orderId = 'ord_' . substr($checkout->id, 4);
+        $id = $request->id;
+        $expectedFingerprint = $verifiedCheckout?->termsFingerprint();
 
-        $completed = new Checkout(
-            $checkout->id,
-            CheckoutStatus::Completed,
-            $checkout->currency,
-            $checkout->lineItems,
-            $checkout->totals,
-            array_merge($checkout->messages, [new Message('info', 'Checkout completed and converted into an order.')]),
-            $checkout->links,
-            $checkout->buyer,
-            $checkout->continueUrl,
-            $checkout->expiresAt,
-            new OrderConfirmation($orderId, $this->settings->orderPermalink($orderId)),
-            $checkout->extra,
-        );
+        // Read the checkout, guard it against the verified snapshot, and flip it to completed
+        // atomically under an exclusive lock, so a concurrent checkout.update cannot land between
+        // the AP2 mandate verification and completion (the verification/completion race).
+        $completed = $this->stateStore->mutate(self::COLLECTION, function (array &$records) use ($id, $expectedFingerprint): Checkout {
+            $current = $records[$id] ?? null;
+            if (! is_array($current)) {
+                throw new \RuntimeException(sprintf('Checkout "%s" was not found.', $id));
+            }
 
+            $checkout = $this->modelFactory->checkoutFromArray($current);
+
+            // Refuse to complete terms the AP2 mandate verifiers never saw.
+            if ($expectedFingerprint !== null && $checkout->termsFingerprint() !== $expectedFingerprint) {
+                throw new Ap2Exception('mandate_scope_mismatch', 'The checkout changed after the AP2 mandate was verified; request a fresh mandate for the current terms.');
+            }
+
+            $orderId = 'ord_' . substr($checkout->id, 4);
+            $completed = new Checkout(
+                $checkout->id,
+                CheckoutStatus::Completed,
+                $checkout->currency,
+                $checkout->lineItems,
+                $checkout->totals,
+                array_merge($checkout->messages, [new Message('info', 'Checkout completed and converted into an order.')]),
+                $checkout->links,
+                $checkout->buyer,
+                $checkout->continueUrl,
+                $checkout->expiresAt,
+                new OrderConfirmation($orderId, $this->settings->orderPermalink($orderId)),
+                $checkout->extra,
+            );
+
+            $records[$id] = $completed->toArray();
+
+            return $completed;
+        });
+
+        $orderId = 'ord_' . substr($completed->id, 4);
         $this->stateStore->put(self::ORDER_COLLECTION, $orderId, [
             'id' => $orderId,
             'checkout_id' => $completed->id,
@@ -148,7 +173,6 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             'created_at' => gmdate('c'),
             'merchant_reference' => $completed->extra['merchant_reference'] ?? [],
         ]);
-        $this->stateStore->put(self::COLLECTION, $completed->id, $completed->toArray());
 
         return $completed;
     }

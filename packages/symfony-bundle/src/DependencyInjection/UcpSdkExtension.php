@@ -21,6 +21,8 @@ use Ucp\Sdk\Adapter\DiscountAdapterInterface;
 use Ucp\Sdk\Adapter\IdentityLinkingAdapterInterface;
 use Ucp\Sdk\Adapter\OrderAdapterInterface;
 use Ucp\Sdk\Adapter\PaymentAdapterInterface;
+use Ucp\Sdk\Capability\Ap2MandateCapability;
+use Ucp\Sdk\Contract\Ap2CheckoutMandateVerifierInterface;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CheckoutRequestValidatorInterface;
 use Ucp\Sdk\Contract\CheckoutResponseAugmenterInterface;
@@ -37,8 +39,10 @@ use Ucp\Sdk\Internal\Negotiation\DefaultCapabilityNegotiator;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
 use Ucp\Sdk\Internal\Security\ContentDigestService;
+use Ucp\Sdk\Internal\Security\DefaultCheckoutMerchantAuthorizationSigner;
 use Ucp\Sdk\Internal\Security\DefaultJsonCanonicalization;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
+use Ucp\Sdk\Internal\Security\DetachedJwsService;
 use Ucp\Sdk\Internal\Security\RepositoryBackedSignatureReplayGuard;
 use Ucp\Sdk\Internal\Security\Rfc9421RequestSignatureService;
 use Ucp\Sdk\Internal\Security\UnsupportedMerchantAuthorizationService;
@@ -60,6 +64,7 @@ use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
+use Ucp\Sdk\Service\CheckoutMerchantAuthorizationSignerInterface;
 use Ucp\Sdk\Service\DeterministicJsonInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\HttpClientInterface;
@@ -129,6 +134,7 @@ final class UcpSdkExtension extends Extension
         $container->registerForAutoconfiguration(CheckoutRequestValidatorInterface::class)->addTag('ucp_sdk.checkout_request_validator');
         $container->registerForAutoconfiguration(CheckoutResponseAugmenterInterface::class)->addTag('ucp_sdk.checkout_response_augmenter');
         $container->registerForAutoconfiguration(PaymentMandateVerifierInterface::class)->addTag('ucp_sdk.payment_mandate_verifier');
+        $container->registerForAutoconfiguration(Ap2CheckoutMandateVerifierInterface::class)->addTag('ucp_sdk.ap2_checkout_mandate_verifier');
         $container->registerForAutoconfiguration(OrderWebhookEnricherInterface::class)->addTag('ucp_sdk.order_webhook_enricher');
         $container->registerForAutoconfiguration(EmbeddedPageRendererInterface::class)->addTag('ucp_sdk.embedded_renderer');
         $container->registerForAutoconfiguration(CatalogAdapterInterface::class)->addTag('ucp_sdk.adapter.catalog');
@@ -284,12 +290,27 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(RequestSignatureServiceInterface::class, new Alias(Rfc9421RequestSignatureService::class, true));
         $container->setDefinition(UnsupportedMerchantAuthorizationService::class, new Definition(UnsupportedMerchantAuthorizationService::class));
         $container->setAlias(MerchantAuthorizationServiceInterface::class, new Alias(UnsupportedMerchantAuthorizationService::class, true));
+        $container->setDefinition(DetachedJwsService::class, new Definition(DetachedJwsService::class, [
+            new Reference(DeterministicJsonInterface::class),
+        ]));
+        $container->setDefinition(DefaultCheckoutMerchantAuthorizationSigner::class, new Definition(DefaultCheckoutMerchantAuthorizationSigner::class, [
+            new Reference(ManagedSigningKeyRepositoryInterface::class),
+            new Reference(DetachedJwsService::class),
+        ]));
+        $container->setAlias(CheckoutMerchantAuthorizationSignerInterface::class, new Alias(DefaultCheckoutMerchantAuthorizationSigner::class, true));
         $container->setDefinition(HttpAgentProfileFetcher::class, new Definition(HttpAgentProfileFetcher::class, [
             new Reference(HttpClientInterface::class),
             new Reference(PlatformProfileCacheRepositoryInterface::class),
             new Reference(UrlSafetyValidator::class),
         ]));
         $container->setAlias(AgentProfileFetcherInterface::class, new Alias(HttpAgentProfileFetcher::class, true));
+
+        if ($config['ap2']['enabled']) {
+            $container->setDefinition(Ap2MandateCapability::class, new Definition(Ap2MandateCapability::class, [
+                $config['ap2']['vp_formats_supported'],
+                $config['version'],
+            ]))->addTag('ucp_sdk.capability');
+        }
 
         $container->setDefinition(CapabilityRegistry::class, new Definition(CapabilityRegistry::class, [
             new TaggedIteratorArgument('ucp_sdk.capability'),
@@ -367,7 +388,9 @@ final class UcpSdkExtension extends Extension
         $container->autowire(ShoppingOperationExecutor::class)
             ->setArgument('$requestValidators', new TaggedIteratorArgument('ucp_sdk.checkout_request_validator'))
             ->setArgument('$responseAugmenters', new TaggedIteratorArgument('ucp_sdk.checkout_response_augmenter'))
-            ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'));
+            ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'))
+            ->setArgument('$ap2CheckoutMandateVerifiers', new TaggedIteratorArgument('ucp_sdk.ap2_checkout_mandate_verifier'))
+            ->setArgument('$checkoutMerchantAuthorizationSigner', $config['ap2']['enabled'] ? new Reference(CheckoutMerchantAuthorizationSignerInterface::class) : null);
 
         $container->autowire(ProfileController::class)->addTag('controller.service_arguments');
         $container->autowire(CatalogController::class)->addTag('controller.service_arguments');

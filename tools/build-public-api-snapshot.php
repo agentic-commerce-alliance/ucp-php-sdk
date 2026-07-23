@@ -17,6 +17,7 @@ $directories = [
 ];
 $namespaces = [
     'Ucp\\Sdk\\Adapter\\',
+    'Ucp\\Sdk\\Capability\\',
     'Ucp\\Sdk\\Contract\\',
     'Ucp\\Sdk\\Model\\',
     'Ucp\\Sdk\\Enum\\',

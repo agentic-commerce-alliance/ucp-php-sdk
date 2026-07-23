@@ -46,4 +46,13 @@ final class MonetaryAmountTest extends TestCase
     {
         self::assertSame(1000, MonetaryAmount::fromMajorUnits(10.0, 'ZZZ')->minorUnits);
     }
+
+    #[Test]
+    public function itExposesTheExponentPerCurrency(): void
+    {
+        self::assertSame(0, MonetaryAmount::exponent('jpy'));
+        self::assertSame(3, MonetaryAmount::exponent('KWD'));
+        self::assertSame(4, MonetaryAmount::exponent('CLF'));
+        self::assertSame(2, MonetaryAmount::exponent('EUR'));
+    }
 }

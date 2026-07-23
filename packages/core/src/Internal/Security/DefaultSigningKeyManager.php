@@ -60,8 +60,8 @@ final class DefaultSigningKeyManager implements SigningKeyManagerInterface
                 'secp384r1' => 'P-384',
                 default => $curve,
             };
-            $x = isset($details['ec']['x']) && is_string($details['ec']['x']) ? rtrim(strtr(base64_encode($details['ec']['x']), '+/', '-_'), '=') : null;
-            $y = isset($details['ec']['y']) && is_string($details['ec']['y']) ? rtrim(strtr(base64_encode($details['ec']['y']), '+/', '-_'), '=') : null;
+            $x = isset($details['ec']['x']) && is_string($details['ec']['x']) ? Base64Url::encode($details['ec']['x']) : null;
+            $y = isset($details['ec']['y']) && is_string($details['ec']['y']) ? Base64Url::encode($details['ec']['y']) : null;
         }
 
         return new PublicSigningKey(
