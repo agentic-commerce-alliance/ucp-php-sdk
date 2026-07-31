@@ -15,6 +15,7 @@ class Ucp\Sdk\Adapter\AdapterBackedCheckoutCapability
   - __construct(Ucp\Sdk\Model\Profile\CapabilityDescriptor $descriptor, Ucp\Sdk\Adapter\CheckoutAdapterInterface $adapter)
   - cancelCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - completeCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
+  - completeCheckoutFromRequest(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - createCheckout(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
   - getCheckout(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
@@ -64,6 +65,8 @@ interface Ucp\Sdk\Adapter\PaymentAdapterInterface
   - prepareInstrument(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): array
   - supportsTokenization(): bool
   - tokenize(Ucp\Sdk\Model\Checkout\PaymentInstrument $instrument, Ucp\Sdk\Model\RequestContext $context): ?array
+interface Ucp\Sdk\Adapter\PaymentAwareCheckoutAdapterInterface
+  - completeCheckoutFromRequest(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
 interface Ucp\Sdk\Contract\CapabilityInterface
   - describe(): Ucp\Sdk\Model\Profile\CapabilityDescriptor
 interface Ucp\Sdk\Contract\CartCapabilityInterface
@@ -95,6 +98,8 @@ interface Ucp\Sdk\Contract\OrderCapabilityInterface
   - getOrder(string $id, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Order\OrderView
 interface Ucp\Sdk\Contract\OrderWebhookEnricherInterface
   - enrich(Ucp\Sdk\Model\Webhook\OrderWebhookPayload $payload, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Webhook\OrderWebhookPayload
+interface Ucp\Sdk\Contract\PaymentAwareCheckoutCapabilityInterface
+  - completeCheckoutFromRequest(Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest $request, Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Checkout\Checkout
 interface Ucp\Sdk\Contract\PaymentHandlerInterface
   - describe(Ucp\Sdk\Model\RequestContext $context): Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor
   - id(): string
@@ -210,6 +215,8 @@ class Ucp\Sdk\Model\Checkout\Checkout
   - __construct(string $id, Ucp\Sdk\Enum\CheckoutStatus $status, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $continueUrl = null, ?string $expiresAt = null, ?Ucp\Sdk\Model\Checkout\OrderConfirmation $order = null, array $extra = [])
   - jsonSerialize(): array
   - toArray(): array
+class Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest
+  - __construct(string $id, array $instruments = [], ?Ucp\Sdk\Model\Common\Signals $signals = null)
 class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
   - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null)
 class Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest

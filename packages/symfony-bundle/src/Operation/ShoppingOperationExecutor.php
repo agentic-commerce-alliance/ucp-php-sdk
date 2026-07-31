@@ -14,6 +14,7 @@ use Ucp\Sdk\Contract\CheckoutRequestValidatorInterface;
 use Ucp\Sdk\Contract\CheckoutResponseAugmenterInterface;
 use Ucp\Sdk\Contract\DiscountCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
+use Ucp\Sdk\Contract\PaymentAwareCheckoutCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Enum\UcpCapability;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
@@ -250,7 +251,30 @@ final class ShoppingOperationExecutor
     {
         $this->protocolValidator->validateRequest('checkout.complete', $request->payload, $request->context);
         $id = $this->requiredId($request);
-        return $this->response('checkout.complete', $this->finalizeCheckout($this->checkout($request->context)->completeCheckout($id, $request->context), $request), UcpCapability::Checkout, $request->context);
+        $capability = $this->checkout($request->context);
+        $completeRequest = $this->payloadMapper->toCheckoutCompleteRequest($id, $request->payload);
+
+        // Same treatment checkout.update gives a payment it is handed. Completion is
+        // where money actually moves, so skipping verification here was the odder of
+        // the two. A no-op when no verifier is registered, and a no-op when the caller
+        // supplied no instruments -- an empty list is nothing to verify, not an
+        // instrument that fails verification.
+        foreach ($completeRequest->instruments as $instrument) {
+            foreach ($this->mandateVerifiers as $verifier) {
+                $verifier->verify($instrument, $request->context);
+            }
+
+            $this->eventDispatcher->dispatch(new PaymentMandateVerificationEvent($instrument, $request->context));
+        }
+
+        // Capabilities that did not opt in are called exactly as before, so the
+        // spec-required payment reaches whoever can use it without obliging anyone to
+        // change. See PaymentAwareCheckoutCapabilityInterface.
+        $checkout = $capability instanceof PaymentAwareCheckoutCapabilityInterface
+            ? $capability->completeCheckoutFromRequest($completeRequest, $request->context)
+            : $capability->completeCheckout($id, $request->context);
+
+        return $this->response('checkout.complete', $this->finalizeCheckout($checkout, $request), UcpCapability::Checkout, $request->context);
     }
 
     private function checkoutCancel(ShoppingOperationRequest $request): UcpOperationResponse
