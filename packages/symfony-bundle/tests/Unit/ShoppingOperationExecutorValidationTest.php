@@ -93,6 +93,64 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
     }
 
     #[Test]
+    public function itMergesTheResourceIdIntoTheCartUpdatePayloadBeforeValidating(): void
+    {
+        $validator = new ShoppingOperationProtocolValidatorSpy();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            $validator,
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        // cart.update.request requires `id`, but on REST it arrives in the route and
+        // on MCP in a tool argument. Without the merge a caller had to repeat it in
+        // the body purely to satisfy the schema.
+        $executor->execute(new ShoppingOperationRequest(
+            'cart.update',
+            ['line_items' => []],
+            new RequestContext('merchant.example'),
+            'cart-1',
+        ));
+
+        self::assertSame(
+            ['id' => 'cart-1', 'line_items' => []],
+            $validator->requestPayloads['cart.update'],
+        );
+    }
+
+    #[Test]
+    public function itLetsAnIdAlreadyInTheCartUpdatePayloadWin(): void
+    {
+        $validator = new ShoppingOperationProtocolValidatorSpy();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            $validator,
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        // Callers that already repeat the id keep working unchanged.
+        $executor->execute(new ShoppingOperationRequest(
+            'cart.update',
+            ['id' => 'cart-1', 'line_items' => []],
+            new RequestContext('merchant.example'),
+            'cart-1',
+        ));
+
+        self::assertSame(
+            ['id' => 'cart-1', 'line_items' => []],
+            $validator->requestPayloads['cart.update'],
+        );
+    }
+
+    #[Test]
     public function itRejectsRequestsFromUnsupportedProfileVersionsBeforeExecutingOperations(): void
     {
         $validator = new ShoppingOperationProtocolValidatorSpy();
@@ -265,9 +323,13 @@ final class ShoppingOperationProtocolValidatorSpy implements ProtocolValidatorIn
     /** @var list<string> */
     public array $calls = [];
 
+    /** @var array<string, array<string, mixed>> */
+    public array $requestPayloads = [];
+
     public function validateRequest(string $operation, array $payload, RequestContext $context): void
     {
         $this->calls[] = 'request:' . $operation;
+        $this->requestPayloads[$operation] = $payload;
     }
 
     public function validateResponse(string $operation, array $payload, RequestContext $context): void

@@ -156,11 +156,19 @@ final class ShoppingOperationExecutor
 
     private function cartUpdate(ShoppingOperationRequest $request): UcpOperationResponse
     {
-        $this->protocolValidator->validateRequest('cart.update', $request->payload, $request->context);
+        // cart.update.request requires `id`, but the id arrives out of band on a
+        // transport that puts it in the route (REST) or in a tool argument (MCP).
+        // Validating the bare payload made callers repeat it inside the body just to
+        // satisfy the schema, and toCartUpdateRequest() then discarded that copy.
+        // Merge it first, the way cart.get and cart.cancel already do. A payload that
+        // still carries `id` keeps working: the spread lets it win, and it is then
+        // ignored exactly as before.
+        $id = $this->requiredId($request);
+        $this->protocolValidator->validateRequest('cart.update', ['id' => $id, ...$request->payload], $request->context);
 
         return $this->response(
             'cart.update',
-            $this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($this->requiredId($request), $request->payload), $request->context),
+            $this->cart($request->context)->updateCart($this->payloadMapper->toCartUpdateRequest($id, $request->payload), $request->context),
             UcpCapability::Cart,
             $request->context,
         );
