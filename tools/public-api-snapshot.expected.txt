@@ -176,7 +176,7 @@ class Ucp\Sdk\Exception\ValidationException
   - __construct(string $message, array $violations = [])
   - getViolations(): array
 class Ucp\Sdk\Model\Cart\Cart
-  - __construct(string $id, array $lineItems, string $currency, array $totals = [], array $messages = [])
+  - __construct(string $id, array $lineItems, string $currency, array $totals = [], array $messages = [], array $extra = [])
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Cart\CartCreateRequest
