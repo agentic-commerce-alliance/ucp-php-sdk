@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Http;
 
+use Ucp\Sdk\Exception\AgentProfileException;
+use Ucp\Sdk\Exception\UcpException;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
@@ -43,13 +45,13 @@ final class HttpAgentProfileFetcher implements AgentProfileFetcherInterface
             ]);
 
             if ($response->getStatusCode() !== 200) {
-                throw new \RuntimeException('Platform profile fetch failed with a non-200 status code.');
+                throw AgentProfileException::unavailable($uri, $response->getStatusCode());
             }
 
             $headers = $response->getHeaders(false);
             $contentLength = isset($headers['content-length'][0]) ? (int) $headers['content-length'][0] : null;
             if ($contentLength !== null && $contentLength > $this->maxResponseBytes) {
-                throw new \RuntimeException('Platform profile response exceeded the maximum allowed size.');
+                throw AgentProfileException::tooLarge($uri, $this->maxResponseBytes);
             }
 
             $content = '';
@@ -62,13 +64,13 @@ final class HttpAgentProfileFetcher implements AgentProfileFetcherInterface
                 if (strlen($content) > $this->maxResponseBytes) {
                     $response->cancel();
 
-                    throw new \RuntimeException('Platform profile response exceeded the maximum allowed size.');
+                    throw AgentProfileException::tooLarge($uri, $this->maxResponseBytes);
                 }
             }
 
             $payload = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
             if (! is_array($payload)) {
-                throw new \RuntimeException('Platform profile response must decode to a JSON object.');
+                throw AgentProfileException::invalid($uri, 'the response body does not decode to a JSON object.');
             }
 
             $profile = PlatformProfile::fromArray($payload);
@@ -80,7 +82,15 @@ final class HttpAgentProfileFetcher implements AgentProfileFetcherInterface
                 return $stale;
             }
 
-            throw $exception;
+            if ($exception instanceof UcpException) {
+                throw $exception;
+            }
+
+            if ($exception instanceof \JsonException) {
+                throw AgentProfileException::invalid($uri, $exception->getMessage(), $exception);
+            }
+
+            throw AgentProfileException::unreachable($uri, $exception);
         }
     }
 }

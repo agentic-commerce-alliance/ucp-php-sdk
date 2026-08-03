@@ -8,6 +8,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\NegotiationException;
@@ -88,6 +89,18 @@ final class ExceptionListener
         if ($throwable instanceof ConfigurationException) {
             $this->logger?->error('UCP request failed because of a server configuration error.', ['exception' => $throwable]);
             $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 500));
+
+            return;
+        }
+
+        if ($throwable instanceof AgentProfileException) {
+            $this->logger?->error('UCP request failed because the agent profile could not be fetched.', ['exception' => $throwable]);
+            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 424, [[
+                'type' => 'error',
+                'code' => $throwable->errorCode,
+                'severity' => 'recoverable',
+                'content' => $throwable->getMessage(),
+            ]]));
 
             return;
         }

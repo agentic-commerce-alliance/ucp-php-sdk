@@ -162,6 +162,11 @@ class Ucp\Sdk\Event\ProfileBuiltEvent
   - getInput(): Ucp\Sdk\Model\Profile\ProfileBuildInput
   - getProfile(): Ucp\Sdk\Model\Profile\PlatformProfile
   - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
+class Ucp\Sdk\Exception\AgentProfileException
+  - static invalid(string $uri, string $reason, ?Throwable $previous = null): self
+  - static tooLarge(string $uri, int $maxResponseBytes): self
+  - static unavailable(string $uri, int $statusCode): self
+  - static unreachable(string $uri, ?Throwable $previous = null): self
 class Ucp\Sdk\Exception\ConfigurationException
 class Ucp\Sdk\Exception\IdempotencyConflictException
 class Ucp\Sdk\Exception\NegotiationException
