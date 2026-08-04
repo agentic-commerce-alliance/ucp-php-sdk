@@ -2,16 +2,28 @@
 
 ## Unreleased
 
+## 0.0.3 - 2026-08-04
+
 ### Added
 
-- `AgentProfileException` for agent-profile fetch failures, carrying an `errorCode` of `agent_profile_unreachable`, `agent_profile_unavailable`, `agent_profile_too_large`, or `agent_profile_invalid`
-- an advisory PHP 8.5 lane in the test matrix, so forward-compatibility regressions surface without blocking pull requests
+- `CheckoutCompleteRequest`, plus the opt-in `PaymentAwareCheckoutCapabilityInterface` and `PaymentAwareCheckoutAdapterInterface`, so `checkout.complete` can read the payment the protocol marks as required for it. Implementations that do not opt in are still called through `completeCheckout()` unchanged ([#107](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/107))
+- `Cart` accepts an `extra` array for capability extension fields, matching `Checkout` and `OrderView` ([#107](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/107))
+- `AgentProfileException` for agent-profile fetch failures, carrying an `errorCode` of `agent_profile_unreachable`, `agent_profile_unavailable`, `agent_profile_too_large`, or `agent_profile_invalid` ([#108](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/108))
+- an advisory PHP 8.5 lane in the test matrix, so forward-compatibility regressions surface without blocking pull requests ([#109](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/109))
+
+### Changed
+
+- the generated `checkout.create` and `checkout.update` request schemas now publish the capability extension fields the SDK already reads — `cart_id`, `discounts.codes`, `fulfillment`, and `buyer.consent`. `required` is unchanged and every new field is optional ([#107](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/107))
+- completion payments now pass through the registered mandate verifiers and `PaymentMandateVerificationEvent`, as `checkout.update` already did. A no-op when no verifier is registered or no instrument was named ([#107](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/107))
+- `checkout.create` accepts `cart_id` as an alternative to `line_items`, so a cart-to-checkout conversion no longer has to re-send the line items the cart already owns ([#101](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/101))
 
 ### Fixed
 
-- agent-profile fetch failures are now typed as `UcpException` instead of plain `\RuntimeException`, so a transport failure, non-200 status, oversized response, or undecodable body answers `424` with a diagnosable message and a spec-conformant error message object instead of an opaque `500 Internal server error.`; the failure is also logged with the throwable attached
-- the public API snapshot is now identical on every supported PHP version; a return type matching its declaring class renders as `self` on all of them, because PHP 8.5 resolves `self` in reflection while 8.2-8.4 report it literally, which made `composer public-api:check` fail on 8.5 regardless of the change under test
-- the PHP container now builds on 8.5; `dom` and `xmlwriter` are no longer reinstalled, since they ship enabled in the official images and rebuilding `dom` fails on 8.5 without liblexbor headers
+- `cart.update` merges the resource id into the payload, so callers that supply the id in the route or tool argument no longer get `$.id is required`. A request with no id anywhere now fails as a `BadRequestHttpException` rather than a `ValidationException`, matching every other id-bearing operation ([#107](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/107))
+- agent-profile fetch failures are now typed as `UcpException` instead of plain `\RuntimeException`, so a transport failure, non-200 status, oversized response, or undecodable body answers `424` with a diagnosable message and a spec-conformant error message object instead of an opaque `500 Internal server error.`; the failure is also logged with the throwable attached ([#108](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/108))
+- the public API snapshot is now identical on every supported PHP version; a return type matching its declaring class renders as `self` on all of them, because PHP 8.5 resolves `self` in reflection while 8.2-8.4 report it literally, which made `composer public-api:check` fail on 8.5 regardless of the change under test ([#109](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/109))
+- the PHP container now builds on 8.5; `dom` and `xmlwriter` are no longer reinstalled, since they ship enabled in the official images and rebuilding `dom` fails on 8.5 without liblexbor headers ([#109](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/109))
+- `ucp-php-sdk/symfony-bundle` now requires `ucp-php-sdk/core` as `>=0.0.2 <0.1.0` instead of `^0.0.2`. Composer's caret pins the patch on `0.0.x`, so the old constraint excluded every future release of core, including this one
 
 ## 0.0.2 - 2026-07-22
 

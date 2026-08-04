@@ -69,7 +69,7 @@ docker compose run --rm php composer test
 
 ## Install
 
-Current release track: `0.0.2`.
+Current release track: `0.0.3`.
 
 Release organization:
 
@@ -80,13 +80,13 @@ Release organization:
 Framework-free install:
 
 ```bash
-composer require ucp-php-sdk/core:^0.0.2
+composer require ucp-php-sdk/core:^0.0.3
 ```
 
 Symfony install:
 
 ```bash
-composer require ucp-php-sdk/symfony-bundle:^0.0.2
+composer require ucp-php-sdk/symfony-bundle:^0.0.3
 ```
 
 Run the full QA pipeline:
