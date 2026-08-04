@@ -14,6 +14,7 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Exception\IdempotencyConflictException;
 use Ucp\Sdk\Exception\NegotiationException;
@@ -116,6 +117,26 @@ final class EventListenersTest extends TestCase
             json_decode((string) $configurationResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR)['messages'][0]['content'],
         );
 
+        $agentProfileEvent = new ExceptionEvent(
+            $kernel,
+            Request::create('/ucp/v1/carts', 'POST'),
+            HttpKernelInterface::MAIN_REQUEST,
+            AgentProfileException::unreachable('https://agent.example/.well-known/ucp', new \RuntimeException('Connection refused.')),
+        );
+        $listener->onKernelException($agentProfileEvent);
+        $agentProfileResponse = $agentProfileEvent->getResponse();
+        self::assertNotNull($agentProfileResponse);
+        self::assertSame(424, $agentProfileResponse->getStatusCode());
+        self::assertSame(
+            [[
+                'type' => 'error',
+                'code' => 'agent_profile_unreachable',
+                'severity' => 'recoverable',
+                'content' => 'Platform profile at "https://agent.example/.well-known/ucp" could not be fetched: Connection refused.',
+            ]],
+            json_decode((string) $agentProfileResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR)['messages'],
+        );
+
         $httpEvent = new ExceptionEvent(
             $kernel,
             Request::create('/ucp/v1/carts', 'POST'),
@@ -177,6 +198,28 @@ final class EventListenersTest extends TestCase
         $listener->onKernelException($event);
 
         self::assertSame(500, $event->getResponse()?->getStatusCode());
+    }
+
+    #[Test]
+    public function itLogsAgentProfileFetchFailuresWithTheThrowable(): void
+    {
+        $throwable = AgentProfileException::unavailable('https://agent.example/.well-known/ucp', 503);
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())
+            ->method('error')
+            ->with('UCP request failed because the agent profile could not be fetched.', ['exception' => $throwable]);
+
+        $listener = new ExceptionListener(new UcpResponseFactory($this->configuration()), $logger);
+        $event = new ExceptionEvent(
+            $this->createMock(HttpKernelInterface::class),
+            Request::create('/.well-known/ucp', 'GET'),
+            HttpKernelInterface::MAIN_REQUEST,
+            $throwable,
+        );
+
+        $listener->onKernelException($event);
+
+        self::assertSame(424, $event->getResponse()?->getStatusCode());
     }
 
     #[Test]
