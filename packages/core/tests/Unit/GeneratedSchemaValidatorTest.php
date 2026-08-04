@@ -38,6 +38,29 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $validator->validate('catalog.lookup.request', []);
     }
 
+    public function testCheckoutCreateAcceptsLineItemsOrCartId(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        // line_items alone (plain checkout create).
+        $validator->validate('checkout.create.request', ['line_items' => []]);
+        // cart_id alone (cart-to-checkout conversion — the cart supplies line_items).
+        $validator->validate('checkout.create.request', ['cart_id' => 'cart-1']);
+        // both present is allowed too: cart.json says overlapping fields are ignored, not rejected
+        // (this is why the schema uses anyOf, not oneOf).
+        $validator->validate('checkout.create.request', ['cart_id' => 'cart-1', 'line_items' => []]);
+
+        $this->expectNotToPerformAssertions();
+    }
+
+    public function testCheckoutCreateRejectsWhenNeitherLineItemsNorCartIdPresent(): void
+    {
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        $this->expectException(ValidationException::class);
+        $validator->validate('checkout.create.request', ['buyer' => ['email' => 'buyer@example.com']]);
+    }
+
     public function testItProvidesSchemasForEveryShoppingOperation(): void
     {
         $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');

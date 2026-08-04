@@ -32,8 +32,48 @@ function main(array $argv): void
 
     $generator = new SchemaGenerator($schemaRoot);
     foreach (operationSchemas($schemaRoot) as $filename => $schema) {
-        writeJson($generatedRoot . '/' . $filename . '.json', $generator->generate($schema));
+        $generated = $generator->generate($schema);
+        if ($filename === 'checkout.create.request') {
+            $generated = allowCartIdInsteadOfLineItems($generated);
+        }
+
+        writeJson($generatedRoot . '/' . $filename . '.json', $generated);
     }
+}
+
+/**
+ * checkout.create accepts a cart_id (from the cart capability) as an alternative to line_items.
+ *
+ * The property itself arrives through the ordinary extension projection -- checkout.create lists
+ * shopping/cart.json's /$defs/checkout among its extensions -- so only the requirement needs
+ * adjusting here. The spec contradicts itself on that point: checkout.json marks line_items
+ * `ucp_request.create: required`, while cart.json says that when cart_id is supplied the business
+ * MUST use the cart's contents (line_items, context, buyer) and MUST ignore overlapping fields in
+ * the checkout payload. Requiring line_items in that case is therefore unsatisfiable for the
+ * cart-to-checkout conversion the cart capability exists to express. Emit the reachable contract:
+ * either line_items or cart_id must be present.
+ *
+ * @param array<string, mixed> $schema
+ * @return array<string, mixed>
+ */
+function allowCartIdInsteadOfLineItems(array $schema): array
+{
+    if (! isset($schema['properties']) || ! is_array($schema['properties'])) {
+        return $schema;
+    }
+
+    if (! isset($schema['properties']['cart_id'])) {
+        fail('checkout.create.request has no cart_id property; the cart.json extension projection changed.');
+    }
+
+    // line_items is no longer unconditionally required; either line_items or cart_id must be present.
+    unset($schema['required']);
+    $schema['anyOf'] = [
+        ['required' => ['line_items']],
+        ['required' => ['cart_id']],
+    ];
+
+    return $schema;
 }
 
 /**
