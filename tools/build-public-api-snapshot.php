@@ -76,8 +76,10 @@ file_put_contents($root . '/tools/public-api-snapshot.txt', implode(PHP_EOL, $li
 
 function buildMethodSignature(ReflectionMethod $method): string
 {
+    $declaringClass = $method->getDeclaringClass()->getName();
+
     $parameters = array_map(
-        static fn (ReflectionParameter $parameter): string => buildParameterSignature($parameter),
+        static fn (ReflectionParameter $parameter): string => buildParameterSignature($parameter, $declaringClass),
         $method->getParameters(),
     );
 
@@ -88,18 +90,18 @@ function buildMethodSignature(ReflectionMethod $method): string
     }
 
     if ($method->hasReturnType()) {
-        $signature .= ': ' . buildTypeSignature($method->getReturnType());
+        $signature .= ': ' . buildTypeSignature($method->getReturnType(), $declaringClass);
     }
 
     return $signature;
 }
 
-function buildParameterSignature(ReflectionParameter $parameter): string
+function buildParameterSignature(ReflectionParameter $parameter, string $declaringClass): string
 {
     $chunks = [];
 
     if ($parameter->hasType()) {
-        $chunks[] = buildTypeSignature($parameter->getType());
+        $chunks[] = buildTypeSignature($parameter->getType(), $declaringClass);
     }
 
     if ($parameter->isPassedByReference()) {
@@ -119,18 +121,27 @@ function buildParameterSignature(ReflectionParameter $parameter): string
     return implode(' ', array_filter($chunks, static fn (string $chunk): bool => $chunk !== ''));
 }
 
-function buildTypeSignature(ReflectionType $type): string
+function buildTypeSignature(ReflectionType $type, string $declaringClass): string
 {
     if ($type instanceof ReflectionNamedType) {
-        return ($type->allowsNull() && $type->getName() !== 'mixed' ? '?' : '') . $type->getName();
+        // PHP 8.5 resolves a `self` type to the declaring class, while 8.2-8.4 report the
+        // literal "self" — so reflection alone cannot tell `: self` from `: TheClass` on 8.5.
+        // Collapse both spellings to "self" so the snapshot is identical on every supported
+        // version. `static` is deliberately left alone: it reflects as "static" everywhere
+        // and means something different from `self`.
+        $name = $type->getName() === $declaringClass ? 'self' : $type->getName();
+
+        return ($type->allowsNull() && $name !== 'mixed' ? '?' : '') . $name;
     }
 
+    $nested = static fn (ReflectionType $nestedType): string => buildTypeSignature($nestedType, $declaringClass);
+
     if ($type instanceof ReflectionUnionType) {
-        return implode('|', array_map(buildTypeSignature(...), $type->getTypes()));
+        return implode('|', array_map($nested, $type->getTypes()));
     }
 
     if ($type instanceof ReflectionIntersectionType) {
-        return implode('&', array_map(buildTypeSignature(...), $type->getTypes()));
+        return implode('&', array_map($nested, $type->getTypes()));
     }
 
     return 'mixed';
