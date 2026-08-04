@@ -12,6 +12,7 @@ use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
 use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
 use Ucp\Sdk\Model\Checkout\BuyerConsent;
+use Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
@@ -138,6 +139,55 @@ final class HttpPayloadMapper
             $this->toConsent($payload['buyer_consent'] ?? null),
             isset($payload['payment']) && is_array($payload['payment']) ? $this->toPaymentInstrument($payload['payment']) : null,
         );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function toCheckoutCompleteRequest(string $id, array $payload): CheckoutCompleteRequest
+    {
+        return new CheckoutCompleteRequest(
+            $id,
+            $this->toPaymentInstruments($payload['payment'] ?? null),
+            $this->toSignals($payload['signals'] ?? null),
+        );
+    }
+
+    /**
+     * Reads the instrument list out of a spec-shaped payment object.
+     *
+     * `payment.json` defines `{"instruments": [...]}`, so an empty list means the
+     * caller supplied no instrument -- which is different from supplying a broken one.
+     * Passing the payment object itself to toPaymentInstrument() would read a
+     * top-level `handler_id` that is not there and manufacture an instrument with an
+     * empty handler id, which a mandate verifier then rejects.
+     *
+     * The flat single-instrument shape is still accepted, because
+     * CheckoutUpdateRequest has always taken it and callers migrating between the two
+     * operations should not have to notice.
+     *
+     * @return list<PaymentInstrument>
+     */
+    private function toPaymentInstruments(mixed $payload): array
+    {
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        if (isset($payload['instruments'])) {
+            $instruments = [];
+            foreach (is_array($payload['instruments']) ? $payload['instruments'] : [] as $instrument) {
+                if (is_array($instrument)) {
+                    $instruments[] = $this->toPaymentInstrument($instrument);
+                }
+            }
+
+            return $instruments;
+        }
+
+        return isset($payload['handler_id']) || isset($payload['type'])
+            ? [$this->toPaymentInstrument($payload)]
+            : [];
     }
 
     /**
