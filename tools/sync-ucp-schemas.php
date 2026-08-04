@@ -34,7 +34,7 @@ function main(array $argv): void
     foreach (operationSchemas($schemaRoot) as $filename => $schema) {
         $generated = $generator->generate($schema);
         if ($filename === 'checkout.create.request') {
-            $generated = allowCartIdInsteadOfLineItems($generated, $schemaRoot);
+            $generated = allowCartIdInsteadOfLineItems($generated);
         }
 
         writeJson($generatedRoot . '/' . $filename . '.json', $generated);
@@ -44,21 +44,27 @@ function main(array $argv): void
 /**
  * checkout.create accepts a cart_id (from the cart capability) as an alternative to line_items.
  *
- * Per shopping/cart.json, when cart_id is supplied the business uses the cart's contents
- * (line_items, context, buyer) and ignores overlapping fields in the checkout payload — so
- * requiring line_items in that case is contradictory. Reflect the true contract: the request
- * carries cart_id, and either line_items or cart_id must be present.
+ * The property itself arrives through the ordinary extension projection -- checkout.create lists
+ * shopping/cart.json's /$defs/checkout among its extensions -- so only the requirement needs
+ * adjusting here. The spec contradicts itself on that point: checkout.json marks line_items
+ * `ucp_request.create: required`, while cart.json says that when cart_id is supplied the business
+ * MUST use the cart's contents (line_items, context, buyer) and MUST ignore overlapping fields in
+ * the checkout payload. Requiring line_items in that case is therefore unsatisfiable for the
+ * cart-to-checkout conversion the cart capability exists to express. Emit the reachable contract:
+ * either line_items or cart_id must be present.
  *
  * @param array<string, mixed> $schema
  * @return array<string, mixed>
  */
-function allowCartIdInsteadOfLineItems(array $schema, string $schemaRoot): array
+function allowCartIdInsteadOfLineItems(array $schema): array
 {
     if (! isset($schema['properties']) || ! is_array($schema['properties'])) {
         return $schema;
     }
 
-    $schema['properties']['cart_id'] = cartIdPropertySchema($schemaRoot);
+    if (! isset($schema['properties']['cart_id'])) {
+        fail('checkout.create.request has no cart_id property; the cart.json extension projection changed.');
+    }
 
     // line_items is no longer unconditionally required; either line_items or cart_id must be present.
     unset($schema['required']);
@@ -68,31 +74,6 @@ function allowCartIdInsteadOfLineItems(array $schema, string $schemaRoot): array
     ];
 
     return $schema;
-}
-
-/**
- * Reads the cart_id property definition from the cart capability (shopping/cart.json), keeping the
- * spec as the single source of truth for its shape and description. The ucp_request projection
- * annotation is dropped — it is a generation hint, not part of the emitted JSON Schema.
- *
- * @return array<string, mixed>
- */
-function cartIdPropertySchema(string $schemaRoot): array
-{
-    $cart = json_decode((string) file_get_contents($schemaRoot . '/shopping/cart.json'), true, 512, JSON_THROW_ON_ERROR);
-    $variants = (is_array($cart) ? $cart['$defs']['checkout']['allOf'] ?? [] : []);
-    if (is_array($variants)) {
-        foreach ($variants as $variant) {
-            if (is_array($variant) && isset($variant['properties']['cart_id']) && is_array($variant['properties']['cart_id'])) {
-                $cartId = $variant['properties']['cart_id'];
-                unset($cartId['ucp_request']);
-
-                return $cartId;
-            }
-        }
-    }
-
-    fail('cart_id property not found in shopping/cart.json ($defs.checkout).');
 }
 
 /**
@@ -127,11 +108,21 @@ function operationSchemas(string $schemaRoot): array
             ],
         ],
         'discount.apply.response' => responseWithError('shopping/cart.json'),
-        'checkout.create.request' => ['file' => 'shopping/checkout.json', 'request' => 'create'],
+        'checkout.create.request' => [
+            'file' => 'shopping/checkout.json',
+            'request' => 'create',
+            // cart_id is create-only: it is what converts an existing cart into a
+            // checkout, and there is nothing to convert on update or complete.
+            'extensions' => [...checkoutExtensions(), ['file' => 'shopping/cart.json', 'pointer' => '/$defs/checkout']],
+        ],
         'checkout.create.response' => responseWithError('shopping/checkout.json'),
         'checkout.get.request' => idRequest(),
         'checkout.get.response' => responseWithError('shopping/checkout.json'),
-        'checkout.update.request' => ['file' => 'shopping/checkout.json', 'request' => 'update'],
+        'checkout.update.request' => [
+            'file' => 'shopping/checkout.json',
+            'request' => 'update',
+            'extensions' => checkoutExtensions(),
+        ],
         'checkout.update.response' => responseWithError('shopping/checkout.json'),
         'checkout.complete.request' => ['file' => 'shopping/checkout.json', 'request' => 'complete'],
         'checkout.complete.response' => responseWithError('shopping/checkout.json'),
@@ -141,6 +132,26 @@ function operationSchemas(string $schemaRoot): array
         'order.get.response' => responseWithError('shopping/order.json'),
         'tokenization.request' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/requestBody/content/application~1json/schema'],
         'tokenization.response' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/responses/200/content/application~1json/schema'],
+    ];
+}
+
+/**
+ * Capability extensions that compose onto checkout for create and update.
+ *
+ * Only the ones HttpPayloadMapper actually consumes, so the published contract
+ * describes what the SDK acts on rather than everything the spec could compose.
+ * `ap2_mandate.json` is deliberately absent: mandates travel through
+ * PaymentMandateVerifierInterface, not through the checkout request payload.
+ *
+ * @return list<array{file: string, pointer: string}>
+ */
+function checkoutExtensions(): array
+{
+    return [
+        ['file' => 'shopping/discount.json', 'pointer' => '/$defs/dev.ucp.shopping.checkout'],
+        ['file' => 'shopping/fulfillment.json', 'pointer' => '/$defs/dev.ucp.shopping.checkout'],
+        // Extends `buyer` with consent tracking rather than adding a sibling field.
+        ['file' => 'shopping/buyer_consent.json', 'pointer' => '/$defs/dev.ucp.shopping.checkout'],
     ];
 }
 
@@ -218,10 +229,118 @@ final class SchemaGenerator
         $schema = $this->readPointer($file, (string) ($operation['pointer'] ?? ''));
 
         if (isset($operation['request']) && is_string($operation['request'])) {
-            return $this->projectRequestSchema($schema, $file, $operation['request']);
+            return $this->withExtensions(
+                $this->projectRequestSchema($schema, $file, $operation['request']),
+                $operation,
+                $operation['request'],
+            );
         }
 
         return $this->dereference($schema, $file);
+    }
+
+    /**
+     * Folds capability extensions into a projected request schema.
+     *
+     * Capabilities compose onto a base schema through `allOf` -- `cart.json` adds
+     * `cart_id` to checkout, `discount.json` adds `discounts`, and so on -- and each
+     * extension lives in its own file with its own `$defs` entry. Pointing an
+     * operation at the base schema alone therefore published a request contract that
+     * omitted every extension field, even though HttpPayloadMapper reads them
+     * unconditionally. Callers had to know the fields existed from the spec text.
+     *
+     * Each extension is projected against the same operation, so its own
+     * `ucp_request` annotations still decide whether a field is required, optional or
+     * omitted for create/update/complete. Extensions only ever add optional fields,
+     * so nothing that validated before stops validating.
+     *
+     * @param array<string, mixed> $projected
+     * @param array<string, mixed> $operation
+     * @return array<string, mixed>
+     */
+    private function withExtensions(array $projected, array $operation, string $request): array
+    {
+        if (! isset($operation['extensions']) || ! is_array($operation['extensions'])) {
+            return $projected;
+        }
+
+        foreach ($operation['extensions'] as $extension) {
+            if (! is_array($extension) || ! isset($extension['file'])) {
+                continue;
+            }
+
+            $file = $this->absolutePath((string) $extension['file']);
+            $schema = $this->projectRequestSchema(
+                $this->readPointer($file, (string) ($extension['pointer'] ?? '')),
+                $file,
+                $request,
+            );
+
+            $projected['properties'] = $this->mergeProperties(
+                is_array($projected['properties'] ?? null) ? $projected['properties'] : [],
+                is_array($schema['properties'] ?? null) ? $schema['properties'] : [],
+            );
+
+            $required = array_values(array_unique([
+                ...($projected['required'] ?? []),
+                ...($schema['required'] ?? []),
+            ]));
+            if ($required !== []) {
+                $projected['required'] = $required;
+            }
+        }
+
+        return $projected;
+    }
+
+    /**
+     * Unions two property maps, descending into objects both sides describe.
+     *
+     * Every extension projection restates the base properties alongside the one it
+     * adds, so a plain overwrite would let whichever extension ran last erase what
+     * the others contributed -- `buyer_consent` adds `consent` to `buyer`, and any
+     * extension merged afterwards restates the plain `buyer` and would drop it.
+     * Descending instead makes the result independent of extension order.
+     *
+     * @param array<string, mixed> $base
+     * @param array<string, mixed> $extension
+     * @return array<string, mixed>
+     */
+    private function mergeProperties(array $base, array $extension): array
+    {
+        foreach ($extension as $name => $schema) {
+            if (! array_key_exists($name, $base)) {
+                $base[$name] = $schema;
+
+                continue;
+            }
+
+            if (
+                ! is_array($base[$name])
+                || ! is_array($schema)
+                || ! is_array($base[$name]['properties'] ?? null)
+                || ! is_array($schema['properties'] ?? null)
+            ) {
+                $base[$name] = $schema;
+
+                continue;
+            }
+
+            $merged = $schema;
+            $merged['properties'] = $this->mergeProperties($base[$name]['properties'], $schema['properties']);
+
+            $required = array_values(array_unique([
+                ...(is_array($base[$name]['required'] ?? null) ? $base[$name]['required'] : []),
+                ...(is_array($schema['required'] ?? null) ? $schema['required'] : []),
+            ]));
+            if ($required !== []) {
+                $merged['required'] = $required;
+            }
+
+            $base[$name] = $merged;
+        }
+
+        return $base;
     }
 
     /**

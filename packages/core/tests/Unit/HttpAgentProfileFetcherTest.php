@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
@@ -130,11 +131,15 @@ final class HttpAgentProfileFetcherTest extends TestCase
             ),
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Platform profile fetch failed with a non-200 status code.');
-
         try {
             $fetcher->fetch('https://platform.example/.well-known/ucp');
+            self::fail('Expected an AgentProfileException.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_unavailable', $exception->errorCode);
+            self::assertSame(
+                'Platform profile fetch from "https://platform.example/.well-known/ucp" failed with HTTP status 500.',
+                $exception->getMessage(),
+            );
         } finally {
             self::assertSame(0.0, $client->streamTimeout);
             self::assertCount(0, $cacheRepository->savedProfiles);
@@ -159,11 +164,15 @@ final class HttpAgentProfileFetcherTest extends TestCase
             maxResponseBytes: 512,
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Platform profile response exceeded the maximum allowed size.');
-
         try {
             $fetcher->fetch('https://platform.example/.well-known/ucp');
+            self::fail('Expected an AgentProfileException.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_too_large', $exception->errorCode);
+            self::assertSame(
+                'Platform profile response from "https://platform.example/.well-known/ucp" exceeded the maximum allowed size of 512 bytes.',
+                $exception->getMessage(),
+            );
         } finally {
             self::assertTrue($response->cancelled);
             self::assertCount(0, $cacheRepository->savedProfiles);
@@ -189,16 +198,127 @@ final class HttpAgentProfileFetcherTest extends TestCase
             maxResponseBytes: 512,
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Platform profile response exceeded the maximum allowed size.');
-
         try {
             $fetcher->fetch('https://platform.example/.well-known/ucp');
+            self::fail('Expected an AgentProfileException.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_too_large', $exception->errorCode);
         } finally {
             self::assertFalse($response->cancelled);
             self::assertSame(0.0, $client->streamTimeout);
             self::assertCount(0, $cacheRepository->savedProfiles);
         }
+    }
+
+    #[Test]
+    public function itRejectsResponseBodiesThatAreNotValidJson(): void
+    {
+        $cacheRepository = new RecordingPlatformProfileCacheRepository();
+        $fetcher = new HttpAgentProfileFetcher(
+            new RecordingHttpClient(
+                new RecordingResponse(200),
+                [new RecordingChunk(content: '<html>not json</html>')],
+            ),
+            $cacheRepository,
+            new UrlSafetyValidator(
+                ['platform.example'],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        try {
+            $fetcher->fetch('https://platform.example/.well-known/ucp');
+            self::fail('Expected an AgentProfileException.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_invalid', $exception->errorCode);
+            self::assertStringStartsWith(
+                'Platform profile from "https://platform.example/.well-known/ucp" is not a valid UCP profile document:',
+                $exception->getMessage(),
+            );
+            self::assertInstanceOf(\JsonException::class, $exception->getPrevious());
+        } finally {
+            self::assertCount(0, $cacheRepository->savedProfiles);
+        }
+    }
+
+    #[Test]
+    public function itRejectsResponseBodiesThatDecodeToAJsonScalar(): void
+    {
+        $cacheRepository = new RecordingPlatformProfileCacheRepository();
+        $fetcher = new HttpAgentProfileFetcher(
+            new RecordingHttpClient(
+                new RecordingResponse(200),
+                [new RecordingChunk(content: '"just-a-string"')],
+            ),
+            $cacheRepository,
+            new UrlSafetyValidator(
+                ['platform.example'],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        try {
+            $fetcher->fetch('https://platform.example/.well-known/ucp');
+            self::fail('Expected an AgentProfileException.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_invalid', $exception->errorCode);
+            self::assertStringEndsWith('the response body does not decode to a JSON object.', $exception->getMessage());
+            self::assertNull($exception->getPrevious());
+        } finally {
+            self::assertCount(0, $cacheRepository->savedProfiles);
+        }
+    }
+
+    #[Test]
+    public function itWrapsTransportFailuresInAnAgentProfileException(): void
+    {
+        $transportFailure = new \RuntimeException('Failed to connect to platform.example port 443.');
+        $cacheRepository = new RecordingPlatformProfileCacheRepository();
+        $fetcher = new HttpAgentProfileFetcher(
+            RecordingHttpClient::failing($transportFailure),
+            $cacheRepository,
+            new UrlSafetyValidator(
+                ['platform.example'],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        try {
+            $fetcher->fetch('https://platform.example/.well-known/ucp');
+            self::fail('Expected an AgentProfileException.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_unreachable', $exception->errorCode);
+            self::assertSame(
+                'Platform profile at "https://platform.example/.well-known/ucp" could not be fetched: Failed to connect to platform.example port 443.',
+                $exception->getMessage(),
+            );
+            self::assertSame($transportFailure, $exception->getPrevious());
+        } finally {
+            self::assertCount(0, $cacheRepository->savedProfiles);
+        }
+    }
+
+    #[Test]
+    public function itReturnsAStaleCachedProfileWhenTheTransportFails(): void
+    {
+        $staleProfile = new PlatformProfile('2026-04-08', [], [], [], [], [
+            '2026-04-08' => 'https://platform.example/.well-known/ucp',
+        ]);
+        $cacheRepository = new RecordingPlatformProfileCacheRepository(null, $staleProfile);
+
+        $fetcher = new HttpAgentProfileFetcher(
+            RecordingHttpClient::failing(new \RuntimeException('Connection refused.')),
+            $cacheRepository,
+            new UrlSafetyValidator(
+                ['platform.example'],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        $profile = $fetcher->fetch('https://platform.example/.well-known/ucp');
+
+        self::assertSame($staleProfile, $profile);
+        self::assertCount(0, $cacheRepository->savedProfiles);
     }
 
     #[Test]
@@ -283,7 +403,13 @@ final class RecordingHttpClient implements HttpClientInterface
     public function __construct(
         private readonly RecordingResponse $response,
         private readonly array $chunks,
+        private readonly ?\Throwable $requestException = null,
     ) {
+    }
+
+    public static function failing(\Throwable $throwable): self
+    {
+        return new self(new RecordingResponse(200), [], $throwable);
     }
 
     /**
@@ -294,6 +420,10 @@ final class RecordingHttpClient implements HttpClientInterface
         $this->method = $method;
         $this->url = $url;
         $this->options = $options;
+
+        if ($this->requestException !== null) {
+            throw $this->requestException;
+        }
 
         return $this->response;
     }

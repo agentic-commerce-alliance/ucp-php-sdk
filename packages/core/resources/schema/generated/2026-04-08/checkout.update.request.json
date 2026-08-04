@@ -40,11 +40,7 @@
             "description": "List of line items being checked out."
         },
         "buyer": {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "https://ucp.dev/schemas/shopping/types/buyer.json",
-            "title": "Buyer",
             "type": "object",
-            "additionalProperties": true,
             "properties": {
                 "first_name": {
                     "type": "string",
@@ -61,9 +57,30 @@
                 "phone_number": {
                     "type": "string",
                     "description": "E.164 standard."
+                },
+                "consent": {
+                    "type": "object",
+                    "description": "Consent tracking fields.",
+                    "properties": {
+                        "analytics": {
+                            "type": "boolean",
+                            "description": "Consent for analytics and performance tracking."
+                        },
+                        "preferences": {
+                            "type": "boolean",
+                            "description": "Consent for storing user preferences."
+                        },
+                        "marketing": {
+                            "type": "boolean",
+                            "description": "Consent for marketing communications."
+                        },
+                        "sale_of_data": {
+                            "type": "boolean",
+                            "description": "Consent for selling data to third parties (CCPA)."
+                        }
+                    }
                 }
-            },
-            "description": "Representation of the buyer."
+            }
         },
         "context": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -291,6 +308,229 @@
                         ]
                     },
                     "description": "The payment instruments available for this payment. Each instrument is associated with a specific handler via the handler_id field. Handlers can extend the base payment_instrument schema to add handler-specific fields."
+                }
+            }
+        },
+        "discounts": {
+            "type": "object",
+            "properties": {
+                "codes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Discount codes to apply. Case-insensitive. Replaces previously submitted codes. Send empty array to clear."
+                }
+            }
+        },
+        "fulfillment": {
+            "type": "object",
+            "properties": {
+                "methods": {
+                    "type": "array",
+                    "description": "Fulfillment methods for cart items.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "Unique fulfillment method identifier."
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "shipping",
+                                    "pickup"
+                                ],
+                                "description": "Fulfillment method type."
+                            },
+                            "line_item_ids": {
+                                "type": "array",
+                                "description": "Line item IDs fulfilled via this method.",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "destinations": {
+                                "type": "array",
+                                "description": "Available destinations. For shipping: addresses. For pickup: retail locations.",
+                                "items": {
+                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                    "$id": "https://ucp.dev/schemas/shopping/types/fulfillment_destination.json",
+                                    "title": "Fulfillment Destination",
+                                    "description": "A destination for fulfillment.",
+                                    "type": "object",
+                                    "oneOf": [
+                                        {
+                                            "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                            "$id": "https://ucp.dev/schemas/shopping/types/shipping_destination.json",
+                                            "title": "Shipping Destination",
+                                            "description": "Shipping destination.",
+                                            "type": "object",
+                                            "allOf": [
+                                                {
+                                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                    "$id": "https://ucp.dev/schemas/shopping/types/postal_address.json",
+                                                    "title": "Postal Address",
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "extended_address": {
+                                                            "type": "string",
+                                                            "description": "An address extension such as an apartment number, C/O or alternative name."
+                                                        },
+                                                        "street_address": {
+                                                            "type": "string",
+                                                            "description": "The street address."
+                                                        },
+                                                        "address_locality": {
+                                                            "type": "string",
+                                                            "description": "The locality in which the street address is, and which is in the region. For example, Mountain View."
+                                                        },
+                                                        "address_region": {
+                                                            "type": "string",
+                                                            "description": "The region in which the locality is, and which is in the country. Required for applicable countries (i.e. state in US, province in CA). For example, California or another appropriate first-level Administrative division."
+                                                        },
+                                                        "address_country": {
+                                                            "type": "string",
+                                                            "description": "The country. Recommended to be in 2-letter ISO 3166-1 alpha-2 format, for example \"US\". For backward compatibility, a 3-letter ISO 3166-1 alpha-3 country code such as \"SGP\" or a full country name such as \"Singapore\" can also be used."
+                                                        },
+                                                        "postal_code": {
+                                                            "type": "string",
+                                                            "description": "The postal code. For example, 94043."
+                                                        },
+                                                        "first_name": {
+                                                            "type": "string",
+                                                            "description": "Optional. First name of the contact associated with the address."
+                                                        },
+                                                        "last_name": {
+                                                            "type": "string",
+                                                            "description": "Optional. Last name of the contact associated with the address."
+                                                        },
+                                                        "phone_number": {
+                                                            "type": "string",
+                                                            "description": "Optional. Phone number of the contact associated with the address."
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string",
+                                                            "description": "ID specific to this shipping destination."
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id"
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                            "$id": "https://ucp.dev/schemas/shopping/types/retail_location.json",
+                                            "title": "Retail Location",
+                                            "description": "A pickup location (retail store, locker, etc.).",
+                                            "type": "object",
+                                            "required": [
+                                                "id",
+                                                "name"
+                                            ],
+                                            "additionalProperties": true,
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "description": "Unique location identifier."
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "description": "Location name (e.g., store name)."
+                                                },
+                                                "address": {
+                                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                    "$id": "https://ucp.dev/schemas/shopping/types/postal_address.json",
+                                                    "title": "Postal Address",
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "extended_address": {
+                                                            "type": "string",
+                                                            "description": "An address extension such as an apartment number, C/O or alternative name."
+                                                        },
+                                                        "street_address": {
+                                                            "type": "string",
+                                                            "description": "The street address."
+                                                        },
+                                                        "address_locality": {
+                                                            "type": "string",
+                                                            "description": "The locality in which the street address is, and which is in the region. For example, Mountain View."
+                                                        },
+                                                        "address_region": {
+                                                            "type": "string",
+                                                            "description": "The region in which the locality is, and which is in the country. Required for applicable countries (i.e. state in US, province in CA). For example, California or another appropriate first-level Administrative division."
+                                                        },
+                                                        "address_country": {
+                                                            "type": "string",
+                                                            "description": "The country. Recommended to be in 2-letter ISO 3166-1 alpha-2 format, for example \"US\". For backward compatibility, a 3-letter ISO 3166-1 alpha-3 country code such as \"SGP\" or a full country name such as \"Singapore\" can also be used."
+                                                        },
+                                                        "postal_code": {
+                                                            "type": "string",
+                                                            "description": "The postal code. For example, 94043."
+                                                        },
+                                                        "first_name": {
+                                                            "type": "string",
+                                                            "description": "Optional. First name of the contact associated with the address."
+                                                        },
+                                                        "last_name": {
+                                                            "type": "string",
+                                                            "description": "Optional. Last name of the contact associated with the address."
+                                                        },
+                                                        "phone_number": {
+                                                            "type": "string",
+                                                            "description": "Optional. Phone number of the contact associated with the address."
+                                                        }
+                                                    },
+                                                    "description": "Physical address of the location."
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "selected_destination_id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "ID of the selected destination."
+                            },
+                            "groups": {
+                                "type": "array",
+                                "description": "Fulfillment groups for selecting options. Agent sets selected_option_id on groups to choose shipping method.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "description": "Group identifier for referencing merchant-generated groups in updates."
+                                        },
+                                        "selected_option_id": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "description": "ID of the selected fulfillment option for this group."
+                                        }
+                                    },
+                                    "required": [
+                                        "id"
+                                    ]
+                                }
+                            }
+                        },
+                        "required": [
+                            "line_item_ids"
+                        ]
+                    }
                 }
             }
         }
