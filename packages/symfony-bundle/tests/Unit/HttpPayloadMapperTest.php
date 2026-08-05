@@ -71,6 +71,97 @@ final class HttpPayloadMapperTest extends TestCase
     }
 
     #[Test]
+    public function itReadsTheSelectedInstrumentOutOfASpecShapedPayment(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $payment = [
+            'instruments' => [
+                ['id' => 'pi-1', 'handler_id' => 'com.example.card', 'type' => 'card'],
+                [
+                    'id' => 'pi-2',
+                    'handler_id' => 'com.shopware.invoice',
+                    'type' => 'delegated',
+                    'selected' => true,
+                    'billing_address' => [
+                        'street_address' => 'Billing Street 2',
+                        'address_locality' => 'Hamburg',
+                        'postal_code' => '20095',
+                        'address_country' => 'DE',
+                    ],
+                ],
+            ],
+        ];
+
+        // `selected` decides, not position. This used to read a top-level handler_id the
+        // spec shape does not have and produce PaymentInstrument('tokenized', '').
+        foreach ([
+            $mapper->toCheckoutUpdateRequest('checkout-1', ['payment' => $payment])->payment,
+            $mapper->toCheckoutCreateRequest(['payment' => $payment])->payment,
+        ] as $instrument) {
+            self::assertNotNull($instrument);
+            self::assertSame('com.shopware.invoice', $instrument->handlerId);
+            self::assertSame('delegated', $instrument->type);
+            self::assertSame('Billing Street 2', $instrument->billingAddress['street_address'] ?? null);
+        }
+    }
+
+    #[Test]
+    public function itFallsBackToTheFirstInstrumentWhenNoneIsSelected(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutUpdateRequest('checkout-1', [
+            'payment' => ['instruments' => [['handler_id' => 'com.example.card', 'type' => 'card']]],
+        ]);
+
+        self::assertSame('com.example.card', $request->payment?->handlerId);
+    }
+
+    #[Test]
+    public function itStillAcceptsTheFlatSingleInstrumentShape(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutUpdateRequest('checkout-1', [
+            'payment' => ['handler_id' => 'com.example.card', 'type' => 'card'],
+        ]);
+
+        self::assertSame('com.example.card', $request->payment?->handlerId);
+    }
+
+    #[Test]
+    public function itReportsNoInstrumentRatherThanOneWithAnEmptyHandlerId(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        // An empty instrument list, and a payment object naming no instrument at all,
+        // both mean "no instrument" -- manufacturing one with an empty handler id only
+        // gives a mandate verifier something to reject.
+        self::assertNull($mapper->toCheckoutUpdateRequest('c', ['payment' => ['instruments' => []]])->payment);
+        self::assertNull($mapper->toCheckoutUpdateRequest('c', ['payment' => ['method' => 'invoice']])->payment);
+        self::assertNull($mapper->toCheckoutUpdateRequest('c', [])->payment);
+        self::assertNull($mapper->toCheckoutCreateRequest([])->payment);
+    }
+
+    #[Test]
+    public function itKeepsTheBillingAddressOnEveryCompletionInstrument(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCompleteRequest('checkout-1', [
+            'payment' => ['instruments' => [[
+                'handler_id' => 'com.shopware.invoice',
+                'type' => 'delegated',
+                'billing_address' => ['street_address' => 'Billing Street 2', 'postal_code' => '20095'],
+            ]]],
+        ]);
+
+        self::assertCount(1, $request->instruments);
+        self::assertSame('20095', $request->instruments[0]->billingAddress['postal_code'] ?? null);
+    }
+
+    #[Test]
     public function itRejectsMalformedJsonPayloadsAsBadRequests(): void
     {
         $mapper = new HttpPayloadMapper();

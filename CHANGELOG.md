@@ -4,11 +4,14 @@
 
 ### Added
 
-- `UcpErrorDescriptor`, the transport-agnostic mapping from a throwable to the `type`, `code`, `severity` and HTTP status of a UCP failure, plus `toMessage()` to render it as a spec-conformant error `Message`. A consumer serving UCP over something other than HTTP — an MCP tool, an A2A task — no longer has to reimplement `ExceptionListener`'s mapping, or report every failure as an untyped internal error because it has none
+- `UcpErrorDescriptor`, the transport-agnostic mapping from a throwable to the `type`, `code`, `severity` and HTTP status of a UCP failure, plus `toMessage()` to render it as a spec-conformant error `Message`. A consumer serving UCP over something other than HTTP — an MCP tool, an A2A task — no longer has to reimplement `ExceptionListener`'s mapping, or report every failure as an untyped internal error because it has none ([#111](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/111))
+- `PaymentInstrument` keeps the `billing_address` the spec puts on it. `types/payment_instrument.json` defines a `postal_address` there, and it was dropped in mapping, so a conformant billing address never reached an adapter — which for a cart with nothing to ship is the only address UCP offers ([#112](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/112))
+- `CheckoutCreateRequest` carries `payment`. `checkout.json` annotates it `create: optional`, but the model had no slot, so an instrument supplied on create was discarded before any adapter saw it ([#112](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/112))
 
 ### Fixed
 
-- HTTP error bodies now carry `code` and `severity` on every message. `types/message_error.json` requires both, and only `NegotiationException` and `AgentProfileException` supplied them: a validation, signature, not-found, capability, idempotency or configuration failure answered with `type` and `content` alone, which is not a conformant error message
+- HTTP error bodies now carry `code` and `severity` on every message. `types/message_error.json` requires both, and only `NegotiationException` and `AgentProfileException` supplied them: a validation, signature, not-found, capability, idempotency or configuration failure answered with `type` and `content` alone, which is not a conformant error message ([#111](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/111))
+- `checkout.create` and `checkout.update` read payment from the spec-shaped `{"instruments": [...]}`, preferring the instrument marked `selected`. They read a top-level `handler_id` that the shape does not have, so a conformant payload silently became an instrument with an empty handler id — the failure `checkout.complete` was given a list-aware path to avoid, which these two never got. The flat single-instrument shape still works, and a payment object naming no instrument now yields no instrument instead of one with an empty handler id ([#112](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/112))
 
 ## 0.0.3 - 2026-08-04
 

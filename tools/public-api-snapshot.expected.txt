@@ -223,7 +223,7 @@ class Ucp\Sdk\Model\Checkout\Checkout
 class Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest
   - __construct(string $id, array $instruments = [], ?Ucp\Sdk\Model\Common\Signals $signals = null)
 class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
-  - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null)
+  - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
 class Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest
   - __construct(string $id, array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
 class Ucp\Sdk\Model\Checkout\DiscountCode
@@ -234,7 +234,7 @@ class Ucp\Sdk\Model\Checkout\OrderConfirmation
   - __construct(string $id, ?string $permalinkUrl = null)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\PaymentInstrument
-  - __construct(string $type, string $handlerId, array $credential = [])
+  - __construct(string $type, string $handlerId, array $credential = [], array $billingAddress = [])
 class Ucp\Sdk\Model\Common\Buyer
   - __construct(?string $email = null, ?string $firstName = null, ?string $lastName = null, ?string $phoneNumber = null)
   - toArray(): array
