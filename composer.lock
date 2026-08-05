@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0a5bb3097219c36091a21ea15dfc020c",
+    "content-hash": "d8939b8ce02e84f9e7105e8843532594",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -2606,11 +2606,11 @@
         },
         {
             "name": "ucp-php-sdk/core",
-            "version": "0.0.3",
+            "version": "0.0.4",
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "d793316b6cf7f200a592ef0caa5237493e9ca49b"
+                "reference": "b407402aa6e7c7b9d097ad9e48c2d0aee7108145"
             },
             "require": {
                 "php": "^8.1",
@@ -2633,11 +2633,11 @@
         },
         {
             "name": "ucp-php-sdk/symfony-bundle",
-            "version": "0.0.3",
+            "version": "0.0.4",
             "dist": {
                 "type": "path",
                 "url": "packages/symfony-bundle",
-                "reference": "fb3e98c2876ea92ca1b7926c764839755b649ef9"
+                "reference": "c5121eeb546cf8a2186d8f60815ca553e8030327"
             },
             "require": {
                 "doctrine/dbal": "^3.7 || ^4.0",
@@ -2649,7 +2649,7 @@
                 "symfony/http-foundation": "^6.4 || ^7.0",
                 "symfony/http-kernel": "^6.4 || ^7.0",
                 "symfony/routing": "^6.4 || ^7.0",
-                "ucp-php-sdk/core": ">=0.0.2 <0.1.0"
+                "ucp-php-sdk/core": ">=0.0.4 <0.1.0"
             },
             "type": "library",
             "autoload": {
