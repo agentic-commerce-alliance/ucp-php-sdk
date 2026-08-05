@@ -122,6 +122,7 @@ final class HttpPayloadMapper
             $this->toFulfillment($payload['fulfillment'] ?? null),
             $this->toConsent($payload['buyer_consent'] ?? null),
             $this->nullableString($payload['cart_id'] ?? null),
+            $this->toSelectedPaymentInstrument($payload['payment'] ?? null),
         );
     }
 
@@ -137,7 +138,7 @@ final class HttpPayloadMapper
             $this->toDiscounts($payload['discounts']['codes'] ?? []),
             $this->toFulfillment($payload['fulfillment'] ?? null),
             $this->toConsent($payload['buyer_consent'] ?? null),
-            isset($payload['payment']) && is_array($payload['payment']) ? $this->toPaymentInstrument($payload['payment']) : null,
+            $this->toSelectedPaymentInstrument($payload['payment'] ?? null),
         );
     }
 
@@ -199,7 +200,55 @@ final class HttpPayloadMapper
             (string) ($payload['type'] ?? 'tokenized'),
             (string) ($payload['handler_id'] ?? ''),
             is_array($payload['credential'] ?? null) ? $payload['credential'] : [],
+            is_array($payload['billing_address'] ?? null) ? $payload['billing_address'] : [],
         );
+    }
+
+    /**
+     * The instrument a create or update request means, out of a spec-shaped payment object.
+     *
+     * `payment.json` defines `{"instruments": [...]}` and the item carries `selected`, so
+     * the one the buyer chose is the one to read, falling back to the first offered.
+     *
+     * Reading the payment object itself -- what update used to do -- looks for a top-level
+     * `handler_id` the spec shape does not have, so a conformant
+     * `{"instruments":[{"handler_id":"..."}]}` became `PaymentInstrument('tokenized', '')`
+     * and the handler id was silently lost. `checkout.complete` was given the list-aware
+     * path in #107; create and update were left behind.
+     *
+     * The flat single-instrument shape still works, because `CheckoutUpdateRequest` has
+     * always accepted it.
+     */
+    private function toSelectedPaymentInstrument(mixed $payload): ?PaymentInstrument
+    {
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        if (isset($payload['instruments'])) {
+            $first = null;
+
+            foreach (is_array($payload['instruments']) ? $payload['instruments'] : [] as $instrument) {
+                if (! is_array($instrument)) {
+                    continue;
+                }
+
+                if (($instrument['selected'] ?? false) === true) {
+                    return $this->toPaymentInstrument($instrument);
+                }
+
+                $first ??= $instrument;
+            }
+
+            return $first === null ? null : $this->toPaymentInstrument($first);
+        }
+
+        // No instrument identity anywhere means no instrument, which is distinct from a
+        // broken one and better than manufacturing an empty handler id for a mandate
+        // verifier to reject.
+        return isset($payload['handler_id']) || isset($payload['type'])
+            ? $this->toPaymentInstrument($payload)
+            : null;
     }
 
     public function toOAuthAuthorizationRequest(Request $request): OAuthAuthorizationRequest

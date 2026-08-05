@@ -23,9 +23,9 @@ final class CheckoutCompleteRequest
     public function __construct(
         public readonly string $id,
         // A list, because payment.json models this as `{"instruments": [...]}`.
-        // CheckoutUpdateRequest::$payment flattens it to a single instrument and reads
-        // a top-level handler_id, which silently turns a spec-shaped payload into an
-        // instrument with an empty handler id. Not repeating that here.
+        // CheckoutCreateRequest and CheckoutUpdateRequest keep a single instrument for
+        // compatibility, but read it off that same list -- preferring the one marked
+        // `selected` -- instead of a top-level handler_id the spec shape does not have.
         public readonly array $instruments = [],
         public readonly ?Signals $signals = null,
     ) {
