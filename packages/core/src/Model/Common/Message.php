@@ -16,7 +16,7 @@ final class Message
     }
 
     /**
-     * @return array<string, string|null>
+     * @return array<string, string> null-valued keys are filtered out, so no value is null
      */
     public function toArray(): array
     {

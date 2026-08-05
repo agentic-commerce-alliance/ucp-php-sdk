@@ -130,9 +130,9 @@ final class EventListenersTest extends TestCase
         self::assertSame(
             [[
                 'type' => 'error',
-                'code' => 'agent_profile_unreachable',
-                'severity' => 'recoverable',
                 'content' => 'Platform profile at "https://agent.example/.well-known/ucp" could not be fetched: Connection refused.',
+                'severity' => 'recoverable',
+                'code' => 'agent_profile_unreachable',
             ]],
             json_decode((string) $agentProfileResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR)['messages'],
         );

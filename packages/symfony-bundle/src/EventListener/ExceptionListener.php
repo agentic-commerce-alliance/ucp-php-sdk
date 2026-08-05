@@ -10,13 +10,9 @@ use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Exception\ConfigurationException;
-use Ucp\Sdk\Exception\IdempotencyConflictException;
-use Ucp\Sdk\Exception\NegotiationException;
-use Ucp\Sdk\Exception\OAuthException;
-use Ucp\Sdk\Exception\ResourceNotFoundException;
-use Ucp\Sdk\Exception\SignatureException;
-use Ucp\Sdk\Exception\UnsupportedCapabilityException;
+use Ucp\Sdk\Exception\UcpException;
 use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Model\Common\UcpErrorDescriptor;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 
@@ -37,83 +33,66 @@ final class ExceptionListener
 
         $throwable = $event->getThrowable();
 
-        if ($throwable instanceof ValidationException) {
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 422, array_map(
-                static fn (string $violation): array => ['type' => 'error', 'content' => $violation],
-                $throwable->getViolations(),
-            )));
-
-            return;
-        }
-
-        if ($throwable instanceof IdempotencyConflictException) {
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 409));
-
-            return;
-        }
-
-        if ($throwable instanceof SignatureException) {
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 401));
-
-            return;
-        }
-
-        if ($throwable instanceof OAuthException) {
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 400));
-
-            return;
-        }
-
-        if ($throwable instanceof NegotiationException) {
-            $event->setResponse($this->responseFactory->error($throwable->getMessage(), 400, [[
-                'type' => 'error',
-                'content' => $throwable->getMessage(),
-                'code' => $throwable->errorCode,
-            ]]));
-
-            return;
-        }
-
-        if ($throwable instanceof UnsupportedCapabilityException) {
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 501));
-
-            return;
-        }
-
-        if ($throwable instanceof ResourceNotFoundException) {
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 404));
-
-            return;
-        }
-
-        if ($throwable instanceof ConfigurationException) {
-            $this->logger?->error('UCP request failed because of a server configuration error.', ['exception' => $throwable]);
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 500));
-
-            return;
-        }
-
-        if ($throwable instanceof AgentProfileException) {
-            $this->logger?->error('UCP request failed because the agent profile could not be fetched.', ['exception' => $throwable]);
-            $event->setResponse($this->errorResponse($event->getRequest(), $throwable->getMessage(), 424, [[
-                'type' => 'error',
-                'code' => $throwable->errorCode,
-                'severity' => 'recoverable',
-                'content' => $throwable->getMessage(),
-            ]]));
-
-            return;
-        }
-
-        if ($throwable instanceof HttpExceptionInterface) {
+        // Symfony's own HTTP exceptions carry the status on the exception, which no
+        // transport-agnostic descriptor can know, so they keep their own branch. Nothing
+        // else needs one: UcpErrorDescriptor holds the status, code and severity for every
+        // exception the SDK defines, and other transports read that same mapping instead
+        // of inventing a second one.
+        if (! $throwable instanceof UcpException && $throwable instanceof HttpExceptionInterface) {
             $message = $throwable->getMessage() !== '' ? $throwable->getMessage() : 'Request failed.';
-            $event->setResponse($this->errorResponse($event->getRequest(), $message, $throwable->getStatusCode()));
+            $event->setResponse($this->errorResponse($event->getRequest(), $message, $throwable->getStatusCode(), [
+                UcpErrorDescriptor::forHttpStatus($throwable->getStatusCode())->toMessage($message)->toArray(),
+            ]));
 
             return;
         }
 
-        $this->logger?->error('Unhandled exception while processing a UCP request.', ['exception' => $throwable]);
-        $event->setResponse($this->errorResponse($event->getRequest(), 'Internal server error.', 500));
+        $descriptor = UcpErrorDescriptor::fromThrowable($throwable);
+
+        // A server fault and an unreachable platform profile are an operator's problem even
+        // when the client is told about them, so they are logged too. Domain errors are
+        // the client's to fix and stay out of the log.
+        $logMessage = match (true) {
+            $throwable instanceof ConfigurationException => 'UCP request failed because of a server configuration error.',
+            $throwable instanceof AgentProfileException => 'UCP request failed because the agent profile could not be fetched.',
+            $descriptor->internal => 'Unhandled exception while processing a UCP request.',
+            default => null,
+        };
+
+        if ($logMessage !== null) {
+            $this->logger?->error($logMessage, ['exception' => $throwable]);
+        }
+
+        // An internal fault's message names hosts, ports and file paths, so the client gets
+        // a fixed sentence and the detail goes to the log above.
+        $message = $descriptor->internal ? 'Internal server error.' : $throwable->getMessage();
+
+        $event->setResponse($this->errorResponse(
+            $event->getRequest(),
+            $message,
+            $descriptor->httpStatus,
+            $this->messages($descriptor, $throwable, $message),
+        ));
+    }
+
+    /**
+     * One message per validation violation, otherwise one for the failure itself.
+     *
+     * Every message carries `code` and `severity`, which `types/message_error.json`
+     * requires and which only two of these exception types used to supply.
+     *
+     * @return list<array<string, string>>
+     */
+    private function messages(UcpErrorDescriptor $descriptor, \Throwable $throwable, string $message): array
+    {
+        if ($throwable instanceof ValidationException && $throwable->getViolations() !== []) {
+            return array_map(
+                static fn (string $violation): array => $descriptor->toMessage($violation)->toArray(),
+                $throwable->getViolations(),
+            );
+        }
+
+        return [$descriptor->toMessage($message)->toArray()];
     }
 
     private function isUcpRequest(Request $request): bool
