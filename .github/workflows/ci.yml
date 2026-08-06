@@ -62,38 +62,79 @@ jobs:
       # 8.2-only syntax (e.g. readonly classes) creeping back in.
       - name: Lint published sources on PHP 8.1
         run: docker compose run --rm php sh -c 'find packages/core/src packages/symfony-bundle/src -name "*.php" -print0 | xargs -0 -n1 php -l'
+  # Two questions, and only one of them belongs to a pull request:
+  #
+  #   * does THIS pull request break compatibility?     -> blocking, baseline = target branch
+  #   * has anything broken since the last release?     -> notice, baseline = newest tag
+  #
+  # They were one step against the newest tag, which meant a break already merged on the base
+  # branch failed every subsequent pull request — #114's intentional, documented break did
+  # exactly that to #118 the moment the check started working. The second question is a
+  # release question: pre-1.0 breaks are allowed, so its answer belongs in the changelog and
+  # the version bump, not in a merge gate.
   bc:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # For the since-the-last-release comment below. The workflow default is read-only.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
-      - name: Resolve BC baseline tag
+      - name: Build PHP container
+        run: docker compose build php
+      - name: Install dependencies
+        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh install
+      # Via the script, not the checker directly: Roave analyses the *root* package's
+      # sources, and this root declares no autoload, so the direct invocation compared
+      # nothing and passed unconditionally (#115). scripts/bc-check.sh compares each
+      # published package as what it is published as — its own repository.
+      #
+      # The baseline is the branch this pull request targets, so the finding is the pull
+      # request's own. HEAD already contains the base branch because `actions/checkout`
+      # checks out the merge ref for `pull_request` events — if that is ever pinned to the
+      # head SHA, this has to become `git merge-base origin/${{ github.base_ref }} HEAD`.
+      - name: Backward compatibility check (this pull request)
+        run: docker compose run --rm php sh scripts/bc-check.sh "origin/${{ github.base_ref }}"
+      - name: Resolve the newest release tag
         id: baseline
         run: |
           tag="$(git tag --merged "origin/${{ github.base_ref }}" --sort=-v:refname | head -n 1)"
 
           if [ -z "$tag" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "No release tag found yet on origin/${{ github.base_ref }}. Skipping BC check."
+            echo "No release tag on origin/${{ github.base_ref }} yet; nothing to compare a release against."
             exit 0
           fi
 
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "Using BC baseline tag: $tag"
-      - name: Build PHP container
+          echo "Newest release tag: $tag"
+      # Advisory, in the same spirit as the 8.5 test lane: a real signal that must not block
+      # unrelated pull requests. `|| true` as well as continue-on-error, so the log is
+      # captured for the comment either way.
+      - name: Backward compatibility since the last release
+        id: since_release
         if: steps.baseline.outputs.skip != 'true'
-        run: docker compose build php
-      - name: Install dependencies
-        if: steps.baseline.outputs.skip != 'true'
-        run: docker compose run --rm php sh scripts/run-composer-in-ci.sh install
-      # Via the script, not the checker directly: Roave analyses the *root* package's
-      # sources, and this root declares no autoload, so the direct invocation compared
-      # nothing and passed unconditionally (#115). scripts/bc-check.sh compares each
-      # published package as what it is published as — its own repository.
-      - name: Backward compatibility check
-        if: steps.baseline.outputs.skip != 'true'
-        run: docker compose run --rm php sh scripts/bc-check.sh "${{ steps.baseline.outputs.tag }}"
+        continue-on-error: true
+        run: |
+          docker compose run --rm php sh scripts/bc-check.sh "${{ steps.baseline.outputs.tag }}" \
+            > bc-since-release.log 2>&1 || true
+          cat bc-since-release.log
+      # One comment, edited in place on every re-run. Keyed by a hidden marker rather than
+      # `gh pr comment --edit-last`, which edits whatever the actor commented last.
+      # Skipped for forks: their token is read-only, and a comment that cannot be posted must
+      # not read as a failed check.
+      - name: Comment the release-compatibility notice
+        if: |
+          steps.baseline.outputs.skip != 'true'
+          && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          TAG: ${{ steps.baseline.outputs.tag }}
+        run: sh scripts/comment-bc-since-release.sh bc-since-release.log

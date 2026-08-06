@@ -8,6 +8,9 @@ Current scripts:
 - `require-check.sh` reports dependencies a published package uses but does not declare, by
   installing each package on its own. The mirror of `composer unused-deps`, which only sees the
   opposite direction (#117).
+- `comment-bc-since-release.sh` posts, and on re-runs edits, the single pull-request comment
+  listing what has broken since the last release. A notice: pre-1.0 breaks are permitted, so
+  they belong in the changelog rather than in a failed check.
 - `bc-check.sh <baseline-ref> [<current-ref>]` runs the backward-compatibility check per
   published package. It exists because the checker analyses the *root* package's sources and
   this root has no `autoload`, so calling the tool directly reports nothing on any change
