@@ -16,6 +16,9 @@ jobs:
   qa:
     runs-on: ubuntu-latest
     env:
+      # Reaches the container only because docker-compose.yml declares MUTATION_THREADS in its
+      # `environment:` map -- Compose does not forward undeclared host variables. See the same note
+      # in ci.yml.
       MUTATION_THREADS: '4'
     steps:
       - uses: actions/checkout@v7

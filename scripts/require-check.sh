@@ -23,6 +23,23 @@ checker="${repo}/vendor/bin/composer-require-checker"
 config="${repo}/composer-require-checker.json"
 status=0
 
+# The version the root composer.json forces on the path repositories, read rather than
+# repeated: it moves with every release, and a copy here would be one more place for this
+# repository to disagree with itself. A hardcoded literal is exactly what broke when 0.0.5
+# raised the bundle's floor on core.
+# shellcheck disable=SC2016
+core_version="$(php -r '
+    $root = json_decode(file_get_contents($argv[1] . "/composer.json"), true, 512, JSON_THROW_ON_ERROR);
+    foreach ($root["repositories"] ?? [] as $repository) {
+        if (isset($repository["options"]["versions"]["ucp-php-sdk/core"])) {
+            echo $repository["options"]["versions"]["ucp-php-sdk/core"];
+            return;
+        }
+    }
+    fwrite(STDERR, "the root composer.json forces no ucp-php-sdk/core version\n");
+    exit(1);
+' "${repo}")"
+
 for package in core symfony-bundle; do
     printf '\n=== %s ===\n' "${package}"
 
@@ -31,7 +48,7 @@ for package in core symfony-bundle; do
 
     if [ "${package}" != "core" ]; then
         composer --working-dir="${work}" --quiet config repositories.core \
-            "{\"type\": \"path\", \"url\": \"${repo}/packages/core\", \"options\": {\"symlink\": false, \"versions\": {\"ucp-php-sdk/core\": \"0.0.4\"}}}"
+            "{\"type\": \"path\", \"url\": \"${repo}/packages/core\", \"options\": {\"symlink\": false, \"versions\": {\"ucp-php-sdk/core\": \"${core_version}\"}}}"
     fi
 
     composer --working-dir="${work}" --quiet --no-interaction install --no-scripts

@@ -15,5 +15,15 @@ Current scripts:
   published package. It exists because the checker analyses the *root* package's sources and
   this root has no `autoload`, so calling the tool directly reports nothing on any change
   (#115). Compares refs, not the working tree.
+- `run-infection.sh` is the single funnel every mutation entry point execs into (`composer mutation`,
+  `mutation:changed`, `mutation:gate`, `mutation:full`, `mutation:security`). It exists to supply the
+  two ini settings this container has no `php.ini` to carry — `pcov.enabled=1` for coverage and
+  `memory_limit=512M` for Infection's teardown — to resolve `MUTATION_THREADS` without clobbering a
+  `--threads` the caller passed, and to echo both so a log always records what actually took effect.
+- `run-mutation-changed.sh` is `run-infection.sh` plus Infection's git-diff filtering against
+  `MUTATION_BASE` (default `origin/main`), narrowing a run to changed files and their covering tests.
+- `run-composer-in-ci.sh` marks `/workspace` a safe git directory, then execs `composer`. CI calls it
+  instead of `composer` directly because the repo is bind-mounted and owned by a different user than
+  the container's root, which makes git refuse to operate on it.
 
-For technical notes about why the script is intentionally small, see [AGENTS.md](AGENTS.md).
+For technical notes about why the scripts are intentionally small, see [AGENTS.md](AGENTS.md).
