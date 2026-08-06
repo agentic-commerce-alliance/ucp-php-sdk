@@ -255,9 +255,11 @@ Dead-code rules:
 - Hard gates focus on `Ucp\Sdk\Internal`, bundle bridge and listener code, runtime commands and controllers, and the realistic merchant example.
 - The allowlist for internal reference scanning lives in [tools/internal-class-allowlist.php](tools/internal-class-allowlist.php).
 - The default mutation gate is intentionally fast. It targets protocol-critical classes first instead of the wider runtime tree while keeping a hard floor of `79%` MSI and `79%` covered MSI.
-- Local mutation runs default to `7` Infection workers through `MUTATION_THREADS`. CI and release workflows pin `MUTATION_THREADS=4`.
+- Local mutation runs default to `7` Infection workers through `MUTATION_THREADS`. CI and release workflows pin `MUTATION_THREADS=4`, matching the runner's 4 vCPUs. Over-subscribing is not merely slower: Infection counts a timed-out mutant as detected, so it inflates the MSI the gate enforces.
+- `MUTATION_THREADS` and `MUTATION_BASE` reach the container only because `docker-compose.yml` declares them in its `environment:` map. Compose does not forward host variables it has not been told about, so a workflow `env:` entry without a matching line there is silently ignored — which is how the `4` pin read as true in four documents while CI ran `7`.
+- `scripts/run-infection.sh` runs Infection with `-d memory_limit=512M`. The container ships no `php.ini`, so the compiled-in `128M` default would otherwise apply, and Infection's teardown hands the whole mutant `tmpDir` to Symfony's `Filesystem::remove()` — a 96MB spike for 4000 mutant directories, landing *after* the sweep has produced its verdict. The full sweep was peaking at exactly `128M`, so teardown turned a passing sweep into `exit 255` at random. The limit is finite rather than `-1` so that a real leak still fails as a PHP fatal naming a file and line.
 - For local work, prefer `composer mutation:changed`. It uses Infection's git-diff filtering against `origin/main` by default and narrows execution to changed files plus related tests.
-- Override the worker count per run with `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation` when needed.
+- Override the worker count per run with `MUTATION_THREADS=4 docker compose run --rm php composer mutation`, or per container with `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation`.
 - Use `composer mutation:full` for the slower broader manual sweep when changing wide parts of the runtime.
 
 Test style:

@@ -42,7 +42,7 @@ docker compose run --rm php composer mutation:changed
 docker compose run --rm php composer public-api:check
 ```
 
-Mutation commands default to `7` workers locally. Override with `MUTATION_THREADS`, for example `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation:full`.
+Mutation commands default to `7` workers locally. Override with `MUTATION_THREADS`, either as a host variable (`MUTATION_THREADS=4 docker compose run --rm php composer mutation:full`) or explicitly per container (`docker compose run --rm -e MUTATION_THREADS=4 php composer mutation:full`).
 
 Validate package manifests:
 

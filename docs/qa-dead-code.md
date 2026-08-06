@@ -113,7 +113,13 @@ For a deeper manual run across the broader historical scope, use:
 docker compose run --rm php composer mutation:full
 ```
 
-Local mutation commands default to `7` workers. Override that with `MUTATION_THREADS`, for example `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation`. CI and release workflows pin the broader sweep to `4` workers for stable runtime.
+Local mutation commands default to `7` workers. Override that with `MUTATION_THREADS`, either as a host variable (`MUTATION_THREADS=4 docker compose run --rm php composer mutation`) or explicitly per container (`docker compose run --rm -e MUTATION_THREADS=4 php composer mutation`). CI and release workflows pin the broader sweep to `4` workers, matching the runner's 4 vCPUs — over-subscribing produces mutant timeouts, and Infection counts a timeout as detected, so it inflates the MSI the gate enforces.
+
+`MUTATION_THREADS` and `MUTATION_BASE` reach the container only because `docker-compose.yml` declares them in its `environment:` map. Compose does not forward host variables it has not been told about, so a variable added to a workflow's `env:` without a matching line there is silently ignored.
+
+`scripts/run-infection.sh` raises the Infection process to `512M`. The image ships no `php.ini`, so PHP's compiled-in `128M` default would otherwise apply, and Infection's teardown — which hands the entire mutant `tmpDir` to Symfony's `Filesystem::remove()` — peaks at 96MB on its own for 4000 mutant directories. That spike lands after the sweep has already produced its verdict, so with no headroom a passing sweep still exited non-zero.
+
+Infection cleans its `tmpDir` itself after a successful run. After a run you interrupted or that crashed, clear the residue with `rm -rf var/infection*`, otherwise the next run hands a larger tree to that same teardown.
 
 ## Mutation Gate
 

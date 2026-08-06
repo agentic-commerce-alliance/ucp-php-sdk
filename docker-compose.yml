@@ -10,6 +10,14 @@ x-php-base: &php-base
   environment: &php-environment
     COMPOSER_HOME: /tmp/composer
     XDG_CACHE_HOME: /tmp/cache
+    # Compose forwards only variables declared here. Without these two lines the job-level
+    # `env: MUTATION_THREADS: '4'` in .github/workflows/{ci,release}.yml reached the runner but never
+    # the container, so scripts/run-infection.sh silently fell back to its local default of 7 while
+    # four documents asserted the pin worked. Deleting a line here restores that bug in a file the
+    # workflow does not mention. The empty default keeps the scripts' `${VAR:-fallback}` intact,
+    # since POSIX `:-` treats empty and unset alike.
+    MUTATION_THREADS: ${MUTATION_THREADS:-}
+    MUTATION_BASE: ${MUTATION_BASE:-}
 
 services:
   php:

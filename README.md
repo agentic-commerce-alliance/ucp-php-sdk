@@ -114,7 +114,7 @@ docker compose run --rm php composer mutation:security
 
 `composer qa` now enforces both the internal coverage gate and the fast scoped mutation gate. Use `composer mutation:changed` for a fast local diff-based mutation run over changed files and related tests, and `composer mutation:full` for the slower broad sweep.
 
-Mutation runs use a fixed local default of `7` Infection workers. Override that per run with `MUTATION_THREADS`, for example `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation:full`. CI and release workflows pin `MUTATION_THREADS=4`.
+Mutation runs use a fixed local default of `7` Infection workers. Override that per run with `MUTATION_THREADS`, for example `docker compose run --rm -e MUTATION_THREADS=4 php composer mutation:full`. CI and release workflows pin `MUTATION_THREADS=4` to match the runner's 4 vCPUs. Mutation runs also raise the Infection process to `512M`, since the container ships no `php.ini` and Infection's teardown needs more headroom than PHP's `128M` default leaves.
 
 ## Runtime Defaults
 

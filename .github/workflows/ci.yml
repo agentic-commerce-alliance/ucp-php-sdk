@@ -23,6 +23,11 @@ jobs:
       matrix:
         php: ['8.2', '8.3', '8.4', '8.5']
     env:
+      # Reaches the container only because docker-compose.yml declares MUTATION_THREADS in its
+      # `environment:` map -- Compose does not forward undeclared host variables. This pin was a
+      # no-op until that declaration existed, and CI really ran the script's local default of 7 on a
+      # 4-vCPU runner. That is not only slower: Infection counts a timed-out mutant as detected, so
+      # over-subscribing the runner inflates the very MSI the gate enforces.
       MUTATION_THREADS: '4'
       PHP_VERSION: ${{ matrix.php }}
     steps:
