@@ -225,13 +225,15 @@ Projects may also skip the adapter layer and register a direct `CatalogCapabilit
 - Style: `docker compose run --rm php composer cs:check`
 - Metrics: `docker compose run --rm php composer metrics:pdepend`
 - Public API snapshot: `docker compose run --rm php composer public-api:check`
-- Backward compatibility: `docker compose run --rm php composer bc-check`, or
-  `sh scripts/bc-check.sh <baseline-ref>` for a specific baseline. CI's `bc` job runs the
-  same script from the newest release tag. It compares **refs, not the working tree**, so
-  commit before trusting a clean result. Do not call
-  `vendor/bin/roave-backward-compatibility-check` at the repo root — Roave analyses the root
-  package's sources, this root has no `autoload`, and the direct invocation therefore reports
-  nothing on any change (#115).
+- Backward compatibility: `docker compose run --rm php composer bc-check` (HEAD^..HEAD), or
+  `sh scripts/bc-check.sh <baseline-ref>` for any baseline. **The baseline is the question.** CI
+  asks both: against the pull request's target branch, which blocks, because a break introduced
+  here is this change's own; and against the newest release tag, which only comments (see
+  `scripts/comment-bc-since-release.sh`), because a pre-1.0 break is allowed and needs a
+  CHANGELOG entry rather than a red check. Compares refs, not the working tree, so commit
+  first. Do not call `vendor/bin/roave-backward-compatibility-check` at the repo root — Roave
+  analyses the root package's sources, this root has no `autoload`, and the direct invocation
+  therefore reports nothing on any change (#115).
 - Coverage: `docker compose run --rm php composer coverage`
 - Internal coverage summary: `docker compose run --rm php composer coverage:internal`
 - Coverage hard gate: `docker compose run --rm php composer coverage:gate`
