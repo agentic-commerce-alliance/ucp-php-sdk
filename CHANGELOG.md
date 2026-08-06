@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- `ucp-php-sdk/symfony-bundle` now requires the four packages its `src/` uses directly and did not declare: `symfony/console` (35 use statements — the six signing-key commands extend `Symfony\Component\Console\Command\Command`), `psr/log`, `symfony/event-dispatcher-contracts` and `symfony/http-client-contracts`. They arrived transitively via `symfony/framework-bundle`, which does not hard-require console: installing the bundle on its own produced `Class "Symfony\Component\Console\Command\Command" not found` as soon as a command was autoloaded ([#117](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/117))
+
 ## 0.0.4 - 2026-08-05
 
 ### Added
