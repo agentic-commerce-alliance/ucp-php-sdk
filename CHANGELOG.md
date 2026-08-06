@@ -7,6 +7,14 @@
 - Both packages now declare the PHP extensions their sources call: `ext-openssl` (signing and key handling in each), plus `ext-filter`, `ext-iconv` and `ext-mbstring` in `core`. Found by the new used-but-undeclared check on its first run ([#119](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/119))
 - `ucp-php-sdk/symfony-bundle` now requires the four packages its `src/` uses directly and did not declare: `symfony/console` (35 use statements — the six signing-key commands extend `Symfony\Component\Console\Command\Command`), `psr/log`, `symfony/event-dispatcher-contracts` and `symfony/http-client-contracts`. They arrived transitively via `symfony/framework-bundle`, which does not hard-require console: installing the bundle on its own produced `Class "Symfony\Component\Console\Command\Command" not found` as soon as a command was autoloaded ([#117](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/117))
 
+### Changed
+
+- `oneOf` and `anyOf` validation failures now say what rejected the payload. When no branch matched, each branch's own first violations are reported — closest branch first, named by the schema's `title` (`"Checkout"`, `"Shipping Destination"`) — and when several matched, the count and the names of the ones that did. The previous message, `$ must match exactly one allowed schema.`, was identical for both, and they need opposite fixes: add the field a branch wants, or remove the field that makes a second branch match ([#114](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/114))
+
+### Changed (breaking)
+
+- `OrderConfirmation::$permalinkUrl` is now required and non-nullable. `types/order_confirmation.json` marks both `id` and `permalink_url` required, so an order confirmation without a permalink can never produce a valid response — while the optional-and-filtered property made that the easiest object to build, and the failure surfaced as an opaque schema error on the *business's own* response. Consumers that relied on the default now get a type error where they construct it ([#114](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/114))
+
 ## 0.0.4 - 2026-08-05
 
 ### Added

@@ -10,6 +10,14 @@ use Ucp\Sdk\Service\SchemaValidatorInterface;
 /** @internal */
 final class GeneratedSchemaValidator implements SchemaValidatorInterface
 {
+    /**
+     * How many of a rejected branch's own violations to quote.
+     *
+     * Enough to name the field, short enough that the message stays readable when a
+     * branch rejects on many at once.
+     */
+    private const BRANCH_REASON_LIMIT = 3;
+
     /** @var array<string, array<string, mixed>> */
     private array $schemaCache = [];
 
@@ -47,41 +55,38 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
         }
 
         if (isset($schema['anyOf']) && is_array($schema['anyOf'])) {
-            $matched = false;
-            foreach ($schema['anyOf'] as $subSchema) {
-                if (! is_array($subSchema)) {
-                    continue;
-                }
+            $branches = $this->validateBranches($value, $schema['anyOf'], $path, $rootSchema);
 
-                $candidateViolations = [];
-                $this->validateValue($value, $subSchema, $path, $candidateViolations, $rootSchema);
-                if ($candidateViolations === []) {
-                    $matched = true;
-                    break;
-                }
-            }
-
-            if (! $matched) {
+            if ($branches['matched'] === []) {
                 $violations[] = sprintf('%s must match at least one allowed schema.', $path);
+                foreach ($this->branchReasons($path, $branches['rejected']) as $reason) {
+                    $violations[] = $reason;
+                }
             }
         }
 
         if (isset($schema['oneOf']) && is_array($schema['oneOf'])) {
-            $matches = 0;
-            foreach ($schema['oneOf'] as $subSchema) {
-                if (! is_array($subSchema)) {
-                    continue;
-                }
+            $branches = $this->validateBranches($value, $schema['oneOf'], $path, $rootSchema);
+            $matched = $branches['matched'];
 
-                $candidateViolations = [];
-                $this->validateValue($value, $subSchema, $path, $candidateViolations, $rootSchema);
-                if ($candidateViolations === []) {
-                    ++$matches;
-                }
-            }
-
-            if ($matches !== 1) {
+            if (count($matched) !== 1) {
                 $violations[] = sprintf('%s must match exactly one allowed schema.', $path);
+
+                if ($matched === []) {
+                    foreach ($this->branchReasons($path, $branches['rejected']) as $reason) {
+                        $violations[] = $reason;
+                    }
+                } else {
+                    // Ambiguity reads nothing like absence, and the fix is the opposite:
+                    // remove what makes a second branch match, rather than add what a
+                    // missing one wants.
+                    $violations[] = sprintf(
+                        '%s matches %d allowed schemas (%s) and must match exactly one.',
+                        $path,
+                        count($matched),
+                        implode(', ', $matched),
+                    );
+                }
             }
         }
 
@@ -331,6 +336,97 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
         if (isset($schema['exclusiveMaximum']) && is_numeric($schema['exclusiveMaximum']) && $value >= $schema['exclusiveMaximum']) {
             $violations[] = sprintf('%s must be less than %s', $path, (string) $schema['exclusiveMaximum']);
         }
+    }
+
+    /**
+     * Validates a value against every branch of a combinator, keeping the reasons.
+     *
+     * The reasons are the whole point. A branch's violations were already computed
+     * here and then discarded, so `anyOf`/`oneOf` failures reported only that
+     * something did not line up — never what. Two of those cost days on the same
+     * project: a `destinations[]` item that matched two branches (read as "the
+     * schema is unsatisfiable") and a checkout response missing one required field
+     * inside one branch (read as anything but that).
+     *
+     * @param array<array-key, mixed> $subSchemas the combinator's branches, keyed as the schema has them
+     * @param array<string, mixed> $rootSchema
+     * @return array{matched: list<string>, rejected: array<string, list<string>>} branch labels, and why each rejected branch did
+     */
+    private function validateBranches(mixed $value, array $subSchemas, string $path, array $rootSchema): array
+    {
+        $matched = [];
+        $rejected = [];
+
+        foreach ($subSchemas as $index => $subSchema) {
+            if (! is_array($subSchema)) {
+                continue;
+            }
+
+            $label = $this->branchLabel($subSchema, $index, $rootSchema);
+            $candidateViolations = [];
+            $this->validateValue($value, $subSchema, $path, $candidateViolations, $rootSchema);
+
+            if ($candidateViolations === []) {
+                $matched[] = $label;
+
+                continue;
+            }
+
+            $rejected[$label] = $candidateViolations;
+        }
+
+        return ['matched' => $matched, 'rejected' => $rejected];
+    }
+
+    /**
+     * One violation per rejected branch, carrying that branch's own first reasons.
+     *
+     * Capped rather than exhaustive: a deep `oneOf` can reject on dozens of fields
+     * per branch, and a message nobody reads to the end is the problem this is
+     * fixing. The first few name the field to look at, which is what was missing.
+     *
+     * @param array<string, list<string>> $rejected
+     * @return list<string>
+     */
+    private function branchReasons(string $path, array $rejected): array
+    {
+        $reasons = [];
+
+        // Closest branch first: with a `oneOf` over shapes that share most of their
+        // fields, the branch that rejected on one field is the one the payload was
+        // trying to be, and the others are noise a reader has to skip past.
+        uasort($rejected, static fn (array $left, array $right): int => count($left) <=> count($right));
+
+        foreach ($rejected as $label => $branchViolations) {
+            $shown = array_slice($branchViolations, 0, self::BRANCH_REASON_LIMIT);
+            $suffix = count($branchViolations) > self::BRANCH_REASON_LIMIT
+                ? sprintf(' (+%d more)', count($branchViolations) - self::BRANCH_REASON_LIMIT)
+                : '';
+
+            $reasons[] = sprintf('%s does not match %s: %s%s', $path, $label, implode('; ', $shown), $suffix);
+        }
+
+        return $reasons;
+    }
+
+    /**
+     * A branch's `title` when the schema carries one, its index otherwise.
+     *
+     * The generated schemas do carry titles — "Checkout", "Error Response",
+     * "Shipping Destination", "Retail Location" — and those names are what the
+     * specification calls the shapes, so they point a reader at the right section
+     * rather than at a position in an array they cannot see.
+     *
+     * @param array<string, mixed> $subSchema
+     * @param array<string, mixed> $rootSchema
+     */
+    private function branchLabel(array $subSchema, int|string $index, array $rootSchema): string
+    {
+        $title = $this->resolveSchema($subSchema, $rootSchema)['title'] ?? null;
+
+        return is_string($title) && $title !== ''
+            ? sprintf('"%s"', $title)
+            : sprintf('branch %s', (string) $index);
     }
 
     /**

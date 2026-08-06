@@ -231,7 +231,7 @@ class Ucp\Sdk\Model\Checkout\DiscountCode
 class Ucp\Sdk\Model\Checkout\FulfillmentSelection
   - __construct(string $type, ?string $methodId = null, array $extra = [])
 class Ucp\Sdk\Model\Checkout\OrderConfirmation
-  - __construct(string $id, ?string $permalinkUrl = null)
+  - __construct(string $id, string $permalinkUrl)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\PaymentInstrument
   - __construct(string $type, string $handlerId, array $credential = [], array $billingAddress = [])

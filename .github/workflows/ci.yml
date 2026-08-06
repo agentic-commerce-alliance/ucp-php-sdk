@@ -90,6 +90,10 @@ jobs:
       - name: Install dependencies
         if: steps.baseline.outputs.skip != 'true'
         run: docker compose run --rm php sh scripts/run-composer-in-ci.sh install
+      # Via the script, not the checker directly: Roave analyses the *root* package's
+      # sources, and this root declares no autoload, so the direct invocation compared
+      # nothing and passed unconditionally (#115). scripts/bc-check.sh compares each
+      # published package as what it is published as — its own repository.
       - name: Backward compatibility check
         if: steps.baseline.outputs.skip != 'true'
-        run: docker compose run --rm php vendor/bin/roave-backward-compatibility-check --from="${{ steps.baseline.outputs.tag }}" --to=HEAD
+        run: docker compose run --rm php sh scripts/bc-check.sh "${{ steps.baseline.outputs.tag }}"

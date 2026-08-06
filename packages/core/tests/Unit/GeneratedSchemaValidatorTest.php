@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
+use Ucp\Sdk\Model\Checkout\OrderConfirmation;
 
 final class GeneratedSchemaValidatorTest extends TestCase
 {
@@ -278,6 +279,88 @@ final class GeneratedSchemaValidatorTest extends TestCase
                 'description' => [],
             ],
         ]);
+    }
+
+    public function testAFailedOneOfNamesTheBranchAndTheFieldItRejectedOn(): void
+    {
+        // Measured against a real consumer: a completed checkout whose `order` was
+        // missing the required `permalink_url`. The response reported only that the
+        // root "must match exactly one allowed schema", and finding the one absent
+        // field inside one branch took hours.
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        try {
+            // Built through the model, so the payload is what a consumer actually
+            // sends — and `OrderConfirmation` now refuses to be built without the
+            // permalink, so the field has to be removed here to reproduce it.
+            $order = (new OrderConfirmation('order-1', 'https://merchant.example/orders/order-1'))->toArray();
+            unset($order['permalink_url']);
+
+            $validator->validate('checkout.complete.response', [
+                ...$this->validCheckoutResponse(),
+                'status' => 'completed',
+                'order' => $order,
+            ]);
+            self::fail('An order confirmation without permalink_url must not validate.');
+        } catch (ValidationException $exception) {
+            $violations = implode("\n", $exception->getViolations());
+
+            self::assertStringContainsString('must match exactly one allowed schema', $violations);
+            // The two additions: which branch was meant, and what it wanted.
+            self::assertStringContainsString('"Checkout"', $violations);
+            self::assertStringContainsString('permalink_url is required', $violations);
+        }
+    }
+
+    public function testAnAmbiguousOneOfSaysWhichSchemasMatched(): void
+    {
+        // The opposite failure, and it reads identically without this: a destination
+        // carrying both `id` and `name` satisfies shipping_destination AND
+        // retail_location. The message used to be the same "exactly one" line, and it
+        // was read as the schema being unsatisfiable — the fix is to remove a field,
+        // not to add one.
+        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+
+        try {
+            $validator->validate('checkout.update.request', [
+                'id' => 'checkout-1',
+                'fulfillment' => [
+                    'methods' => [[
+                        'type' => 'shipping',
+                        'line_item_ids' => ['line-1'],
+                        'destinations' => [['id' => 'destination-1', 'name' => 'Berlin Store']],
+                    ]],
+                ],
+            ]);
+            self::fail('A destination matching two branches must not validate.');
+        } catch (ValidationException $exception) {
+            $violations = implode("\n", $exception->getViolations());
+
+            self::assertStringContainsString('matches 2 allowed schemas', $violations);
+            self::assertStringContainsString('Retail Location', $violations);
+        }
+    }
+
+    public function testABranchWithoutATitleIsNamedByItsIndex(): void
+    {
+        $directory = $this->createTemporarySchemaDirectory();
+        file_put_contents($directory . '/custom.json', json_encode([
+            'type' => 'object',
+            'oneOf' => [
+                ['type' => 'object', 'required' => ['a']],
+                ['type' => 'object', 'required' => ['b']],
+            ],
+        ], \JSON_THROW_ON_ERROR));
+
+        try {
+            (new GeneratedSchemaValidator($directory))->validate('custom', ['c' => 1]);
+            self::fail('Neither branch is satisfied.');
+        } catch (ValidationException $exception) {
+            $violations = implode("\n", $exception->getViolations());
+
+            self::assertStringContainsString('does not match branch 0: $.a is required', $violations);
+            self::assertStringContainsString('does not match branch 1: $.b is required', $violations);
+        }
     }
 
     private function createTemporarySchemaDirectory(): string
