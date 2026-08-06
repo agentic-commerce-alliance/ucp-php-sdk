@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
+use Ucp\Sdk\Model\Checkout\OrderConfirmation;
 
 final class GeneratedSchemaValidatorTest extends TestCase
 {
@@ -289,10 +290,16 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
 
         try {
+            // Built through the model, so the payload is what a consumer actually
+            // sends — and `OrderConfirmation` now refuses to be built without the
+            // permalink, so the field has to be removed here to reproduce it.
+            $order = (new OrderConfirmation('order-1', 'https://merchant.example/orders/order-1'))->toArray();
+            unset($order['permalink_url']);
+
             $validator->validate('checkout.complete.response', [
                 ...$this->validCheckoutResponse(),
                 'status' => 'completed',
-                'order' => ['id' => 'order-1'],
+                'order' => $order,
             ]);
             self::fail('An order confirmation without permalink_url must not validate.');
         } catch (ValidationException $exception) {

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- `oneOf` and `anyOf` validation failures now say what rejected the payload. When no branch matched, each branch's own first violations are reported — closest branch first, named by the schema's `title` (`"Checkout"`, `"Shipping Destination"`) — and when several matched, the count and the names of the ones that did. The previous message, `$ must match exactly one allowed schema.`, was identical for both, and they need opposite fixes: add the field a branch wants, or remove the field that makes a second branch match ([#XXX](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/XXX))
+
+### Changed (breaking)
+
+- `OrderConfirmation::$permalinkUrl` is now required and non-nullable. `types/order_confirmation.json` marks both `id` and `permalink_url` required, so an order confirmation without a permalink can never produce a valid response — while the optional-and-filtered property made that the easiest object to build, and the failure surfaced as an opaque schema error on the *business's own* response. Consumers that relied on the default now get a type error where they construct it ([#XXX](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/XXX))
+
 ## 0.0.4 - 2026-08-05
 
 ### Added
