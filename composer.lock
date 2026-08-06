@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d8939b8ce02e84f9e7105e8843532594",
+    "content-hash": "5dba7418bef6230ef760d00e361d4e14",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -4927,6 +4927,89 @@
                 "source": "https://github.com/jsonrainbow/json-schema/tree/6.8.2"
             },
             "time": "2026-05-05T05:39:01+00:00"
+        },
+        {
+            "name": "maglnet/composer-require-checker",
+            "version": "4.18.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/maglnet/ComposerRequireChecker.git",
+                "reference": "de930e82bb61e0161d909696950692523b8eaa3f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/maglnet/ComposerRequireChecker/zipball/de930e82bb61e0161d909696950692523b8eaa3f",
+                "reference": "de930e82bb61e0161d909696950692523b8eaa3f",
+                "shasum": ""
+            },
+            "require": {
+                "azjezz/psl": "^3.2.0",
+                "composer-runtime-api": "^2.0.0",
+                "ext-phar": "*",
+                "nikic/php-parser": "^5.4.0",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+                "symfony/console": "^7.2.1",
+                "webmozart/glob": "^4.7.0"
+            },
+            "require-dev": {
+                "doctrine/coding-standard": "^14.0.0",
+                "ext-zend-opcache": "*",
+                "phing/phing": "^3.0.1",
+                "php-standard-library/phpstan-extension": "^2.0",
+                "php-standard-library/psalm-plugin": "^2.3",
+                "phpstan/phpstan": "^2.1.19",
+                "phpunit/phpunit": "^11.5.27",
+                "psalm/plugin-phpunit": "^0.19.5",
+                "roave/infection-static-analysis-plugin": "^1.38.0",
+                "spatie/temporary-directory": "^2.3.0",
+                "vimeo/psalm": "^6.13.0"
+            },
+            "bin": [
+                "bin/composer-require-checker"
+            ],
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.1-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "ComposerRequireChecker\\": "src/ComposerRequireChecker"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Marco Pivetta",
+                    "email": "ocramius@gmail.com",
+                    "homepage": "http://ocramius.github.io/"
+                },
+                {
+                    "name": "Matthias Glaub",
+                    "email": "magl@magl.net",
+                    "homepage": "http://magl.net"
+                }
+            ],
+            "description": "CLI tool to analyze composer dependencies and verify that no unknown symbols are used in the sources of a package",
+            "homepage": "https://github.com/maglnet/ComposerRequireChecker",
+            "keywords": [
+                "cli",
+                "composer",
+                "dependency",
+                "imports",
+                "require",
+                "requirements",
+                "static analysis"
+            ],
+            "support": {
+                "issues": "https://github.com/maglnet/ComposerRequireChecker/issues",
+                "source": "https://github.com/maglnet/ComposerRequireChecker/tree/4.18.0"
+            },
+            "time": "2025-10-30T11:58:39+00:00"
         },
         {
             "name": "marc-mabe/php-enum",

@@ -229,7 +229,12 @@ Projects may also skip the adapter layer and register a direct `CatalogCapabilit
 - Internal coverage summary: `docker compose run --rm php composer coverage:internal`
 - Coverage hard gate: `docker compose run --rm php composer coverage:gate`
 - Dead code gate: `docker compose run --rm php composer dead-code`
-- Unused dependencies: `docker compose run --rm php composer unused-deps`
+- Unused dependencies: `docker compose run --rm php composer unused-deps` (declared but not used)
+- **Undeclared** dependencies: `docker compose run --rm php composer require-check` (used but not
+  declared — the other direction, and the one that let the bundle ship six commands extending
+  `Symfony\Component\Console\Command\Command` without requiring symfony/console, #117). It
+  installs each package on its own, because checking at the root would measure the monorepo's
+  dev requirements instead of what a consumer gets.
 - Mutation report and gate: `docker compose run --rm php composer mutation`
 - Local diff-based mutation run: `docker compose run --rm php composer mutation:changed`
 - Explicit mutation gate target: `docker compose run --rm php composer mutation:gate`
