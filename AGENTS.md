@@ -28,7 +28,7 @@ consume the SDK.
 ## Core Decisions
 
 - License for repo-owned Composer packages is `MIT`.
-- Current release track is `0.0.4`.
+- Current release track is `0.0.5`.
 - Composer package names are:
   - `ucp-php-sdk/monorepo`
   - `ucp-php-sdk/core`

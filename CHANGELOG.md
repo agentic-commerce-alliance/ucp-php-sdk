@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.0.5 - 2026-08-06
+
 ### Fixed
 
 - Both packages now declare the PHP extensions their sources call: `ext-openssl` (signing and key handling in each), plus `ext-filter`, `ext-iconv` and `ext-mbstring` in `core`. Found by the new used-but-undeclared check on its first run ([#119](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/119))
