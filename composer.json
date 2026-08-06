@@ -127,7 +127,7 @@
         ],
         "public-api:dump": "php tools/build-public-api-snapshot.php",
         "public-api:check": "php tools/check-public-api-snapshot.php",
-        "bc-check": "vendor/bin/roave-backward-compatibility-check --from=HEAD^ --to=HEAD"
+        "bc-check": "sh scripts/bc-check.sh HEAD^ HEAD"
     },
     "config": {
         "sort-packages": true,
