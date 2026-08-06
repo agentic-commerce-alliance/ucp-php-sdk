@@ -40,6 +40,23 @@ repo="$(git rev-parse --show-toplevel)"
 checker="${repo}/vendor/bin/roave-backward-compatibility-check"
 status=0
 
+# The version the root composer.json forces on the path repositories, read rather than
+# repeated: it moves with every release, and a copy here would be one more place for this
+# repository to disagree with itself. A hardcoded literal is exactly what broke when 0.0.5
+# raised the bundle's floor on core.
+# shellcheck disable=SC2016
+core_version="$(php -r '
+    $root = json_decode(file_get_contents($argv[1] . "/composer.json"), true, 512, JSON_THROW_ON_ERROR);
+    foreach ($root["repositories"] ?? [] as $repository) {
+        if (isset($repository["options"]["versions"]["ucp-php-sdk/core"])) {
+            echo $repository["options"]["versions"]["ucp-php-sdk/core"];
+            return;
+        }
+    }
+    fwrite(STDERR, "the root composer.json forces no ucp-php-sdk/core version\n");
+    exit(1);
+' "${repo}")"
+
 for package in core symfony-bundle; do
     printf '\n=== %s: %s -> %s ===\n' "${package}" "${baseline}" "${current}"
 
@@ -79,12 +96,31 @@ for package in core symfony-bundle; do
             file_put_contents($file, json_encode($package, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
         ' "${work}" "${repo}"
 
+        # The sibling comes from the working tree, not Packagist. Without this the bundle is
+        # compared against whatever core is *published*, so a release raising its floor cannot
+        # be checked until the tag exists — and that install failure was silent, which is how
+        # this script reported "no backwards-incompatible changes" for a comparison it never
+        # made.
+        if [ "${package}" != "core" ]; then
+            composer --working-dir="${work}" --quiet config repositories.core \
+                "{\"type\": \"path\", \"url\": \"${repo}/packages/core\", \"options\": {\"symlink\": false, \"versions\": {\"ucp-php-sdk/core\": \"${core_version}\"}}}"
+        fi
+
         git -C "${work}" add -A
         git -C "${work}" -c user.email=bc@example.invalid -c user.name='BC check' \
             commit -q --allow-empty -m "${package} @ ${ref}"
     done
 
-    if ! (cd "${work}" && "${checker}" --from=HEAD~1 --to=HEAD --install-development-dependencies); then
+    if ! output="$(cd "${work}" && "${checker}" --from=HEAD~1 --to=HEAD --install-development-dependencies 2>&1)"; then
+        status=1
+    fi
+    printf '%s\n' "${output}"
+
+    # A verdict, or nothing happened. The checker prints one of these two lines whenever it
+    # actually compared something; anything else — a failed install of either side, most
+    # likely — must not read as compatibility confirmed.
+    if ! printf '%s' "${output}" | grep -qE '([0-9]+|No) backwards-incompatible changes detected'; then
+        echo "bc-check: ${package} produced no verdict; treating that as a failure rather than as clean." >&2
         status=1
     fi
 
