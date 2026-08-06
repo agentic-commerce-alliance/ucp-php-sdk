@@ -21,6 +21,16 @@
 #
 # Compares REFS, not the working tree: commit before trusting a clean result.
 #
+# The baseline decides which question is being answered, and CI asks both:
+#
+#   origin/<target branch>   does THIS change break compatibility?     -> blocking
+#   <newest release tag>     has anything broken since the release?     -> notice only
+#
+# The second is a release question — pre-1.0 breaks are allowed, and what they need is a
+# CHANGELOG entry and a version bump. Gating merges on it means one break on the base branch
+# fails every later pull request, which is what happened to #118 the moment this check began
+# working. See scripts/comment-bc-since-release.sh for how that answer is reported instead.
+#
 # Usage: scripts/bc-check.sh <baseline-git-ref> [<current-git-ref>]
 set -eu
 
