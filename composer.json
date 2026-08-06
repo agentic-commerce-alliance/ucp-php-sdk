@@ -12,6 +12,7 @@
         "friendsofphp/php-cs-fixer": "^3.80",
         "icanhazstring/composer-unused": "^0.9.4",
         "infection/infection": "^0.31.9",
+        "maglnet/composer-require-checker": "^4.18",
         "pdepend/pdepend": "^2.16",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.5",
@@ -119,12 +120,14 @@
             "@phpstan",
             "@dead-code",
             "@unused-deps",
+            "@require-check",
             "@test",
             "@coverage:gate",
             "@mutation:gate",
             "@public-api:check",
             "@metrics:pdepend"
         ],
+        "require-check": "sh scripts/require-check.sh",
         "public-api:dump": "php tools/build-public-api-snapshot.php",
         "public-api:check": "php tools/check-public-api-snapshot.php",
         "bc-check": "vendor/bin/roave-backward-compatibility-check --from=HEAD^ --to=HEAD"

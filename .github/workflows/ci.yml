@@ -39,6 +39,9 @@ jobs:
         run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict -d packages/core
       - name: Validate Symfony bundle manifest
         run: docker compose run --rm php sh scripts/run-composer-in-ci.sh validate --strict -d packages/symfony-bundle
+      # Carries `require-check` (used-but-undeclared dependencies), which installs each
+      # package on its own — checking at the root would measure the monorepo's dev
+      # requirements rather than what a consumer of a published package gets.
       - name: Run QA suite
         run: docker compose run --rm php sh scripts/run-composer-in-ci.sh qa
       - name: Run full mutation sweep
