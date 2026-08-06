@@ -24,10 +24,20 @@ marker='<!-- bc-since-release -->'
 
 findings="$(grep -E '^\[BC\]' "${log}" || true)"
 
+# Whether the check ran at all, told apart from it running and finding nothing. The producing
+# step is `continue-on-error`, so a container or resolution failure leaves a log with no
+# findings in it — and reporting that as "no backwards-incompatible changes" would be a
+# reassurance nobody earned. bc-check.sh prints one `=== <package>: … ===` header per package,
+# so their absence means it never got as far as comparing.
+ran="$(grep -cE '^=== .*: .* -> .* ===$' "${log}" 2>/dev/null || true)"
+
 # The backticks and $-free braces below are markdown for the comment body, so the format
 # strings stay single-quoted and the shell must not touch them.
 # shellcheck disable=SC2016
-if [ -z "${findings}" ]; then
+if [ "${ran:-0}" -eq 0 ]; then
+    body="$(printf '%s\n### Backward compatibility since `%s`\n\n**The check did not complete**, so nothing is known about compatibility since the last\nrelease. This is still not a merge blocker — the blocking check is the one against this pull\nrequest'"'"'s target branch — but the tail of its log is worth a look:\n\n```\n%s\n```\n' \
+        "${marker}" "${TAG}" "$(tail -n 15 "${log}" 2>/dev/null || echo '(no log)')")"
+elif [ -z "${findings}" ]; then
     body="$(printf '%s\n### Backward compatibility since `%s`\n\nNo backwards-incompatible changes. Nothing to declare for the next release.\n' "${marker}" "${TAG}")"
 else
     count="$(printf '%s\n' "${findings}" | wc -l | tr -d ' ')"
