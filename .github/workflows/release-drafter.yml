@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: release-drafter/release-drafter@v7.6.0
+      - uses: release-drafter/release-drafter@v7.7.0
         with:
           config-name: release-drafter.yml
         env:
