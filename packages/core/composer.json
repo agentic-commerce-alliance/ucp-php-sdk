@@ -9,7 +9,7 @@
         "ext-iconv": "*",
         "ext-mbstring": "*",
         "ext-openssl": "*",
-        "phpseclib/phpseclib": "^3.0"
+        "phpseclib/phpseclib": "^3.0 || ^4.0"
     },
     "autoload": {
         "psr-4": {
