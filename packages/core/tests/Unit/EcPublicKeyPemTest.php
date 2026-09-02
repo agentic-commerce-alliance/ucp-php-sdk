@@ -92,6 +92,36 @@ final class EcPublicKeyPemTest extends TestCase
     }
 
     #[Test]
+    public function itEncodesAShortCoordinateAtTheFullCurveWidth(): void
+    {
+        $minimalForm = (string) base64_decode('UyIiffMWPWbLh3Dh5RjXtra4VBPEilBDhIygyyKsfQ==', true);
+        self::assertSame(31, strlen($minimalForm));
+
+        self::assertSame(
+            'AFMiIn3zFj1my4dw4eUY17a2uFQTxIpQQ4SMoMsirH0',
+            EcPublicKeyPem::encodeCoordinate($minimalForm, 'P-256'),
+        );
+    }
+
+    #[Test]
+    public function itEncodesAFullWidthCoordinateUnchanged(): void
+    {
+        [, $x] = self::generateKey('prime256v1');
+
+        self::assertSame($x, EcPublicKeyPem::encodeCoordinate(
+            (string) base64_decode(strtr($x, '-_', '+/'), true),
+            'P-256',
+        ));
+    }
+
+    #[Test]
+    public function itDoesNotPadACoordinateForACurveItHasNoWidthFor(): void
+    {
+        self::assertSame('AQI', EcPublicKeyPem::encodeCoordinate("\x01\x02", 'P-521'));
+        self::assertSame('AQI', EcPublicKeyPem::encodeCoordinate("\x01\x02", null));
+    }
+
+    #[Test]
     public function itRejectsAnEmptyCoordinate(): void
     {
         $this->expectException(SignatureException::class);

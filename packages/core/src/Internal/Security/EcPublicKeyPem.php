@@ -84,6 +84,25 @@ final class EcPublicKeyPem
     }
 
     /**
+     * Encodes a raw coordinate as the base64url string a JWK carries.
+     *
+     * RFC 7518 section 6.2.1.2 requires the octet string to be the full width of a coordinate for
+     * the curve, and openssl hands these over as minimal-form integers -- so the left-padding is
+     * the point of this method, not a detail of it. An unrecognised curve is passed through
+     * unpadded, because a width we do not know is not a width we may invent.
+     */
+    public static function encodeCoordinate(string $coordinate, ?string $curve): string
+    {
+        $length = self::CURVES[$curve ?? '']['coordinateLength'] ?? null;
+
+        if ($length !== null && strlen($coordinate) < $length) {
+            $coordinate = str_pad($coordinate, $length, "\x00", STR_PAD_LEFT);
+        }
+
+        return rtrim(strtr(base64_encode($coordinate), '+/', '-_'), '=');
+    }
+
+    /**
      * The uncompressed point needs each coordinate at its curve's full width, so a shorter one is
      * left-padded with zero bytes. That is not defensive: openssl returns these integers in
      * minimal form, so roughly one coordinate in 256 comes back a byte short -- which is what
