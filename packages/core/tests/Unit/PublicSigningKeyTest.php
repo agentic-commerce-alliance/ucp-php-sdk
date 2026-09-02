@@ -112,8 +112,37 @@ final class PublicSigningKeyTest extends TestCase
         self::assertSame($curveName, $details['ec']['curve_name']);
         self::assertIsString($details['ec']['x']);
         self::assertIsString($details['ec']['y']);
-        self::assertSame($jwk['x'], self::base64UrlEncode($details['ec']['x']));
-        self::assertSame($jwk['y'], self::base64UrlEncode($details['ec']['y']));
+        // Compared as values, not as encodings. openssl returns these integers in minimal form,
+        // so about one coordinate in 256 comes back a byte shorter than the JWK spells it -- which
+        // says nothing about whether the key round-tripped.
+        self::assertSame(self::coordinateValue($jwk['x']), self::coordinateValue(self::base64UrlEncode($details['ec']['x'])));
+        self::assertSame(self::coordinateValue($jwk['y']), self::coordinateValue(self::base64UrlEncode($details['ec']['y'])));
+    }
+
+    /**
+     * The deterministic half of the case above: a real P-256 key whose y is 31 bytes in openssl's
+     * minimal form, which is the shape `DefaultSigningKeyManager::toPublicKey()` produces for
+     * roughly one key in 140. Generating one on demand is a coin flip, so it is a fixture.
+     */
+    #[Test]
+    public function itDerivesTheSamePemFromAMinimalFormCoordinate(): void
+    {
+        $expectedPem = "-----BEGIN PUBLIC KEY-----\n"
+            . "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG2g/erNlzpRUSTVQUbeInbB5o5ip\n"
+            . "PruxPHKnwloQ9cQAUyIiffMWPWbLh3Dh5RjXtra4VBPEilBDhIygyyKsfQ==\n"
+            . "-----END PUBLIC KEY-----\n";
+
+        $key = PublicSigningKey::fromJwk([
+            'kid' => 'kid-short-y',
+            'kty' => 'EC',
+            'alg' => 'ES256',
+            'use' => 'sig',
+            'crv' => 'P-256',
+            'x' => 'G2g_erNlzpRUSTVQUbeInbB5o5ipPruxPHKnwloQ9cQ',
+            'y' => 'UyIiffMWPWbLh3Dh5RjXtra4VBPEilBDhIygyyKsfQ',
+        ]);
+
+        self::assertSame($expectedPem, $key->publicKeyPem);
     }
 
     /**
@@ -128,6 +157,18 @@ final class PublicSigningKeyTest extends TestCase
     private static function base64UrlEncode(string $value): string
     {
         return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+    }
+
+    /**
+     * A coordinate's value, independent of how wide the encoding of it happens to be: leading zero
+     * bytes are padding, and minimal form never begins with one.
+     */
+    private static function coordinateValue(string $base64Url): string
+    {
+        $decoded = (string) base64_decode(strtr($base64Url, '-_', '+/'), true);
+        self::assertNotSame('', $decoded);
+
+        return ltrim($decoded, "\x00");
     }
 
     /**
