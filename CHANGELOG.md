@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
+
 ### Changed
 
 - `ucp-php-sdk/core` no longer requires `phpseclib/phpseclib`, and now declares no runtime dependency beyond PHP and the extensions it calls. The library was used in one place — turning a public key into a PKCS8 PEM in `PublicSigningKey::fromJwk()` — while `ext-openssl` was already a hard requirement and already produced every key `DefaultSigningKeyManager` hands out. phpseclib 4.0 renamed its root namespace from `phpseclib3\` to `phpseclib4\`, which meant a consumer could no longer be given a constraint covering both majors without the SDK carrying a runtime namespace shim; a package that depends on neither cannot conflict with a consumer's dependency graph at all ([#133](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/133))
