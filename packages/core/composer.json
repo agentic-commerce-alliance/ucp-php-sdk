@@ -8,8 +8,7 @@
         "ext-filter": "*",
         "ext-iconv": "*",
         "ext-mbstring": "*",
-        "ext-openssl": "*",
-        "phpseclib/phpseclib": "^3.0"
+        "ext-openssl": "*"
     },
     "autoload": {
         "psr-4": {

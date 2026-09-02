@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Security;
 
-use phpseclib3\Crypt\PublicKeyLoader;
 use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Internal\Security\EcPublicKeyPem;
 
 final class PublicSigningKey
 {
@@ -142,7 +142,7 @@ final class PublicSigningKey
     private static function normalizePublicKeyPem(string $publicKeyPem, string $kid): string
     {
         try {
-            return PublicKeyLoader::loadPublicKey($publicKeyPem)->toString('PKCS8');
+            return EcPublicKeyPem::normalize($publicKeyPem);
         } catch (\Throwable) {
             throw new ValidationException(sprintf('Public signing key "%s" contains unusable key material.', $kid));
         }
@@ -151,14 +151,7 @@ final class PublicSigningKey
     private static function normalizeJwkPublicKeyPem(string $curve, string $x, string $y, string $kid): string
     {
         try {
-            $jwk = json_encode([
-                'kty' => 'EC',
-                'crv' => $curve,
-                'x' => $x,
-                'y' => $y,
-            ], JSON_THROW_ON_ERROR);
-
-            return PublicKeyLoader::loadPublicKey($jwk)->toString('PKCS8');
+            return EcPublicKeyPem::fromCoordinates($curve, $x, $y);
         } catch (\Throwable) {
             throw new ValidationException(sprintf('Public signing key "%s" contains unusable key material.', $kid));
         }

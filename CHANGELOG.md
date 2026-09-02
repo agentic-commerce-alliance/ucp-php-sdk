@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- `ucp-php-sdk/core` no longer requires `phpseclib/phpseclib`, and now declares no runtime dependency beyond PHP and the extensions it calls. The library was used in one place — turning a public key into a PKCS8 PEM in `PublicSigningKey::fromJwk()` — while `ext-openssl` was already a hard requirement and already produced every key `DefaultSigningKeyManager` hands out. phpseclib 4.0 renamed its root namespace from `phpseclib3\` to `phpseclib4\`, which meant a consumer could no longer be given a constraint covering both majors without the SDK carrying a runtime namespace shim; a package that depends on neither cannot conflict with a consumer's dependency graph at all ([#130](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/130))
+- `PublicSigningKey::$publicKeyPem` derived from JWK `x`/`y` coordinates is now formatted the way `ext-openssl` formats it: LF line endings with a trailing newline. phpseclib emitted CRLF without one, so the two producers of that property disagreed byte-for-byte over identical DER — `DefaultSigningKeyManager::toPublicKey()` passed openssl's PEM through while `fromJwk()` re-encoded it. Consumers comparing PEM strings rather than keys will see the difference; `openssl_verify()`, which is what the SDK does with it, accepts both ([#130](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/130))
+
 ## 0.0.5 - 2026-08-06
 
 ### Fixed
