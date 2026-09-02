@@ -106,12 +106,15 @@ final class EcPublicKeyPemTest extends TestCase
     #[Test]
     public function itEncodesAFullWidthCoordinateUnchanged(): void
     {
-        [, $x] = self::generateKey('prime256v1');
+        // Deliberately not a generated key: openssl returns minimal-form integers, so one in 256
+        // of those is already a byte short and would be padded here -- making the assertion a
+        // coin flip rather than a statement about full-width input.
+        $coordinate = str_repeat("\x7f", 32);
 
-        self::assertSame($x, EcPublicKeyPem::encodeCoordinate(
-            (string) base64_decode(strtr($x, '-_', '+/'), true),
-            'P-256',
-        ));
+        self::assertSame(
+            self::base64UrlEncode($coordinate),
+            EcPublicKeyPem::encodeCoordinate($coordinate, 'P-256'),
+        );
     }
 
     #[Test]
