@@ -88,17 +88,32 @@ SDK enforces negotiation *per operation* — `ShoppingOperationExecutor::assertN
 refuses an operation whose capability is not in the intersection — so every checkout, cart and
 catalog call is refused.
 
-The specification does not appear to require that. It defines a negotiation failure as the
-intersection being **empty** ("the provided profile is valid but capability intersection is
-empty or versions are incompatible"), and the intersection here is not empty. What the
-intersection governs, per *Response Capability Selection*, is which capabilities a business
-declares in `ucp.capabilities` — not which requests it will answer.
+**This is a genuine conflict between the specification and the suite, and it is unresolved.**
+
+The spec's *Request-Time Validation* section says a business **MUST** return
+`capabilities_incompatible` when negotiation yields no mutually supported version *"for a
+capability required by the requested operation"*. That is per-operation enforcement, and it is
+what this SDK does — the issue that introduced it cites exactly that text.
+
+The suite's mock agent profile declares one capability and then drives checkout, cart and
+catalog while expecting them served. Both cannot be right.
 
 Measured rather than assumed: relaxing the gate to fail only on an empty intersection takes the
-suite from 1 passing to 5. So it is the **first** blocker rather than the whole chain — the
-other 58 fail again further along — but nothing else can be assessed until it moves.
+suite from 1 passing to 5, so it is the first blocker rather than the whole chain — the other 58
+fail again further along.
 
-Tracked as its own task; see `ucp-2026-08-25-upgrade.md`.
+Not changed on a hunch. The suite already contains one demonstrable defect (below), so its
+behaviour is not self-evidently the authority here; and the spec text is specific enough that
+reversing enforcement would need more than a failing fixture to justify. This needs an upstream
+answer. Tracked in `ucp-2026-08-25-upgrade.md`.
+
+### What was fixed
+
+The statuses. Both negotiation errors answered `400`; the spec's error-code table puts
+`capabilities_incompatible` at **200** — a business outcome carried inside a UCP response with
+`ucp.status: "error"` — and `version_unsupported` at **422**. That change takes the suite's
+status mismatches from 62 to 0. The same tests still fail, now on response content, which is the
+open question above rather than this one.
 
 ### One upstream defect
 
