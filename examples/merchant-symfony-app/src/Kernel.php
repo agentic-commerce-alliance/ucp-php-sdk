@@ -54,7 +54,7 @@ final class Kernel extends BaseKernel
             'signature_policy' => $this->signaturePolicy(),
             'transports' => ['rest', 'a2a', 'embedded'],
             'storage' => [
-                'dsn' => 'sqlite:///' . dirname(__DIR__) . '/var/ucp_sdk.sqlite',
+                'dsn' => 'sqlite:///' . $this->stateDir() . '/ucp_sdk.sqlite',
             ],
         ]);
 
@@ -75,7 +75,7 @@ final class Kernel extends BaseKernel
             ]);
 
         $services->set(JsonStateStore::class)
-            ->arg('$projectDir', dirname(__DIR__));
+            ->arg('$stateDir', $this->stateDir());
     }
 
     protected function configureRoutes(RoutingConfigurator $routes): void
@@ -101,14 +101,32 @@ final class Kernel extends BaseKernel
 
     private function ensureVarDirectory(): void
     {
-        $varDirectory = $this->getProjectDir() . '/var';
-        if (is_dir($varDirectory)) {
-            return;
-        }
+        foreach ([$this->getProjectDir() . '/var', $this->stateDir()] as $directory) {
+            if (is_dir($directory)) {
+                continue;
+            }
 
-        if (! mkdir($varDirectory, 0777, true) && ! is_dir($varDirectory)) {
-            throw new \RuntimeException(sprintf('Unable to create "%s".', $varDirectory));
+            if (! mkdir($directory, 0777, true) && ! is_dir($directory)) {
+                throw new \RuntimeException(sprintf('Unable to create "%s".', $directory));
+            }
         }
+    }
+
+    /**
+     * Where this app keeps the state it serves: the SDK's sqlite file and the JSON collections
+     * behind carts, checkouts and orders.
+     *
+     * Overridable so a run can be given an empty directory and therefore a known starting
+     * point. A conformance suite asserts on stock levels and order ids, so leftovers from a
+     * previous run are the difference between a reproducible result and a confusing one.
+     */
+    private function stateDir(): string
+    {
+        $configured = $_ENV['UCP_MERCHANT_STATE_DIR'] ?? $_SERVER['UCP_MERCHANT_STATE_DIR'] ?? null;
+
+        return is_string($configured) && $configured !== ''
+            ? rtrim($configured, '/')
+            : $this->getProjectDir() . '/var';
     }
 
     private function baseUri(): string
