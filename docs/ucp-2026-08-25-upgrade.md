@@ -1,6 +1,16 @@
 # UCP 2026-08-25 Upgrade Backlog
 
-Status: planned, not started. Owner: TBD.
+Status: in progress. Owner: TBD.
+
+| Wave | Tasks | State |
+| --- | --- | --- |
+| 0 — prep | T1, T2, T3, T31 | done |
+| 1 — interop breakers | T4, T5, T6, T7, T8 | done · **T9 withdrawn**, premise false |
+| 2 — conformance harness | T10, T11, T12 | done · T13, T14 open |
+| 3 — the hard switch | T15 to T22 | not started |
+| 4 — signature parity | T23 to T26 | not started |
+| 5 — sustainability | T27 to T30, T32 | not started |
+| discovered | **T33** | not started — found by T12 on its first run |
 
 This document is the authoritative gap statement between this SDK and the UCP
 specification. It supersedes the transport-only notes that used to live in
@@ -974,6 +984,77 @@ parameter. `mutation:security` at or above 80%.
 
 ## Wave 5 — Sustainability
 
+### T33 — `fix(negotiation)!: refuse only when the capability intersection is empty`
+
+**Found by T12 on its first run, not predicted.** 59 of the 63 conformance failures report the
+same thing:
+
+```
+400 Requested operation is not included in the negotiated capability intersection.
+```
+
+**Why.** `ShoppingOperationExecutor::assertNegotiated()` refuses an operation whose capability
+is not in the negotiated intersection. The conformance suite's mock agent profile declares
+exactly one capability, `dev.ucp.shopping.order`, so every checkout, cart and catalog call is
+refused.
+
+The specification does not appear to require this. It defines a negotiation failure as the
+intersection being **empty** — *"the provided profile is valid but capability intersection is
+empty or versions are incompatible"* — and the intersection here is not empty. What the
+intersection governs, per *Response Capability Selection*, is which capabilities a business
+declares in `ucp.capabilities`, not which requests it will answer. A platform is required to
+advertise a profile; nothing says it must enumerate every capability it intends to call.
+
+**Size, measured.** Relaxing the gate to fail only on an empty intersection takes the suite from
+1 passing to 5. So it is the **first** blocker rather than the whole chain — the other 58 fail
+again further along — but nothing else can be assessed until it moves. Expect the next layer of
+findings immediately after.
+
+**Files.** `packages/symfony-bundle/src/Operation/ShoppingOperationExecutor.php`
+(`assertNegotiated()`); `packages/core/src/Internal/Negotiation/DefaultCapabilityNegotiator.php`
+if response-capability selection needs to narrow independently;
+`packages/symfony-bundle/tests/Unit/ShoppingOperationExecutorValidationTest.php`.
+
+**Decide in the PR.** Whether per-operation enforcement stays available behind configuration.
+It is the safer behaviour in one respect — answering a capability the peer never declared means
+it may not parse the response — but it is stricter than the spec and it is not what the
+conformance suite expects. Note that this was added deliberately (CHANGELOG 0.0.1,
+"request-time negotiation enforcement"), so this is a reversal rather than an oversight, and the
+reasoning behind it deserves finding before it is undone.
+
+**Acceptance.** An operation whose capability is outside a non-empty intersection is served, and
+its response declares only the capabilities that are both negotiated and relevant. An empty
+intersection still fails with `capabilities_incompatible`. The conformance lane moves from 1
+passing to at least 5, recorded in `conformance.md`.
+
+**Effort.** M · **Depends on.** T12 · **Blocks.** T13
+
+### T32 — `docs: bring the documentation in line with what shipped`
+
+**Why.** Waves 0 to 2 changed behaviour the docs still describe the old way. Each slice updated
+what it directly touched — `extension-contract.md` in T31, the schema README in T2, the merchant
+README in T10 — but nothing has read the set as a whole, and several documents describe a
+protocol surface that has since moved.
+
+**Files, and what is stale in each.**
+
+- `security-model.md` — signatures changed shape three times (fixed-width ECDSA, registry
+  algorithm names, base built from the peer's covered components, `Content-Digest` now
+  conditional). This is the document most likely to be wrong and the one most likely to be read.
+- `production-operator-checklist.md` — new configuration exists (`legacy_routes.catalog_product_get`),
+  and idempotency is now decided per operation rather than per HTTP method.
+- `getting-started.md` — carries protocol-version literals and predates the version plumbing in T1.
+- `mapping-flow.md` — `catalog.product` moved to `POST` and now carries a body it previously could not.
+- `platform-adapters.md`, `storage-adapters.md` — check against the promoted public API from T31.
+- `release-process.md` — the pre-tag checklist should mention `sync:verify` and the conformance lane.
+- `README.md` — the route list and the "in scope" summary.
+- `full-ucp-parity-plan.md` — already repointed in T30, verify it stayed accurate.
+
+**Acceptance.** No document describes a route, header or algorithm the SDK no longer serves. A
+reader following `getting-started.md` end to end reaches a working, conformant setup.
+
+**Effort.** M · **Depends on.** the wave it documents; best run once per wave rather than per slice
+
 ### T27 — `ci(spec-drift): detect new upstream releases and pinned-schema divergence`
 
 **Why.** Nothing in the repo notices that upstream moved, and the target moves
@@ -1059,6 +1140,7 @@ T1 → Wave 2: T10 → T11 → T12 → T13 ;  T12 + T4 + T5 + T6 → T14
 T2 → T15 → { T16 ∥ T17 ∥ T18 ∥ T19 ∥ T20 } → T21 → T22
 T4 → T23 ;  T4 → T24 → T25 → T26
 T27, T29, T30 : any time (T27 early) ;  T21 → T28
+T12 → T33 → T13 ;  T32 : once per wave, after the wave lands
 ```
 
 ## Execution model
