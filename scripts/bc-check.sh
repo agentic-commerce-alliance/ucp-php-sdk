@@ -31,6 +31,10 @@
 # fails every later pull request, which is what happened to #118 the moment this check began
 # working. See scripts/comment-bc-since-release.sh for how that answer is reported instead.
 #
+# Breaks listed in .bc-allowed-breaks.txt are subtracted before deciding, because Roave
+# offers no per-symbol ignore and this repository breaks published API on purpose pre-1.0.
+# Anything not listed there still fails. See that file for the rules.
+#
 # Usage: scripts/bc-check.sh <baseline-git-ref> [<current-git-ref>]
 set -eu
 
@@ -38,7 +42,27 @@ baseline="${1:?usage: scripts/bc-check.sh <baseline-ref> [<current-ref>]}"
 current="${2:-HEAD}"
 repo="$(git rev-parse --show-toplevel)"
 checker="${repo}/vendor/bin/roave-backward-compatibility-check"
+allowlist='.bc-allowed-breaks.txt'
+findings_file="$(mktemp)"
+waived_file="$(mktemp)"
+trap 'rm -f "${findings_file}" "${waived_file}"' EXIT
 status=0
+
+# Read the declared breaks from the ref under test, not from the working tree: this script
+# compares refs, and an allowlist that only exists uncommitted would waive a break that the
+# branch does not actually declare. In CI the ref under test is the pull request head, so the
+# file the author wrote is the one that governs.
+#
+# Only whole-line comments are supported. Roave writes findings as Class#method(), so treating
+# '#' as starting a trailing comment would truncate half of them.
+if git -C "${repo}" cat-file -e "${current}:${allowlist}" 2>/dev/null; then
+    git -C "${repo}" show "${current}:${allowlist}" \
+        | grep -vE '^[[:space:]]*(#|$)' \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]\{1,\}/ /g' \
+        > "${waived_file}" || true
+else
+    : > "${waived_file}"
+fi
 
 # The version the root composer.json forces on the path repositories, read rather than
 # repeated: it moves with every release, and a copy here would be one more place for this
@@ -111,17 +135,53 @@ for package in core symfony-bundle; do
             commit -q --allow-empty -m "${package} @ ${ref}"
     done
 
+    package_status=0
     if ! output="$(cd "${work}" && "${checker}" --from=HEAD~1 --to=HEAD --install-development-dependencies 2>&1)"; then
-        status=1
+        package_status=1
     fi
     printf '%s\n' "${output}"
 
     # A verdict, or nothing happened. The checker prints one of these two lines whenever it
     # actually compared something; anything else — a failed install of either side, most
-    # likely — must not read as compatibility confirmed.
+    # likely — must not read as compatibility confirmed. Never waivable: a comparison that
+    # did not happen is not a break someone can have accepted in advance.
     if ! printf '%s' "${output}" | grep -qE '([0-9]+|No) backwards-incompatible changes detected'; then
         echo "bc-check: ${package} produced no verdict; treating that as a failure rather than as clean." >&2
+        rm -rf "${work}"
         status=1
+        continue
+    fi
+
+    if [ "${package_status}" -ne 0 ]; then
+        # Roave has no per-symbol ignore and no baseline file, so the only lever it offers is
+        # all-or-nothing. Pre-1.0 this repository *does* break things deliberately — what such a
+        # break needs is a CHANGELOG entry and a version bump, not a blocked merge — and with no
+        # way to say so, the blocking run had to be either disabled or worked around.
+        #
+        # Findings listed in .bc-allowed-breaks.txt are therefore subtracted before deciding.
+        # Anything not listed still fails, so the gate keeps catching the breaks nobody meant.
+        printf '%s\n' "${output}" \
+            | grep -E '^[[:space:]]*\[BC\]' \
+            | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]\{1,\}/ /g' \
+            > "${findings_file}" || true
+
+        remaining="$(grep -Fxv -f "${waived_file}" "${findings_file}" || true)"
+        if [ -n "${remaining}" ]; then
+            echo "bc-check: ${package}: breaks not declared in ${allowlist} (at ${current}):" >&2
+            printf '%s\n' "${remaining}" >&2
+            status=1
+        else
+            echo "bc-check: ${package}: every reported break is declared in ${allowlist}; not failing." >&2
+        fi
+
+        # An entry that matches nothing is a notice, not a failure: CI runs this script twice
+        # against different baselines (the target branch, and the newest release tag), so an
+        # entry that is live for one answer is legitimately stale for the other.
+        unmatched="$(grep -Fxv -f "${findings_file}" "${waived_file}" || true)"
+        if [ -n "${unmatched}" ]; then
+            echo "bc-check: ${package}: breaks declared in ${allowlist} that did not occur (stale, or for the other baseline):" >&2
+            printf '%s\n' "${unmatched}" >&2
+        fi
     fi
 
     rm -rf "${work}"
