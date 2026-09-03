@@ -5,6 +5,7 @@ This folder holds cross-cutting notes for the SDK and future platform integratio
 Current documents:
 
 - [concepts-and-flows.md](concepts-and-flows.md)
+- [conformance.md](conformance.md) — running the upstream conformance suite, and where this SDK stands against it
 - [full-ucp-parity-plan.md](full-ucp-parity-plan.md)
 - [extension-contract.md](extension-contract.md)
 - [platform-adapters.md](platform-adapters.md)
