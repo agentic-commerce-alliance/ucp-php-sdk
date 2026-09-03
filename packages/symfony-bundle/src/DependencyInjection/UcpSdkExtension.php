@@ -370,7 +370,9 @@ final class UcpSdkExtension extends Extension
             ->setArgument('$mandateVerifiers', new TaggedIteratorArgument('ucp_sdk.payment_mandate_verifier'));
 
         $container->autowire(ProfileController::class)->addTag('controller.service_arguments');
-        $container->autowire(CatalogController::class)->addTag('controller.service_arguments');
+        $container->autowire(CatalogController::class)
+            ->setArgument('$legacyProductGetRoute', $config['legacy_routes']['catalog_product_get'])
+            ->addTag('controller.service_arguments');
         $container->autowire(CartController::class)->addTag('controller.service_arguments');
         $container->autowire(CheckoutController::class)->addTag('controller.service_arguments');
         $container->autowire(TokenizationController::class)->addTag('controller.service_arguments');

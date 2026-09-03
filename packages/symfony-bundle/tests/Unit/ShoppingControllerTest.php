@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\CartCapabilityInterface;
 use Ucp\Sdk\Contract\CatalogCapabilityInterface;
@@ -73,28 +74,75 @@ final class ShoppingControllerTest extends TestCase
         $lookup = $this->payload($controller->lookup($this->jsonRequest('/ucp/v1/catalog/lookup', ['ids' => ['sku-lookup']])));
         self::assertSame('sku-lookup', $lookup['products'][0]['id']);
 
-        $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
+        $product = $this->payload($controller->product($this->jsonRequest('/ucp/v1/catalog/product', ['id' => 'sku-detail'])));
         self::assertSame('sku-detail', $product['product']['id']);
     }
 
+    /**
+     * `catalog.product.request` defines seven properties, and the GET route could only ever
+     * supply one of them: it passed an empty payload and threaded the id through a side
+     * channel, so `selected`, `filters`, `preferences`, `context`, `signals` and `attribution`
+     * were unreachable no matter what an agent sent.
+     */
     #[Test]
-    public function itMapsCatalogProductRouteIdIntoRequestDto(): void
+    public function itMapsTheWholeCatalogProductPayloadIntoTheRequestDto(): void
     {
         $capability = new ControllerCatalogCapability();
         $validator = $this->createMock(ProtocolValidatorInterface::class);
         $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability, $validator));
 
-        $product = $this->payload($controller->product('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
+        $product = $this->payload($controller->product($this->jsonRequest('/ucp/v1/catalog/product', [
+            'id' => 'sku-detail',
+            'selected' => [['name' => 'size', 'value' => 'L']],
+            'filters' => ['in_stock' => true],
+            'preferences' => ['gift_wrap'],
+            'context' => ['locale' => 'de-DE'],
+            'signals' => ['dev.ucp.buyer_ip' => '203.0.113.4'],
+            'attribution' => ['campaign' => 'spring'],
+        ])));
+
+        self::assertSame('sku-detail', $product['product']['id']);
+        self::assertInstanceOf(CatalogProductRequest::class, $capability->productRequest);
+        self::assertSame('sku-detail', $capability->productRequest->id);
+        self::assertSame([['name' => 'size', 'value' => 'L']], $capability->productRequest->selected);
+        self::assertSame(['in_stock' => true], $capability->productRequest->filters);
+        self::assertSame(['gift_wrap'], $capability->productRequest->preferences);
+        self::assertSame(['locale' => 'de-DE'], $capability->productRequest->context);
+        self::assertSame(['dev.ucp.buyer_ip' => '203.0.113.4'], $capability->productRequest->signals);
+        self::assertSame(['campaign' => 'spring'], $capability->productRequest->attribution);
+    }
+
+    #[Test]
+    public function itMapsTheLegacyRouteIdIntoTheRequestDto(): void
+    {
+        $capability = new ControllerCatalogCapability();
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $controller = new CatalogController(new HttpPayloadMapper(), $this->responseFactory(), $this->executor($capability, $validator));
+
+        $product = $this->payload($controller->legacyProductById('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail')));
 
         self::assertSame('sku-detail', $product['product']['id']);
         self::assertInstanceOf(CatalogProductRequest::class, $capability->productRequest);
         self::assertSame('sku-detail', $capability->productRequest->id);
         self::assertSame([], $capability->productRequest->selected);
-        self::assertSame([], $capability->productRequest->filters);
-        self::assertSame([], $capability->productRequest->preferences);
-        self::assertSame([], $capability->productRequest->context);
-        self::assertSame([], $capability->productRequest->signals);
-        self::assertSame([], $capability->productRequest->attribution);
+    }
+
+    #[Test]
+    public function itReturnsNotFoundWhenTheLegacyProductRouteIsDisabled(): void
+    {
+        $capability = new ControllerCatalogCapability();
+        $validator = $this->createMock(ProtocolValidatorInterface::class);
+        $controller = new CatalogController(
+            new HttpPayloadMapper(),
+            $this->responseFactory(),
+            $this->executor($capability, $validator),
+            legacyProductGetRoute: false,
+        );
+
+        $this->expectException(NotFoundHttpException::class);
+        $this->expectExceptionMessage('use POST /ucp/v1/catalog/product');
+
+        $controller->legacyProductById('sku-detail', $this->jsonRequest('/ucp/v1/catalog/product/sku-detail'));
     }
 
     #[Test]

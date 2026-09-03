@@ -18,6 +18,17 @@ use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 /** @internal */
 final class RequestContextListener
 {
+    /**
+     * UCP operations served over POST that read rather than mutate.
+     *
+     * @var list<string>
+     */
+    private const READ_ONLY_POST_PATHS = [
+        '/ucp/v1/catalog/search',
+        '/ucp/v1/catalog/lookup',
+        '/ucp/v1/catalog/product',
+    ];
+
     public function __construct(
         private readonly HttpRequestContextFactoryInterface $requestContextFactory,
         private readonly IdempotencyServiceInterface $idempotencyService,
@@ -114,8 +125,26 @@ final class RequestContextListener
         return str_starts_with($path, '/ucp/');
     }
 
+    /**
+     * Whether the spec attaches Idempotency-Key to the operation behind this path.
+     *
+     * POST is the transport for the catalog reads, not a sign of mutation, and gating on the
+     * HTTP method alone conflated the two. Upstream's `services/shopping/rest.openapi.json`
+     * attaches the `Idempotency-Key` parameter to `create_cart`, `update_cart`, `cancel_cart`,
+     * `create_checkout`, `update_checkout`, `complete_checkout` and `cancel_checkout` only --
+     * `search_catalog`, `lookup_catalog` and `get_product` carry no such parameter. Requiring
+     * one there rejects a conformant request over a header the spec says it does not need, and
+     * it did so for search and lookup before `POST /catalog/product` existed.
+     */
     private function requiresUcpIdempotency(Request $request): bool
     {
-        return $request->getPathInfo() !== '/ucp/v1/oauth/token';
+        $path = $request->getPathInfo();
+
+        // Not a UCP shopping operation; single-use codes are what stop replay there.
+        if ($path === '/ucp/v1/oauth/token') {
+            return false;
+        }
+
+        return ! in_array($path, self::READ_ONLY_POST_PATHS, true);
     }
 }
