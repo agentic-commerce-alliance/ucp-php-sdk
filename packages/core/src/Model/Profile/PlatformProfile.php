@@ -44,7 +44,13 @@ final class PlatformProfile
 
         return [
             'ucp' => $ucp,
-            'signing_keys' => array_map(static fn (PublicSigningKey $key): array => $key->toJwk(), $this->signingKeys),
+            // `keys` is the canonical field. 2026-08-25 removed `signing_keys` from
+            // profile.json and promoted `keys` as a JWK Set (RFC 7517), which is also what
+            // makes the profile reusable as a Web Bot Auth key source. The PHP property stays
+            // `$signingKeys`: that is this SDK's name for it, not the wire's, and renaming it
+            // would break every adopter that constructs or reads a profile for no protocol
+            // reason.
+            'keys' => array_map(static fn (PublicSigningKey $key): array => $key->toJwk(), $this->signingKeys),
         ];
     }
 
@@ -213,9 +219,13 @@ final class PlatformProfile
      */
     private static function signingKeys(array $payload): array
     {
-        $entries = $payload['signing_keys'] ?? [];
+        // `keys` since 2026-08-25; `signing_keys` is read for one release so a peer that has not
+        // moved yet still parses. Named `$field` in the errors so a reader is told which of the
+        // two they actually sent.
+        $field = array_key_exists('keys', $payload) ? 'keys' : 'signing_keys';
+        $entries = $payload[$field] ?? [];
         if (! is_array($entries) || ! array_is_list($entries)) {
-            throw new ValidationException('Platform profile "signing_keys" must be a list.');
+            throw new ValidationException(sprintf('Platform profile "%s" must be a list.', $field));
         }
 
         $seen = [];
@@ -225,7 +235,14 @@ final class PlatformProfile
                 throw new ValidationException(sprintf('Platform profile signing key at index %d must be an object.', $index));
             }
 
-            $key = PublicSigningKey::fromJwk($entry);
+            // Skipped rather than fatal. The spec requires a verifier to tolerate key types it
+            // does not recognise and to select by kid, so one Ed25519 key must not cost us the
+            // EC key sitting next to it -- which is what happened while this called fromJwk().
+            $key = PublicSigningKey::tryFromJwk($entry);
+            if ($key === null) {
+                continue;
+            }
+
             if (isset($seen[$key->kid])) {
                 throw new ValidationException(sprintf('Platform profile signing key id "%s" is duplicated.', $key->kid));
             }
