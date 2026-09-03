@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+### Changed (breaking)
+
+- Product detail is served at `POST /ucp/v1/catalog/product`, the shape `services/shopping/rest.openapi.json` has defined at every published protocol version. This SDK served `GET /ucp/v1/catalog/product/{id}`, so an agent following the OpenAPI document got a 405. The old route is retained for one minor behind `ucp_sdk.legacy_routes.catalog_product_get` (default on, off in 0.1.0, removed in 1.0) — no conformant peer can have depended on it, but adopters can. The GET route also could not carry the request the operation is defined to take: `catalog.product.request` has seven properties and a path parameter can only supply `id`, so `selected`, `filters`, `preferences`, `context`, `signals` and `attribution` were unreachable regardless of what an agent sent
+
 ### Fixed
+
+- `Idempotency-Key` is no longer required for the catalog reads. It was gated on the HTTP method, and POST is the transport for `catalog.search`, `catalog.lookup` and `catalog.product` rather than a sign of mutation — upstream attaches the `Idempotency-Key` parameter to the cart and checkout create/update/cancel operations only. With `idempotency_required: true` the SDK rejected a conformant catalog search over a header the spec says it does not need
 
 - Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -384,6 +385,90 @@ final class EventListenersTest extends TestCase
 
         self::assertNotNull($request->attributes->get('ucp_request_context'));
         self::assertNull($event->getResponse());
+    }
+
+    /**
+     * POST is the transport for the catalog reads, not evidence of mutation.
+     *
+     * Upstream's rest.openapi.json attaches the Idempotency-Key parameter to the cart and
+     * checkout create/update/cancel operations only; search_catalog, lookup_catalog and
+     * get_product carry no such parameter. Requiring one rejected a conformant catalog search
+     * over a header the spec says it does not need -- and gating on the HTTP method meant
+     * moving get_product to POST would have made it a third case.
+     *
+     * @param non-empty-string $path
+     */
+    #[Test]
+    #[DataProvider('readOnlyPostPaths')]
+    public function itDoesNotRequireUcpIdempotencyForCatalogReads(string $path): void
+    {
+        $contextFactory = $this->createMock(HttpRequestContextFactoryInterface::class);
+        $contextFactory->expects(self::once())
+            ->method('create')
+            ->willReturnCallback(static fn (HttpRequest $request): RequestContext => new RequestContext(
+                'merchant.example',
+                $request->headers,
+                runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
+            ));
+        $idempotencyService = $this->createMock(IdempotencyServiceInterface::class);
+        $idempotencyService->expects(self::never())->method('claim');
+
+        $listener = new RequestContextListener(
+            $contextFactory,
+            $idempotencyService,
+            new UcpResponseFactory($this->configuration()),
+            $this->configuration(),
+        );
+
+        $request = Request::create('https://merchant.example' . $path, 'POST');
+        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $listener->onKernelRequest($event);
+
+        self::assertNotNull($request->attributes->get('ucp_request_context'));
+        self::assertNull($event->getResponse());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function readOnlyPostPaths(): iterable
+    {
+        yield 'catalog search' => ['/ucp/v1/catalog/search'];
+        yield 'catalog lookup' => ['/ucp/v1/catalog/lookup'];
+        yield 'catalog product' => ['/ucp/v1/catalog/product'];
+    }
+
+    /**
+     * The other half: a genuinely mutating operation must still be gated, so the exemption
+     * above cannot be read as "POST no longer needs a key".
+     */
+    #[Test]
+    public function itStillRequiresUcpIdempotencyForCartMutations(): void
+    {
+        $contextFactory = $this->createMock(HttpRequestContextFactoryInterface::class);
+        $contextFactory->expects(self::once())
+            ->method('create')
+            ->willReturnCallback(static fn (HttpRequest $request): RequestContext => new RequestContext(
+                'merchant.example',
+                $request->headers,
+                runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example', idempotencyRequired: true),
+            ));
+
+        $listener = new RequestContextListener(
+            $contextFactory,
+            $this->createMock(IdempotencyServiceInterface::class),
+            new UcpResponseFactory($this->configuration()),
+            $this->configuration(),
+        );
+
+        $request = Request::create('https://merchant.example/ucp/v1/carts', 'POST');
+        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Idempotency key is required for mutating UCP requests.');
+
+        $listener->onKernelRequest($event);
     }
 
     #[Test]

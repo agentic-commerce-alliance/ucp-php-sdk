@@ -38,6 +38,24 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         $catalog = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertCount(1, $catalog['products']);
         self::assertSame('tent-4p', $catalog['products'][0]['id']);
+
+        // The shape services/shopping/rest.openapi.json has defined at every published protocol
+        // version. This SDK served GET /catalog/product/{id} instead, so an agent following the
+        // OpenAPI document got a 405.
+        $this->request($client, 'POST', '/ucp/v1/catalog/product', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'id' => 'tent-4p',
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseIsSuccessful();
+        $product = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('tent-4p', $product['product']['id']);
+
+        // Retained for one minor behind ucp_sdk.legacy_routes.catalog_product_get.
+        $this->request($client, 'GET', '/ucp/v1/catalog/product/tent-4p');
+
+        self::assertResponseIsSuccessful();
+        $legacy = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('tent-4p', $legacy['product']['id']);
     }
 
     #[Test]

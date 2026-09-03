@@ -19,6 +19,14 @@ final class Configuration implements ConfigurationInterface
             ->children()
                 ->scalarNode('version')->defaultValue('2026-04-08')->end()
                 ->scalarNode('base_uri')->defaultNull()->end()
+                ->arrayNode('legacy_routes')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        // On by default for one minor: the route is non-conformant, so no
+                        // conformant peer can depend on it, but adopters shipped against it.
+                        ->booleanNode('catalog_product_get')->defaultTrue()->end()
+                    ->end()
+                ->end()
                 ->arrayNode('allowed_profile_hosts')
                     ->scalarPrototype()->end()
                 ->end()
