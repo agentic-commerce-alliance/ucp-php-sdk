@@ -57,6 +57,12 @@ The merchant example app shows this boundary by keeping SDK state in SQLite whil
 
 ## Schema Lifecycle
 
+`SchemaBootstrapper` is public API. Its contract covers *when* it may be called as well as how:
+it must stay idempotent and additive, because adopters run it on every upgrade against storage
+that already holds data. A change that is safe on an empty schema and not on a populated one
+breaks installations rather than requests.
+
+
 The default DBAL repositories expect their tables to exist before they are used.
 They do not install or migrate the schema from request-time repository
 constructors.

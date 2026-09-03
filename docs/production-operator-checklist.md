@@ -12,11 +12,14 @@ The checklist is evergreen. Version-specific caveats still belong in the GitHub 
 - Keep `profile_fetching_development_mode` disabled outside local development.
 - Enable non-REST transports only when the adopter has configured and tested them for that deployment.
 - For MCP, provide an explicit `transport_endpoints.mcp` value. The shared SDK publishes metadata only and does not provide a default `/ucp/mcp` runtime endpoint.
+- Set `version` to a protocol version this release ships schemas for. It is validated when the container is built, so a typo fails at deploy time rather than on the first validated request.
+- Decide on `legacy_routes.catalog_product_get`. It defaults to on and keeps the pre-0.0.6 `GET /ucp/v1/catalog/product/{id}` alive alongside the conformant `POST /ucp/v1/catalog/product`. The GET route cannot carry the request body the operation is defined to take, so leave it on only while clients are migrating.
 
 ## Mutating Requests And Idempotency
 
 - Require `Idempotency-Key` for production mutating routes unless a specific operation is documented as safe to retry without replay protection.
 - Treat missing idempotency on cart, checkout, tokenization, payment, or order mutation traffic as an integration defect.
+- Note that idempotency is decided by the **operation**, not the HTTP method. `catalog.search`, `catalog.lookup` and `catalog.product` are served over `POST` but are reads, and upstream attaches the `Idempotency-Key` parameter to the cart and checkout create/update/cancel operations only — so those three do not require one even with `idempotency_required: true`.
 - Confirm the configured idempotency TTL is long enough for the longest expected client retry window.
 - Confirm stored idempotent response bodies fit within `idempotency.max_stored_response_bytes`.
 - Do not rotate `%kernel.secret%` for the default DBAL storage adapter without migrating or purging encrypted idempotency response rows.

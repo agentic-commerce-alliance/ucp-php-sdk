@@ -33,6 +33,11 @@ Per-store or sales-channel resolution should live in `RuntimeConfigurationResolv
 - public adapter contracts
 - optional adapter-backed capability implementations
 - request context, validation, signing, negotiation, and webhook orchestration
+- `Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor`, the transport-agnostic seam. A
+  platform serving UCP over a transport this bundle does not ship — a Store API MCP tool, say —
+  calls it rather than reimplementing negotiation enforcement, payload mapping, request and
+  response validation and the response envelope per transport. See
+  [extension-contract.md](extension-contract.md).
 
 ## What A Shopware Plugin Should Provide
 
