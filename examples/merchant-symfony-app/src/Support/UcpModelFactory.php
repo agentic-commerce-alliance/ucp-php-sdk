@@ -12,6 +12,7 @@ use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Link;
 use Ucp\Sdk\Model\Common\Message;
+use Ucp\Sdk\Model\Common\MonetaryAmount;
 use Ucp\Sdk\Model\Common\Money;
 use Ucp\Sdk\Model\Order\OrderView;
 
@@ -108,7 +109,28 @@ final class UcpModelFactory
     }
 
     /**
-     * @param mixed $payload
+     * Undoes the minor-unit encoding LineItem::toArray() applies.
+     *
+     * This app persists the wire payload, and `LineItem::toArray()` writes `item.price` in
+     * minor units while `LineItem::__construct()` takes major ones. Reading the value straight
+     * back therefore multiplied every price by the currency scale -- a 249.00 tent rehydrated
+     * as 24,900.00 -- so every total derived from a stored cart was inflated a hundredfold.
+     * Nothing caught it because the only assertion on a discounted total was that it is
+     * negative.
+     *
+     * The scale is derived rather than hardcoded: MonetaryAmount knows each currency's
+     * exponent, and one major unit expressed in minor units is exactly that scale (100 for EUR,
+     * 1 for JPY). The SDK exposes no minor-to-major conversion, which is the asymmetry behind
+     * this bug and is worth fixing there rather than here.
+     */
+    private static function majorUnits(float $minorUnits): float
+    {
+        $scale = MonetaryAmount::fromMajorUnits(1.0, 'EUR')->minorUnits;
+
+        return $scale > 0 ? $minorUnits / $scale : $minorUnits;
+    }
+
+    /**
      * @return list<LineItem>
      */
     private function lineItems(mixed $payload): array
@@ -128,7 +150,7 @@ final class UcpModelFactory
             $lineItems[] = new LineItem(
                 (string) ($item['id'] ?? ''),
                 (string) ($item['title'] ?? ''),
-                (float) ($item['price'] ?? 0.0),
+                self::majorUnits((float) ($item['price'] ?? 0.0)),
                 (int) ($lineItem['quantity'] ?? 1),
                 is_string($item['image_url'] ?? null) ? $item['image_url'] : null,
                 $extra,
