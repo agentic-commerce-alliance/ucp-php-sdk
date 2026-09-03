@@ -49,6 +49,17 @@ final class ProductCatalog
             'stock' => 65,
             'category' => 'accessories',
         ],
+        // Deliberately unavailable. Every product here used to have stock, so nothing could
+        // exercise the out-of-stock path -- and a conformance suite needs an item it can be
+        // told will fail.
+        'map-alpine' => [
+            'id' => 'map-alpine',
+            'title' => 'Alpine Trail Map',
+            'price' => 19.0,
+            'image_url' => 'https://images.example.test/products/map-alpine.jpg',
+            'stock' => 0,
+            'category' => 'accessories',
+        ],
     ];
 
     /**
