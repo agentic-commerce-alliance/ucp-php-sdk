@@ -386,9 +386,14 @@ final class ShoppingOperationExecutor
      */
     private function response(string $operation, UcpOperationPayload $payload, UcpCapability $capability, RequestContext $context): UcpOperationResponse
     {
+        $configuration = $context->runtimeConfiguration;
         $response = new UcpOperationResponse(
             $payload,
-            UcpEnvelope::response(UcpProtocolVersion::V20260408->value, UcpResponseStatus::Success, $capability),
+            UcpEnvelope::response(
+                $configuration === null ? UcpProtocolVersion::current()->value : $configuration->version,
+                UcpResponseStatus::Success,
+                $capability,
+            ),
         );
 
         $this->protocolValidator->validateResponse($operation, $response->toArray(), $context);

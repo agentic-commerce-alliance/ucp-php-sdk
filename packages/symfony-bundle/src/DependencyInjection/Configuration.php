@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
 
 final class Configuration implements ConfigurationInterface
@@ -17,7 +18,16 @@ final class Configuration implements ConfigurationInterface
 
         $rootNode
             ->children()
-                ->scalarNode('version')->defaultValue('2026-04-08')->end()
+                ->scalarNode('version')
+                    ->defaultValue(UcpProtocolVersion::current()->value)
+                    ->validate()
+                        ->ifTrue(static fn (mixed $version): bool => ! is_string($version) || ! UcpProtocolVersion::isSupported($version))
+                        ->thenInvalid(sprintf(
+                            'Unsupported UCP protocol version %%s. This SDK release serves %s.',
+                            implode(', ', UcpProtocolVersion::supportedVersions()),
+                        ))
+                    ->end()
+                ->end()
                 ->scalarNode('base_uri')->defaultNull()->end()
                 ->arrayNode('allowed_profile_hosts')
                     ->scalarPrototype()->end()
