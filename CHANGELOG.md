@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- The UCP `2026-08-25` schema set is now pinned and generated alongside `2026-04-08`, and is inactive: the configured protocol version still defaults to `2026-04-08`, so nothing validates against the new tree yet. `tools/sync-ucp-schemas.php` learned the restructured layout — `error_response.json` moved from `shopping/types/` to `common/types/` and is now probed in both, so both versions stay reproducible from their pinned trees, and `source/discovery/` is gone in favour of `source/schemas/profile.json`. The cycle-guard placeholder budget is committed per version in `tools/sync-cycle-placeholder-budget.json`, because the new type graph is more recursive and a placeholder silently loosens validation where it lands ([#150](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/150))
+
 ### Fixed
 
 - Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
