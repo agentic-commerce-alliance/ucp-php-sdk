@@ -127,6 +127,42 @@ headers["UCP-Agent"] = f'profile="..."; version="{advertised_version}"'
 `...` is literal, not a URL. This SDK correctly answers `401 Platform profile URI must include
 a host.` That is a bug in the suite rather than in this SDK, and it is worth reporting upstream.
 
+## Upstream findings
+
+Three defects in the suite itself, all with the same cause: the reference server it is validated
+against (`Universal-Commerce-Protocol/samples`) does not fetch the platform profile for
+capability negotiation and does not validate request payloads against the schemas, so the
+suite's own inputs drifted from the spec without anything noticing.
+
+1. **`protocol_test.py` sends a literal `profile="..."`.** It builds correct headers with
+   `get_headers()`, then overwrites `UCP-Agent` to append `version=` and discards the URL. The
+   branch asserts `[200, 201]`, so it cannot pass against a server that validates the profile
+   URI.
+2. **The mock agent profile declares one capability** (`dev.ucp.shopping.order`) while the suite
+   exercises seven. Declaring what it exercises is compatible with both readings of the
+   negotiation question above — an implementation that ignores capabilities is unaffected by a
+   richer profile — which is why it is the change worth asking for regardless of how that
+   question is settled.
+3. **The fulfillment update payload omits `line_item_ids`**, which
+   `types/fulfillment_method.json` annotates `ucp_request: {"update": "required"}`.
+   `ensure_fulfillment_ready()` hand-builds that dict rather than using the pydantic model the
+   create path uses, which is how the two drifted apart.
+
+Measured against this SDK, at the pinned commit:
+
+| | Failed | Passed |
+| --- | ---: | ---: |
+| unmodified | 63 | 1 |
+| + fixes 1 and 2 | 59 | 5 |
+| + fix 3 | 59 | 5 |
+
+Fix 3 changes no counts but removes the schema rejection, so those tests fail further along. The
+remaining failures are spread across modules as missing response fields rather than concentrated
+on one refusal — most of what is left is ours, and now visible.
+
+Patches and issue drafts are generated into `var/upstream/` and are not committed; regenerate
+them with `UCP_CONFORMANCE_NO_CHECKOUT=1` after applying changes to the checkout.
+
 ## Promoting a module to blocking
 
 `tests/conformance/enforced-modules.txt` lists the modules CI blocks on. It is empty today,

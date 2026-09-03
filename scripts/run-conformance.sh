@@ -41,8 +41,12 @@ if [ ! -d "${checkout}/.git" ]; then
     rm -rf "${checkout}"
     git clone --quiet https://github.com/Universal-Commerce-Protocol/conformance.git "${checkout}"
 fi
-git -C "${checkout}" fetch --quiet origin
-git -C "${checkout}" checkout --quiet "${pinned}"
+# Skippable so a local modification to the suite -- reproducing a defect, or testing a patch
+# before sending it upstream -- is not silently reverted on the next run.
+if [ -z "${UCP_CONFORMANCE_NO_CHECKOUT:-}" ]; then
+    git -C "${checkout}" fetch --quiet origin
+    git -C "${checkout}" checkout --quiet "${pinned}"
+fi
 echo "conformance suite pinned at ${pinned}"
 
 if [ ! -x "${venv}/bin/python" ]; then
