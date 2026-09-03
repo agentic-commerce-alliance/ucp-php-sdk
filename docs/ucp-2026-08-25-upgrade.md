@@ -7,10 +7,11 @@ Status: in progress. Owner: TBD.
 | 0 — prep | T1, T2, T3, T31 | done |
 | 1 — interop breakers | T4, T5, T6, T7, T8 | done · **T9 withdrawn**, premise false |
 | 2 — conformance harness | T10, T11, T12 | done · T13, T14 open |
-| 3 — the hard switch | T15 to T22 | not started |
+| 3 — the hard switch | T15 to T22 | T15 done · T17 rescoped by it, no longer breaking |
 | 4 — signature parity | T23 to T26 | not started |
 | 5 — sustainability | T27 to T30, T32 | not started |
-| discovered | **T33** | not started — found by T12 on its first run |
+| discovered | **T33** | done — found by T12; premise corrected, see its entry |
+| docs | **T32** | done |
 
 This document is the authoritative gap statement between this SDK and the UCP
 specification. It supersedes the transport-only notes that used to live in
@@ -701,44 +702,39 @@ and selects the EC key for signing. A profile whose only key has an unrecognised
 
 **Effort.** M · **Depends on.** T15 (for the pinned profile schema) · Order-independent relative to the flip · **Pairs with.** plugin `P6`
 
-### T17 — `feat(model)!: represent quantity as integer-or-measure` **[BC]**
+### T17 — `feat(model): carry the sale basis a quantity is denominated in`
 
-**Why.** `2026-08-25` upgrades cart and checkout `quantity` from a strict integer
-to `anyOf` integer or a structured `measure.json` object, with sale-basis pricing
-steps, `scale` at most 15 and integer bounds capped at +/-(2^53-1).
-`HttpPayloadMapper.php:323` does `(int) ($row['quantity'] ?? 1)`, and PHP casts a
-non-empty array to `1` — so a conformant `{"value": 2.5, "unit": "kg"}` payload
-becomes quantity 1 with **no error**. This is the highest-risk single line in the
-upgrade.
+**Corrected by T15.** This was written as a breaking change widening
+`LineItem::$quantity` to an integer-or-measure value object. **The schema does not say that.**
+`line_item.quantity` is still `type: integer` at `2026-08-25`, and its own description reads
+*"Always an integer step count."*
 
-Forward-compatible on the wire: it emits a bare integer when the quantity is
-integral, which is valid under both schema sets, so it can land before the flip.
+What actually changed is the **unit** a step is denominated in:
 
-**Design.** New `packages/core/src/Model/Common/Quantity` with `asInt(): ?int`,
-`value`, `unit`, `scale`, plus `LineItem::withIntegerQuantity()` for the common
-case. **Reject the append-only alternative** (`?Quantity $measured = null`
-alongside `int $quantity`) — two sources of truth and a mapper that has to guess.
+- `item.quantity_unit` (`common/types/quantity_unit.json`) declares the sale basis; absent means
+  `each`.
+- `common/types/measure.json` is referenced by `unit_price` and `adjustment`, **not** by
+  quantity.
 
-**Files.** `packages/core/src/Model/Common/LineItem.php:16` (`int $quantity`),
-`:24-29` (docblock shape), `:34` (`$amount * $this->quantity` arithmetic), `:45`
-(emit); `packages/symfony-bundle/src/Bridge/HttpPayloadMapper.php:323`;
-`packages/core/src/Model/Order/OrderView.php:110,133` — already object-shaped
-(`{original, total, fulfilled}`), so reconcile;
-`packages/symfony-bundle/src/Operation/ShoppingOperationToolSchemas.php`
-(`line_items` is only `['type' => 'array']`, so MCP tool schemas will not block a
-measure, but the descriptions go stale).
+So a weight-priced good is *25 steps of 100g*, not a quantity of `2.5`.
+`HttpPayloadMapper.php`'s `(int) ($row['quantity'] ?? 1)` is therefore **not** the latent
+data-loss bug this plan claimed -- an integer stays an integer.
 
-**Acceptance.** A line item of `2.5 kg` round-trips and prices correctly; a bare
-integer still parses. **Rounding is exercised:** fractional quantity times unit
-price must not produce sub-minor-unit currency amounts, and `MonetaryAmount` must
-round or reject deterministically. That rounding rule is the substance of this
-issue; the DTO is trivial. Mutation tests must kill both the integer and measure
-branches, or `mutation:gate` fails on the `??`/`is_array()` escapes.
+**Files.** `packages/core/src/Model/Common/LineItem.php` and `Model/Catalog/Product.php` to
+carry `quantity_unit`; a `UnitPrice` model carrying `amount`, `currency`, `measure`,
+`reference`; `HttpPayloadMapper` to read both.
 
-**Obligation.** First `.bc-allowed-breaks.txt` entry; CHANGELOG `### Breaking`;
-snapshot regenerated (`tools/public-api-snapshot.expected.txt:242`).
+**Acceptance.** An item with a sale basis round-trips its `quantity_unit`, and a unit price
+round-trips its `measure` and `reference`. Quantity arithmetic is unchanged, because quantity is
+unchanged.
 
-**Effort.** M · **Depends on.** T2, T15 · **Pairs with.** plugin `P7`
+**No longer needed:** no `Quantity` value object, no break on `LineItem::$quantity`, no
+`.bc-allowed-breaks.txt` entry, no version bump on this task's account. `T18` is now the only
+deliberate break in Wave 3, so T2's allowlist remains a prerequisite -- for one task rather than
+two.
+
+**Effort.** M · **Depends on.** T15 · **No longer [BC]**
+
 
 ### T18 — `feat(model)!: reverse-DNS buyer consent purposes` **[BC]**
 
