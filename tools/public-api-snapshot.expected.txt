@@ -122,6 +122,15 @@ enum Ucp\Sdk\Enum\CheckoutStatus
   - static cases(): array
   - static from(string|int $value): static
   - static tryFrom(string|int $value): ?static
+enum Ucp\Sdk\Enum\SignatureAlgorithm
+  - static cases(): array
+  - coordinateBytes(): int
+  - curve(): string
+  - static from(string|int $value): static
+  - static fromIdentifier(string $identifier): self
+  - static tryFrom(string|int $value): ?static
+  - static tryFromIdentifier(string $identifier): ?self
+  - wireIdentifier(): string
 enum Ucp\Sdk\Enum\SignaturePolicy
   - static cases(): array
   - static from(string|int $value): static

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Internal\Security\ContentDigestService;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
+use Ucp\Sdk\Internal\Security\EcdsaSignatureCodec;
 use Ucp\Sdk\Internal\Security\Rfc9421RequestSignatureService;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
@@ -97,7 +99,8 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         self::assertStringContainsString('created=1700000000', $signedHeaders['Signature-Input']);
         self::assertStringContainsString('expires=1700000120', $signedHeaders['Signature-Input']);
         self::assertStringContainsString('keyid="kid-explicit"', $signedHeaders['Signature-Input']);
-        self::assertStringContainsString('alg="ES256"', $signedHeaders['Signature-Input']);
+        // RFC 9421 names algorithms from its own registry, not by their JWA names.
+        self::assertStringContainsString('alg="ecdsa-p256-sha256"', $signedHeaders['Signature-Input']);
         self::assertStringStartsWith('sig=:', $signedHeaders['Signature']);
     }
 
@@ -245,7 +248,7 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         $service = new Rfc9421RequestSignatureService(new ContentDigestService());
 
         $signedHeaders = $service->sign($request, $managedKey, $created, $created + 120);
-        $signedHeaders['Signature-Input'] = str_replace('alg="ES256"', 'alg="HS256"', $signedHeaders['Signature-Input']);
+        $signedHeaders['Signature-Input'] = str_replace('alg="ecdsa-p256-sha256"', 'alg="HS256"', $signedHeaders['Signature-Input']);
 
         $result = $service->verify(
             new HttpRequest($request->method, $request->absoluteUri, $signedHeaders, $request->query, $request->body),
@@ -266,13 +269,94 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         $service = new Rfc9421RequestSignatureService(new ContentDigestService());
 
         $signedHeaders = $service->sign($request, $managedKey, $created, $created + 120);
-        $signedHeaders['Signature-Input'] = str_replace('alg="ES256"', 'alg="ES384"', $signedHeaders['Signature-Input']);
+        $signedHeaders['Signature-Input'] = str_replace('alg="ecdsa-p256-sha256"', 'alg="ecdsa-p384-sha384"', $signedHeaders['Signature-Input']);
         $verifiedRequest = new HttpRequest($request->method, $request->absoluteUri, $signedHeaders, $request->query, $request->body);
 
         $result = $service->verify($verifiedRequest, [$manager->toPublicKey($managedKey)]);
 
         self::assertFalse($result->verified);
         self::assertSame('Signature algorithm does not match signing key.', $result->failureReason);
+    }
+
+    /**
+     * A peer naming the algorithm the old way is understood rather than rejected, so the
+     * registry-identifier change does not require both sides to move at once.
+     */
+    #[Test]
+    public function itAcceptsTheJwaAlgorithmNameFromAPeerThatStillSendsIt(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-jwa-alg');
+        $request = new HttpRequest('post', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $created = time();
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+
+        // `alg` sits inside @signature-params, which the signature covers, so this cannot be
+        // done by rewriting a header after signing -- the peer has to sign that spelling.
+        $digest = (new ContentDigestService())->create($request->body);
+        $params = sprintf(
+            '("@method" "@target-uri" "content-digest");created=%d;expires=%d;keyid="%s";alg="ES256"',
+            $created,
+            $created + 120,
+            $managedKey->kid,
+        );
+        $base = implode("\n", [
+            '"@method": POST',
+            sprintf('"@target-uri": %s', $request->absoluteUri),
+            sprintf('"content-digest": %s', $digest),
+            sprintf('"@signature-params": %s', $params),
+        ]);
+
+        $der = '';
+        self::assertTrue(openssl_sign($base, $der, $managedKey->privateKeyPem, OPENSSL_ALGO_SHA256));
+        $raw = (new EcdsaSignatureCodec())->derToRaw($der, 32);
+
+        $result = $service->verify(
+            new HttpRequest($request->method, $request->absoluteUri, [
+                'Content-Digest' => $digest,
+                'Signature-Input' => 'sig=' . $params,
+                'Signature' => 'sig=:' . base64_encode($raw) . ':',
+            ], $request->query, $request->body),
+            [$manager->toPublicKey($managedKey)],
+        );
+
+        self::assertTrue($result->verified, (string) $result->failureReason);
+    }
+
+    /**
+     * The wire contract, stated as a length: RFC 9421 section 3.3.1 requires r||s padded to the
+     * curve width, which is 64 bytes on P-256 and 96 on P-384. openssl emits DER of about 70 to
+     * 72 bytes instead, and that is what this SDK used to send.
+     */
+    #[Test]
+    #[DataProvider('fixedWidthLengths')]
+    public function itEmitsFixedWidthSignatures(string $algorithm, int $expectedBytes): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $key = $manager->generate('kid-width', $algorithm);
+        $request = new HttpRequest('POST', 'https://merchant.example/ucp/v1/carts', [], [], '{}');
+
+        $headers = (new Rfc9421RequestSignatureService(new ContentDigestService()))->sign($request, $key);
+
+        $signature = $headers['Signature'];
+        self::assertStringStartsWith('sig=:', $signature);
+        self::assertStringEndsWith(':', $signature);
+        $decoded = base64_decode(substr($signature, 5, -1), true);
+        self::assertIsString($decoded);
+        // Length is the whole contract, and it is what distinguishes the two encodings: DER for
+        // these curves is 8 to 72 bytes and only lands on 64 or 96 by coincidence. Checking the
+        // leading byte instead would be wrong -- a valid fixed-width signature starts with 0x30
+        // once every 256 signatures.
+        self::assertSame($expectedBytes, strlen($decoded));
+    }
+
+    /**
+     * @return iterable<string, array{string, int}>
+     */
+    public static function fixedWidthLengths(): iterable
+    {
+        yield 'ES256 is 2x32 bytes' => ['ES256', 64];
+        yield 'ES384 is 2x48 bytes' => ['ES384', 96];
     }
 
     #[Test]

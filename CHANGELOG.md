@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+### Changed (breaking)
+
+- ECDSA signatures now go out in the fixed-width `r || s` form RFC 9421 section 3.3.1 requires — 64 bytes on P-256, 96 on P-384 — instead of the DER that `openssl_sign()` returns. The two are different encodings of the same signature, so every signature this SDK emitted was rejected by every conformant verifier, and every conformant signature it received was rejected in turn: interoperable with nothing but itself. `Signature-Input` also names the algorithm from RFC 9421's HTTP Signature Algorithms registry (`ecdsa-p256-sha256`) rather than by its JWA name (`ES256`), which is what a conformant peer reads. Verification accepts both encodings and both spellings for this release, so a peer still running 0.0.5 keeps working; a peer verifying *our* signatures needs to accept fixed-width, which conformant implementations already do. Signing keys are unaffected and need no migration — storage stays on the JWA name
+
 ### Fixed
 
+- `DefaultSigningKeyManager::generate()` rejects an algorithm it cannot generate a key for. It selected the curve with `$algorithm === 'ES384' ? 'secp384r1' : 'prime256v1'`, so anything unrecognised silently produced a P-256 key labelled with whatever was asked for — `generate($kid, 'HS256')` returned a usable-looking key that could never sign, and published a JWK whose `alg` and `crv` disagreed
 - Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
 
 ### Changed
