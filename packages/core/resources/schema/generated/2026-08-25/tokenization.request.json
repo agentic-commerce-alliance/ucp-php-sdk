@@ -1,0 +1,78 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+        "credential",
+        "binding"
+    ],
+    "properties": {
+        "credential": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/common/types/payment_credential.json",
+            "title": "Payment Credential",
+            "description": "Credential to tokenize. Handlers define accepted credential types in their specification.",
+            "type": "object",
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "The credential type discriminator. Specific schemas will constrain this to a constant value."
+                }
+            },
+            "additionalProperties": true
+        },
+        "binding": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/common/types/binding.json",
+            "title": "Binding",
+            "description": "Resource this token is bound to. Ties the token to a specific capability resource.",
+            "type": "object",
+            "required": [
+                "type",
+                "id"
+            ],
+            "properties": {
+                "type": {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "$id": "https://ucp.dev/schemas/common/types/reverse_domain_name.json",
+                    "title": "Reverse Domain Name",
+                    "description": "The capability that owns the bound resource, for example dev.ucp.shopping.checkout. MUST be a capability name declared in the UCP namespace.",
+                    "type": "string",
+                    "pattern": "^[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9_])?)+$",
+                    "examples": [
+                        "dev.ucp.shopping.checkout",
+                        "dev.ucp.common.identity_linking",
+                        "com.example.loyalty_gold",
+                        "com.example-shop.checkout",
+                        "com.2example.cart",
+                        "uk.co.example-shop.checkout",
+                        "xn--p1ai.example.checkout"
+                    ]
+                },
+                "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Opaque identifier of the bound resource within the owning capability, for example a checkout identifier."
+                }
+            }
+        },
+        "identity": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/common/types/payment_identity.json",
+            "title": "Payment Identity",
+            "description": "The participant this token is issued to. Required when acting on behalf of another participant, for example an agent tokenizing for a business. Omit when the authenticated caller is that participant.",
+            "type": "object",
+            "required": [
+                "access_token"
+            ],
+            "properties": {
+                "access_token": {
+                    "type": "string",
+                    "description": "Unique identifier for this participant, obtained during onboarding with the tokenizer."
+                }
+            }
+        }
+    }
+}

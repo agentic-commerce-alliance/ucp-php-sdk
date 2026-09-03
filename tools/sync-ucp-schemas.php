@@ -64,7 +64,10 @@ function main(array $argv): void
     }
 
     mirrorDirectory($schemaRoot, $pinnedRoot . '/schemas');
-    mirrorDirectory($source . '/source/discovery', $pinnedRoot . '/discovery');
+    // `source/discovery` existed up to 2026-04-08 and holds the profile schema. At 2026-08-25 it
+    // is gone and the profile schema moved to `source/schemas/profile.json`, which arrives with
+    // the mirror above. Removed rather than made optional: a directory that silently stops being
+    // copied is how a pinned tree keeps a stale file from the version before it.
     mirrorDirectory($source . '/source/services', $pinnedRoot . '/services');
     mirrorDirectory($source . '/source/handlers', $pinnedRoot . '/handlers');
     resetDirectory($generatedRoot);
@@ -270,6 +273,8 @@ function allowCartIdInsteadOfLineItems(array $schema): array
  */
 function operationSchemas(string $schemaRoot): array
 {
+    $errorResponse = errorResponseFile($schemaRoot);
+
     return [
         'catalog.search.request' => ['file' => 'shopping/catalog_search.json', 'pointer' => '/$defs/search_request'],
         'catalog.search.response' => ['file' => 'shopping/catalog_search.json', 'pointer' => '/$defs/search_response'],
@@ -278,16 +283,16 @@ function operationSchemas(string $schemaRoot): array
         'catalog.product.request' => ['file' => 'shopping/catalog_lookup.json', 'pointer' => '/$defs/get_product_request'],
         'catalog.product.response' => ['oneOf' => [
             ['file' => 'shopping/catalog_lookup.json', 'pointer' => '/$defs/get_product_response'],
-            ['file' => 'shopping/types/error_response.json'],
+            ['file' => $errorResponse],
         ]],
         'cart.create.request' => ['file' => 'shopping/cart.json', 'request' => 'create'],
-        'cart.create.response' => responseWithError('shopping/cart.json'),
+        'cart.create.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.get.request' => idRequest(),
-        'cart.get.response' => responseWithError('shopping/cart.json'),
+        'cart.get.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.update.request' => ['file' => 'shopping/cart.json', 'request' => 'update'],
-        'cart.update.response' => responseWithError('shopping/cart.json'),
+        'cart.update.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.cancel.request' => idRequest(),
-        'cart.cancel.response' => responseWithError('shopping/cart.json'),
+        'cart.cancel.response' => responseWithError('shopping/cart.json', $errorResponse),
         'discount.apply.request' => [
             'type' => 'object',
             'required' => ['cart_id', 'code'],
@@ -296,7 +301,7 @@ function operationSchemas(string $schemaRoot): array
                 'code' => ['type' => 'string'],
             ],
         ],
-        'discount.apply.response' => responseWithError('shopping/cart.json'),
+        'discount.apply.response' => responseWithError('shopping/cart.json', $errorResponse),
         'checkout.create.request' => [
             'file' => 'shopping/checkout.json',
             'request' => 'create',
@@ -304,21 +309,21 @@ function operationSchemas(string $schemaRoot): array
             // checkout, and there is nothing to convert on update or complete.
             'extensions' => [...checkoutExtensions(), ['file' => 'shopping/cart.json', 'pointer' => '/$defs/checkout']],
         ],
-        'checkout.create.response' => responseWithError('shopping/checkout.json'),
+        'checkout.create.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.get.request' => idRequest(),
-        'checkout.get.response' => responseWithError('shopping/checkout.json'),
+        'checkout.get.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.update.request' => [
             'file' => 'shopping/checkout.json',
             'request' => 'update',
             'extensions' => checkoutExtensions(),
         ],
-        'checkout.update.response' => responseWithError('shopping/checkout.json'),
+        'checkout.update.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.complete.request' => ['file' => 'shopping/checkout.json', 'request' => 'complete'],
-        'checkout.complete.response' => responseWithError('shopping/checkout.json'),
+        'checkout.complete.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.cancel.request' => idRequest(),
-        'checkout.cancel.response' => responseWithError('shopping/checkout.json'),
+        'checkout.cancel.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'order.get.request' => idRequest(),
-        'order.get.response' => responseWithError('shopping/order.json'),
+        'order.get.response' => responseWithError('shopping/order.json', $errorResponse),
         'tokenization.request' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/requestBody/content/application~1json/schema'],
         'tokenization.response' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/responses/200/content/application~1json/schema'],
     ];
@@ -329,7 +334,7 @@ function operationSchemas(string $schemaRoot): array
  *
  * Only the ones HttpPayloadMapper actually consumes, so the published contract
  * describes what the SDK acts on rather than everything the spec could compose.
- * `ap2_mandate.json` is deliberately absent: mandates travel through
+ * `common/payment_ap2_mandate.json` is deliberately absent: mandates travel through
  * PaymentMandateVerifierInterface, not through the checkout request payload.
  *
  * @return list<array{file: string, pointer: string}>
@@ -345,13 +350,32 @@ function checkoutExtensions(): array
 }
 
 /**
+ * Locates error_response.json, which is not in the same place in every version.
+ *
+ * It moved from `shopping/types` to `common/types` at 2026-08-25, along with the rest of the
+ * shared primitives. Both versions stay pinned and `--verify` regenerates each from its own
+ * copy, so the tool has to handle either layout rather than only the newest one -- hardcoding
+ * the new path made 2026-04-08 unreproducible, which is what `sync:verify` is for.
+ */
+function errorResponseFile(string $schemaRoot): string
+{
+    foreach (['common/types/error_response.json', 'shopping/types/error_response.json'] as $candidate) {
+        if (is_file($schemaRoot . '/' . $candidate)) {
+            return $candidate;
+        }
+    }
+
+    fail(sprintf('Unable to find error_response.json under "%s".', $schemaRoot));
+}
+
+/**
  * @return array{oneOf: list<array{file: string}>}
  */
-function responseWithError(string $file): array
+function responseWithError(string $file, string $errorResponse): array
 {
     return ['oneOf' => [
         ['file' => $file],
-        ['file' => 'shopping/types/error_response.json'],
+        ['file' => $errorResponse],
     ]];
 }
 

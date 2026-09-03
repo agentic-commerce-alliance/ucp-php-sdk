@@ -1,0 +1,214 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "line_items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "item": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "description": "The product identifier, often the SKU, required to resolve the product details associated with this line item. Should be recognized by both the Platform, and the Business."
+                            },
+                            "quantity_unit": {
+                                "type": "object",
+                                "properties": {
+                                    "increment": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "default": 1,
+                                        "description": "Ordering granularity, denominated in steps: the Business sells this item in integer multiples of `increment` steps. Its effective value is the provided value or 1. Advisory merchandising policy, not a representational bound: Platform-authored quantities SHOULD be integer multiples of the effective increment; the Business MAY accept, revise, or reject an off-increment request with a recoverable business outcome and MUST NOT silently reinterpret it. Business-authored quantities (checkout revisions, fulfillment events, adjustments) are bounded only by `scale`."
+                                    }
+                                }
+                            }
+                        },
+                        "required": [
+                            "id"
+                        ]
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "description": "Always an integer step count. On Platform requests, steps use the item's Business-authoritative sale basis; omitting `item.quantity_unit` makes no assertion and does not imply `each`. On Business responses, `item.quantity_unit` describes the basis; if absent, it encodes the `each` machine identity (`C62`, 0) and `quantity` counts whole items.",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                    }
+                },
+                "required": [
+                    "item",
+                    "quantity"
+                ]
+            },
+            "description": "Cart line items. Same structure as checkout. Full replacement on update."
+        },
+        "context": {
+            "type": "object",
+            "properties": {
+                "address_country": {
+                    "type": "string",
+                    "description": "The country, as a 2-letter ISO 3166-1 alpha-2 code (e.g. \"US\"). A 3-letter alpha-3 code or full country name MAY also be used."
+                },
+                "address_region": {
+                    "type": "string",
+                    "description": "The first-level administrative region within the country (e.g. a state or province such as California)."
+                },
+                "postal_code": {
+                    "type": "string",
+                    "description": "The postal code (e.g. \"94043\")."
+                },
+                "location": {
+                    "type": "string",
+                    "description": "Stable, opaque identifier for a Location in the Business's namespace. This provisional, non-binding hint is distinct from the Buyer's locality. The operation specification or an active capability/extension defines its effects. A common example in retail shopping is the default home store ID selected and saved by the user when purchasing groceries."
+                },
+                "intent": {
+                    "type": "string",
+                    "description": "Background context describing buyer's intent (e.g., 'looking for a gift under $50', 'need something durable for outdoor use'). Informs relevance, recommendations, and personalization."
+                },
+                "language": {
+                    "type": "string",
+                    "description": "Preferred language for content. Use IETF BCP 47 language tags (e.g., 'en', 'fr-CA', 'zh-Hans'). For REST, equivalent to Accept-Language header\u2014platforms SHOULD fall back to Accept-Language when this field is absent; when provided, overrides Accept-Language. Businesses MAY return content in a different language if unavailable."
+                },
+                "currency": {
+                    "type": "string",
+                    "description": "Preferred currency (ISO 4217, e.g., 'EUR', 'USD'). Businesses determine presentment currency from context and authoritative signals; this hint MAY inform selection in multi-currency markets. Also serves as the denomination for price filter values \u2014 platforms SHOULD include this field when sending price filters. Response prices include explicit currency confirming the resolution."
+                },
+                "eligibility": {
+                    "type": "array",
+                    "description": "Buyer claims about eligible benefits such as loyalty membership, payment instrument perks, and similar. Recognized claims MAY inform the Business response (e.g., member-only product availability, adjusted pricing in catalog, provisional discounts at cart or checkout). Businesses MUST ignore unrecognized values without error. Values MUST use reverse-domain naming (e.g., 'com.example.loyalty_gold', 'org.school.student') and MUST be non-identifying.",
+                    "uniqueItems": true,
+                    "items": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "$id": "https://ucp.dev/schemas/common/types/reverse_domain_name.json",
+                        "title": "Reverse Domain Name",
+                        "description": "Reverse-domain identifier used for collision-safe namespacing of capabilities, services, handlers, eligibility claims, and extension-contributed keys. Must contain at least two dot-separated segments (e.g., 'dev.ucp.shopping.checkout', 'com.example.loyalty_gold'). Segments after the first are domain- or identifier-derived: they may contain interior hyphens, may start with a digit, and may contain underscores (e.g., 'com.example-shop.checkout', 'com.2example.cart', 'dev.ucp.common.identity_linking'), but must not start or end with a hyphen. The first segment (the reversed top-level domain) is letters and digits, and may contain interior hyphens to support internationalized (punycode) top-level domains such as 'xn--p1ai'.",
+                        "type": "string",
+                        "pattern": "^[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9_])?)+$",
+                        "examples": [
+                            "dev.ucp.shopping.checkout",
+                            "dev.ucp.common.identity_linking",
+                            "com.example.loyalty_gold",
+                            "com.example-shop.checkout",
+                            "com.2example.cart",
+                            "uk.co.example-shop.checkout",
+                            "xn--p1ai.example.checkout"
+                        ]
+                    }
+                },
+                "payment": {
+                    "type": "array",
+                    "description": "Buyer-preferred payment handlers in priority order (most preferred first). Each entry names a handler advertised in the Business profile's `ucp.payment_handlers`, optionally narrowed to preferred instrument types. The Business SHOULD use it to preselect or prioritize the handler (and type, when given) and MAY ignore unavailable or ineligible entries; unrecognized values MUST be ignored without error.",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "handler"
+                        ],
+                        "properties": {
+                            "handler": {
+                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                "$id": "https://ucp.dev/schemas/common/types/reverse_domain_name.json",
+                                "title": "Reverse Domain Name",
+                                "description": "Handler registry key advertised in the Business profile's `ucp.payment_handlers`.",
+                                "type": "string",
+                                "pattern": "^[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9_])?)+$",
+                                "examples": [
+                                    "dev.ucp.shopping.checkout",
+                                    "dev.ucp.common.identity_linking",
+                                    "com.example.loyalty_gold",
+                                    "com.example-shop.checkout",
+                                    "com.2example.cart",
+                                    "uk.co.example-shop.checkout",
+                                    "xn--p1ai.example.checkout"
+                                ]
+                            },
+                            "types": {
+                                "type": "array",
+                                "description": "Optional preferred instrument types for this handler, in priority order, aligned with the handler's advertised `payment_instrument.type` values (for example `card` or `bank`). Unrecognized values MUST be ignored.",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "signals": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/common/types/signals.json",
+            "title": "Signals",
+            "description": "Environment data provided by the platform to support authorization and abuse prevention. Values MUST NOT be buyer-asserted claims \u2014 platforms provide signals based on direct observation or independently verifiable third-party attestations. All signal keys MUST use reverse-domain naming to ensure provenance and prevent collisions when multiple extensions contribute to the shared namespace.",
+            "type": "object",
+            "propertyNames": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "https://ucp.dev/schemas/common/types/reverse_domain_name.json",
+                "title": "Reverse Domain Name",
+                "description": "Reverse-domain identifier (e.g., dev.ucp.buyer_ip, com.example.device_id).",
+                "type": "string",
+                "pattern": "^[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9_])?)+$",
+                "examples": [
+                    "dev.ucp.shopping.checkout",
+                    "dev.ucp.common.identity_linking",
+                    "com.example.loyalty_gold",
+                    "com.example-shop.checkout",
+                    "com.2example.cart",
+                    "uk.co.example-shop.checkout",
+                    "xn--p1ai.example.checkout"
+                ]
+            },
+            "properties": {
+                "dev.ucp.buyer_ip": {
+                    "type": "string",
+                    "description": "Client's IP address (IPv4 or IPv6)."
+                },
+                "dev.ucp.user_agent": {
+                    "type": "string",
+                    "description": "Client's HTTP User-Agent header or equivalent."
+                }
+            },
+            "additionalProperties": true
+        },
+        "attribution": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/shopping/types/attribution.json",
+            "title": "Attribution",
+            "description": "Platform-emitted referral and conversion-event context \u2014 campaign identifiers, click IDs, source/medium markers, etc. The same parameters platforms communicate via URL query parameters in browser-based flows.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "string",
+                "description": "URL-style parameter value, encoded as a string. Numeric or boolean values MUST be string-encoded as they would be in a URL query string."
+            }
+        },
+        "buyer": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/shopping/types/buyer.json",
+            "title": "Buyer",
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+                "first_name": {
+                    "type": "string",
+                    "description": "First name of the buyer."
+                },
+                "last_name": {
+                    "type": "string",
+                    "description": "Last name of the buyer."
+                },
+                "email": {
+                    "type": "string",
+                    "description": "Email of the buyer."
+                },
+                "phone_number": {
+                    "type": "string",
+                    "description": "E.164 standard."
+                }
+            },
+            "description": "Optional buyer information for personalized estimates."
+        }
+    },
+    "required": [
+        "line_items"
+    ]
+}
