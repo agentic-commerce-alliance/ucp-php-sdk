@@ -1,0 +1,6 @@
+# Conformance modules that must pass. Anything listed here is blocking in CI.
+#
+# Empty on purpose. One test passes today (protocol_test.py::ProtocolTest::test_discovery), and
+# a gate over a module that is not green is not a gate. Promote a module by adding it here once
+# it has been green on main for ten consecutive runs; docs/conformance.md records the procedure
+# and what currently stands between each module and that state.
