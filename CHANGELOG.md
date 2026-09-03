@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `Catalog\Product` now accepts an optional `description` argument, letting adapters supply real product text instead of the title. The field is a trailing optional constructor parameter and defaults to the title, so existing call sites and serialized output are unchanged when it is omitted ([#98](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/98))
+
 ### Fixed
 
 - Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
