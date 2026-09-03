@@ -19,11 +19,18 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     private const SUPPORTED_ALGORITHMS = ['ES256', 'ES384'];
     private const DEFAULT_SIGNATURE_LABEL = 'sig';
 
+    /** @var list<string> */
+    private const SIGNED_COMPONENTS = ['@method', '@target-uri', 'content-digest'];
+
+    private readonly SignatureComponentResolver $componentResolver;
+
     public function __construct(
         private readonly ContentDigestService $contentDigestService,
         private readonly ?SignatureReplayGuardInterface $replayGuard = null,
         private readonly int $maxLifetimeSeconds = 300,
+        ?SignatureComponentResolver $componentResolver = null,
     ) {
+        $this->componentResolver = $componentResolver ?? new SignatureComponentResolver();
     }
 
     public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
@@ -32,8 +39,20 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         $expires ??= $created + $this->maxLifetimeSeconds;
         $this->assertSupportedAlgorithm($key->algorithm);
         $digest = $this->contentDigestService->create($request->body);
-        $signatureInput = sprintf('%s=("@method" "@target-uri" "content-digest");created=%d;expires=%d;keyid="%s";alg="%s"', self::DEFAULT_SIGNATURE_LABEL, $created, $expires, $key->kid, $key->algorithm);
-        $base = $this->signatureBase($request, $digest, $created, $expires, $key->kid, $key->algorithm);
+        $signatureParams = sprintf(
+            '(%s);created=%d;expires=%d;keyid="%s";alg="%s"',
+            implode(' ', array_map(static fn (string $component): string => '"' . $component . '"', self::SIGNED_COMPONENTS)),
+            $created,
+            $expires,
+            $key->kid,
+            $key->algorithm,
+        );
+        $signatureInput = self::DEFAULT_SIGNATURE_LABEL . '=' . $signatureParams;
+
+        // The digest is not on the request yet, so overlay the one about to be sent.
+        $headers = $this->normalizeHeaders($request->headers);
+        $headers['content-digest'] = $digest;
+        $base = $this->signatureBase($request, self::SIGNED_COMPONENTS, $signatureParams, $headers);
         $signature = '';
         $opensslAlgorithm = $this->opensslAlgorithm($key->algorithm);
 
@@ -61,7 +80,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         }
 
         try {
-            $parts = $this->parseSignatureInput($signatureInput);
+            [$parts, $components, $signatureParams] = $this->parseSignatureInput($signatureInput);
             $label = $parts['@label'] ?? self::DEFAULT_SIGNATURE_LABEL;
             $kid = $parts['keyid'] ?? null;
             $requestedAlgorithm = $parts['alg'] ?? null;
@@ -97,7 +116,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 throw new SignatureException('Signature algorithm does not match signing key.');
             }
 
-            $base = $this->signatureBase($request, (string) $digest, $created, $expires, $kid, $key->algorithm);
+            $base = $this->signatureBase($request, $components, $signatureParams, $headers);
             $publicKeyPem = $key->publicKeyPem ?? null;
             if ($publicKeyPem === null || $publicKeyPem === '') {
                 throw new SignatureException('Public key PEM is not available for signature verification.');
@@ -141,13 +160,21 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     }
 
     /**
-     * @return array<string, string>
+     * @return array{0: array<string, string>, 1: list<string>, 2: string}
      */
     private function parseSignatureInput(string $signatureInput): array
     {
         if (preg_match('/^\s*([A-Za-z][A-Za-z0-9_-]*)=\(([^)]*)\)(.*)$/', $signatureInput, $matches) !== 1) {
             throw new SignatureException('Signature-Input header is malformed.');
         }
+
+        // Everything after the label, byte for byte as received. The @signature-params line of
+        // the base has to reproduce it exactly: re-serialising from the parsed parameters would
+        // reorder them, drop the ones this implementation does not read, and normalise
+        // whitespace -- and any of those changes the base, so a correctly signed request would
+        // fail to verify.
+        $signatureParams = '(' . $matches[2] . ')' . $matches[3];
+        $components = $this->parseCoveredComponents($matches[2]);
 
         $parts = [];
         $parts['@label'] = $matches[1];
@@ -166,7 +193,37 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
             $parts[$name] = trim($value, '"');
         }
 
-        return $parts;
+        return [$parts, $components, $signatureParams];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function parseCoveredComponents(string $inner): array
+    {
+        $inner = trim($inner);
+        if ($inner === '') {
+            throw new SignatureException('Signature-Input covers no components.');
+        }
+
+        if (preg_match_all('/"([^"]*)"(\S*)/', $inner, $matches, PREG_SET_ORDER) === false) {
+            throw new SignatureException('Signature-Input covered component list is malformed.');
+        }
+
+        $components = [];
+        $reserialized = [];
+        foreach ($matches as $match) {
+            $components[] = $match[1] . $match[2];
+            $reserialized[] = '"' . $match[1] . '"' . $match[2];
+        }
+
+        // Anything the pattern did not consume would be silently ignored, and an ignored token is
+        // an uncovered component treated as covered. Compare against the input to refuse instead.
+        if (implode(' ', $reserialized) !== (string) preg_replace('/\s+/', ' ', $inner)) {
+            throw new SignatureException('Signature-Input covered component list is malformed.');
+        }
+
+        return $components;
     }
 
     /**
@@ -197,14 +254,20 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         return $decoded;
     }
 
-    private function signatureBase(HttpRequest $request, string $digest, int $created, int $expires, string $kid, string $algorithm): string
+    /**
+     * @param list<string> $components
+     * @param array<string, string> $headers
+     */
+    private function signatureBase(HttpRequest $request, array $components, string $signatureParams, array $headers): string
     {
-        return implode("\n", [
-            sprintf('"@method": %s', strtoupper($request->method)),
-            sprintf('"@target-uri": %s', $request->absoluteUri),
-            sprintf('"content-digest": %s', $digest),
-            sprintf('"@signature-params": ("@method" "@target-uri" "content-digest");created=%d;expires=%d;keyid="%s";alg="%s"', $created, $expires, $kid, $algorithm),
-        ]);
+        $lines = [];
+        foreach ($components as $component) {
+            $lines[] = sprintf('"%s": %s', $component, $this->componentResolver->resolve($request, $component, $headers));
+        }
+
+        $lines[] = sprintf('"@signature-params": %s', $signatureParams);
+
+        return implode("\n", $lines);
     }
 
     private function assertSupportedAlgorithm(string $algorithm): void
