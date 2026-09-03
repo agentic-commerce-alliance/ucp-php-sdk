@@ -324,9 +324,15 @@ class Ucp\Sdk\Model\Order\OrderView
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Profile\CapabilityDescriptor
-  - __construct(string $name, string $version, string $specUrl, string $schemaUrl, ?array $extends = null, array $config = [])
+  - __construct(string $name, string $version, string $specUrl, string $schemaUrl, ?array $extends = null, array $config = [], ?Ucp\Sdk\Model\Profile\CapabilityRequirements $requires = null)
   - static fromProfileEntry(string $name, array $entry): self
   - toProfileEntry(): array
+class Ucp\Sdk\Model\Profile\CapabilityRequirements
+  - __construct(?Ucp\Sdk\Model\Profile\VersionRange $protocol = null, array $capabilities = [])
+  - allowsProtocol(string $version): bool
+  - static fromArray(array $payload, string $context): self
+  - isEmpty(): bool
+  - toArray(): array
 class Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor
   - __construct(string $id, string $name, string $version, string $specUrl, string $configSchema, array $instrumentSchemas, array $config = [])
   - static fromArray(array $entry): self
@@ -340,6 +346,13 @@ class Ucp\Sdk\Model\Profile\ProfileBuildInput
 class Ucp\Sdk\Model\Profile\ServiceEndpoint
   - __construct(Ucp\Sdk\Enum\Transport $transport, string $endpoint, string $version, string $specUrl, ?string $schemaUrl = null)
   - static fromArray(array $entry): self
+  - toArray(): array
+class Ucp\Sdk\Model\Profile\VersionRange
+  - __construct(string $min, ?string $max = null)
+  - contains(string $version): bool
+  - static fromArray(array $payload, string $context): self
+  - highestWithin(array $versions): ?string
+  - intersect(self $other): ?self
   - toArray(): array
 class Ucp\Sdk\Model\Protocol\UcpEnvelope
   - __construct(string $version, Ucp\Sdk\Enum\UcpResponseStatus $status, array $services = [], array $capabilities = [], array $paymentHandlers = [])

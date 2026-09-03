@@ -19,6 +19,7 @@ final class CapabilityDescriptor
         public readonly string $schemaUrl,
         public readonly ?array $extends = null,
         public readonly array $config = [],
+        public readonly ?CapabilityRequirements $requires = null,
     ) {
     }
 
@@ -39,6 +40,10 @@ final class CapabilityDescriptor
 
         if ($this->config !== []) {
             $entry['config'] = $this->config;
+        }
+
+        if ($this->requires !== null && ! $this->requires->isEmpty()) {
+            $entry['requires'] = $this->requires->toArray();
         }
 
         return $entry;
@@ -64,6 +69,11 @@ final class CapabilityDescriptor
             }
         }
 
+        $requires = $entry['requires'] ?? null;
+        if ($requires !== null && ! is_array($requires)) {
+            throw new ValidationException(sprintf('Capability descriptor "%s" field "requires" must be an object.', $name));
+        }
+
         return new self(
             $name,
             self::requiredString($entry, 'version', $name),
@@ -71,6 +81,7 @@ final class CapabilityDescriptor
             self::requiredString($entry, 'schema', $name),
             is_array($extends) ? array_values($extends) : null,
             is_array($entry['config'] ?? null) ? $entry['config'] : [],
+            is_array($requires) ? CapabilityRequirements::fromArray($requires, $name) : null,
         );
     }
 

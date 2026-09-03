@@ -13,7 +13,6 @@ use Ucp\Sdk\Contract\IdentityLinkingCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Contract\TokenizationCapabilityInterface;
 use Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities;
-use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
@@ -26,6 +25,7 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
     public function __construct(
         private readonly CapabilityRegistryInterface $capabilityRegistry,
         private readonly PaymentHandlerRegistryInterface $paymentHandlerRegistry,
+        private readonly NegotiatedCapabilityResolver $capabilityResolver = new NegotiatedCapabilityResolver(),
     ) {
     }
 
@@ -50,31 +50,11 @@ final class DefaultCapabilityNegotiator implements CapabilityNegotiatorInterface
             }
         }
 
-        $remoteCapabilities = array_intersect_key($platformProfile->capabilities, $localCapabilities);
-        $remoteCapabilityNames = array_keys($remoteCapabilities);
-        $capabilities = [];
-        foreach ($remoteCapabilities as $name => $entries) {
-            $capabilities[$name] = array_values(array_filter(
-                $entries,
-                static function (CapabilityDescriptor $descriptor) use ($remoteCapabilityNames): bool {
-                    if ($descriptor->extends === null || $descriptor->extends === []) {
-                        return true;
-                    }
-
-                    foreach ($descriptor->extends as $baseCapability) {
-                        if (in_array($baseCapability, $remoteCapabilityNames, true)) {
-                            return true;
-                        }
-                    }
-
-                    return false;
-                },
-            ));
-
-            if ($capabilities[$name] === []) {
-                unset($capabilities[$name]);
-            }
-        }
+        $capabilities = $this->capabilityResolver->resolve(
+            array_intersect_key($platformProfile->capabilities, $localCapabilities),
+            $localCapabilities,
+            $context->runtimeConfiguration?->version,
+        );
 
         $localPaymentHandlerIds = [];
         $localPaymentHandlers = [];
