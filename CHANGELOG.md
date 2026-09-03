@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+### Changed (breaking)
+
+- Negotiation failures answer with the status the spec assigns them instead of `400` for all of them. `capabilities_incompatible` is now `200`: the spec's error-code table puts it there, and its error-handling section explains why — a capability mismatch is a business outcome the handler reached on the inputs it was given, not a request the server could not process, so it belongs inside a UCP response with `ucp.status: "error"`. `version_unsupported` is now `422`. A platform reading only the status could not previously tell "your profile is unusable" from "we have nothing in common"
+
 ### Fixed
+
+- A UCP failure that the spec reports inside a successful response now actually carries that status. Symfony rewrites any non-error status to `500` when a listener handles a throwable that is not an `HttpException`, unless the listener marks the code deliberate, so the first attempt at the change above produced a correct `capabilities_incompatible` body under a `500` that claimed the server had broken
 
 - Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
 
