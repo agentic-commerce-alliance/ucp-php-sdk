@@ -244,6 +244,11 @@ Projects may also skip the adapter layer and register a direct `CatalogCapabilit
   `Symfony\Component\Console\Command\Command` without requiring symfony/console, #117). It
   installs each package on its own, because checking at the root would measure the monorepo's
   dev requirements instead of what a consumer gets.
+- `ucp-php-sdk/core` declares no runtime dependency beyond PHP and the extensions it calls, which
+  is what lets a consumer install it into any dependency graph without a resolver conflict.
+  `CoreComposerDependencySurfaceTest` asserts it rather than trusting it: phpseclib was the last
+  runtime package, and it turned a routine Dependabot constraint bump into a red pipeline the day
+  its 4.0 renamed its root namespace (#130). Reach for `ext-openssl` before a package.
 - Mutation report and gate: `docker compose run --rm php composer mutation`
 - Local diff-based mutation run: `docker compose run --rm php composer mutation:changed`
 - Explicit mutation gate target: `docker compose run --rm php composer mutation:gate`
