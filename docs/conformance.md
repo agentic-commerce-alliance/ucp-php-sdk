@@ -52,30 +52,61 @@ upgrade would turn an unrelated pull request red.
 
 ## Where we stand
 
-Baseline at the pinned commit, against the merchant example:
+Baseline at the pinned commit, against the merchant example, at `ucp_version: 2026-08-25`:
 
-**77 tests — 1 passed, 63 failed, 13 skipped.**
+**77 tests — 5 passed, 59 failed, 13 skipped.**
 
 | Module | Failed |
 | --- | ---: |
 | `checkout_lifecycle_test` | 11 |
-| `business_logic_test` | 8 |
-| `discount_test` | 6 |
-| `validation_test` | 6 |
+| `business_logic_test` | 7 |
 | `webhook_structure_test` | 6 |
+| `discount_test` | 5 |
 | `totals_test` | 5 |
 | `idempotency_test` | 4 |
 | `order_test` | 4 |
+| `validation_test` | 4 |
 | `invalid_input_test` | 3 |
 | `simulation_url_security_test` | 3 |
 | `fulfillment_test` | 2 |
 | `ap2_test`, `binding_test`, `card_credential_test`, `protocol_test`, `webhook_test` | 1 each |
 
+Passing:
+
+- `protocol_test::test_discovery`
+- `business_logic_test::test_totals_calculation_on_create`
+- `discount_test::test_client_applied_does_not_change_price`
+- `validation_test::test_out_of_stock`
+- `validation_test::test_structured_error_messages`
+
 The 13 skips are honest: the merchant example models no free-shipping threshold, no stored
 customers and no per-destination fulfillment options, so those fixtures are absent from
 `tests/conformance/test_fixtures.json` and the suite skips them rather than inventing an answer.
 
-### The dominant finding
+### What the protocol-version switch changed
+
+The lane previously ran at `2026-04-08` and reported **1 passed, 63 failed**. Serving
+`2026-08-25` moved it to **5 passed, 59 failed** — and, more usefully, moved the wall. The
+dominant failure used to be `capabilities_incompatible` on 59 of 63; now negotiation mostly
+succeeds and **44 of the 59 failures are `KeyError: 'fulfillment'`**: the suite reads a
+`fulfillment` object off checkout and order responses that the merchant example does not
+populate. That is example-app work, not SDK work, and it is the next thing worth doing here.
+
+One caveat on this number, recorded in
+[upstream/conformance-suite-protocol-version.md](upstream/conformance-suite-protocol-version.md):
+**the suite cannot actually assert `2026-08-25` behaviour.** It pins `ucp-sdk==0.4.4`, which is
+the `2026-04-08` model set, and its newest commit predates the `2026-08-25` specification. The
+`ucp_version` plumbing is version-agnostic, so the value is accepted and threaded into request
+envelopes, but the Pydantic models the assertions build responses with are a version behind.
+Some of the 59 are therefore model-shape mismatches rather than findings about this SDK. The
+lane re-arms on its own: when the suite adopts `ucp-sdk>=0.5.0`, those disappear and what is
+left is ours.
+
+Sending `2026-04-08` instead was considered and rejected. This SDK no longer serves that
+version, so every request would fail version negotiation and the lane would be uniformly red
+while reporting nothing about conformance.
+
+### The dominant finding at `2026-04-08`, for the record
 
 **59 of the 63 failures report the same thing:**
 
