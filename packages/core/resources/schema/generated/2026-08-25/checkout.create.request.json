@@ -15,15 +15,38 @@
                                 "description": "The product identifier, often the SKU, required to resolve the product details associated with this line item. Should be recognized by both the Platform, and the Business."
                             },
                             "quantity_unit": {
+                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                "$id": "https://ucp.dev/schemas/common/types/quantity_unit.json",
+                                "title": "Quantity Unit",
+                                "description": "Sale basis this item's `quantity` is denominated in. On an authoritative Business response, absence encodes the default `each` machine identity (`C62`, 0); the Business MUST include this descriptor for every non-`each` response. On Platform requests, omission makes no assertion: the Business interprets `quantity` using the item's authoritative sale basis. If the Platform includes this descriptor, it asserts the unit-descriptor machine identity. The Business MUST compare that machine identity (`unit`, effective `scale`), ignore `display_text` and `increment`, and resolve a mismatch by conversion surfaced as a visible line revision with a warning, or by rejection with a recoverable business outcome; silent reinterpretation is forbidden. An explicit `C62` descriptor at effective scale 0 matches an authoritative basis represented by an absent descriptor.",
                                 "type": "object",
                                 "properties": {
+                                    "unit": {
+                                        "type": "string",
+                                        "description": "Stable machine identifier. The Business SHOULD use the exact UN/CEFACT Rec20 Common Code when one accurately identifies the unit. Otherwise, the Business MAY use a custom unit identifier and MUST use it consistently for the same unit. The Platform MUST treat an unrecognized identifier as opaque."
+                                    },
+                                    "scale": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 15,
+                                        "default": 0,
+                                        "description": "One step equals `10^-scale` of `unit`. When `unit` is `C62`, `scale`, if present, MUST be 0. The maximum of 15 is derived from the interoperable integer range: at scale 16 a single whole unit (10^16 steps) is no longer representable, so larger scales cannot denominate one unit of their own basis. Businesses needing finer granularity use a smaller unit."
+                                    },
+                                    "display_text": {
+                                        "type": "string",
+                                        "description": "Required printable unit label provided by the Business. The Platform MUST use it when it does not recognize `unit`; for a recognized UN/CEFACT Rec 20 Common Code, the Platform MAY substitute its own localized label. It does not participate in unit identity or mismatch comparison."
+                                    },
                                     "increment": {
                                         "type": "integer",
                                         "minimum": 1,
                                         "default": 1,
                                         "description": "Ordering granularity, denominated in steps: the Business sells this item in integer multiples of `increment` steps. Its effective value is the provided value or 1. Advisory merchandising policy, not a representational bound: Platform-authored quantities SHOULD be integer multiples of the effective increment; the Business MAY accept, revise, or reject an off-increment request with a recoverable business outcome and MUST NOT silently reinterpret it. Business-authored quantities (checkout revisions, fulfillment events, adjustments) are bounded only by `scale`."
                                     }
-                                }
+                                },
+                                "required": [
+                                    "unit",
+                                    "display_text"
+                                ]
                             }
                         },
                         "required": [
@@ -225,7 +248,12 @@
             "description": "Representation of the buyer."
         },
         "context": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/common/types/context.json",
+            "title": "Context",
+            "description": "Provisional buyer signals for relevance and localization\u2014not authoritative data. Businesses SHOULD use these values when verified inputs (e.g., shipping address) are absent, and MAY ignore or down-rank them if inconsistent with higher-confidence signals (authenticated account, risk detection) or regulatory constraints (export controls). Eligibility and policy enforcement MUST occur at checkout time using binding transaction data. Context SHOULD be non-identifying and can be disclosed progressively\u2014coarse signals early, finer resolution as the session progresses. Higher-resolution data (shipping address, billing address) supersedes context.",
             "type": "object",
+            "additionalProperties": true,
             "properties": {
                 "address_country": {
                     "type": "string",
@@ -530,7 +558,96 @@
                     "description": "Fulfillment methods for cart items.",
                     "items": {
                         "type": "object",
-                        "properties": []
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "Fulfillment method type. Well-known values: `shipping`, `pickup`. Businesses MAY use additional values."
+                            },
+                            "selected_destination_id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "ID of the selected destination. Accepts any stable, Business-scoped ID the Business recognizes for this method, including Location IDs not yet enumerated in `destinations`."
+                            },
+                            "groups": {
+                                "type": "array",
+                                "description": "Fulfillment groups for selecting options. Agent sets selected_option_id on groups to choose shipping method.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "selected_option_id": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "description": "ID of the selected fulfillment option for this group."
+                                        }
+                                    }
+                                }
+                            },
+                            "destinations": {
+                                "type": "array",
+                                "description": "Platform-authored shipping addresses for this method.",
+                                "items": {
+                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                    "$id": "https://ucp.dev/schemas/shopping/types/shipping_destination.json",
+                                    "title": "Shipping Destination",
+                                    "description": "Shipping destination.",
+                                    "type": "object",
+                                    "properties": {
+                                        "extended_address": {
+                                            "type": "string",
+                                            "description": "An address extension such as an apartment number, C/O or alternative name."
+                                        },
+                                        "street_address": {
+                                            "type": "string",
+                                            "description": "The street address."
+                                        },
+                                        "address_locality": {
+                                            "type": "string",
+                                            "description": "The locality in which the street address is, and which is in the region. For example, Mountain View."
+                                        },
+                                        "address_region": {
+                                            "type": "string",
+                                            "description": "The region in which the locality is, and which is in the country. Required for applicable countries (i.e. state in US, province in CA). For example, California or another appropriate first-level Administrative division."
+                                        },
+                                        "address_country": {
+                                            "type": "string",
+                                            "description": "The country. Recommended to be in 2-letter ISO 3166-1 alpha-2 format, for example \"US\". For backward compatibility, a 3-letter ISO 3166-1 alpha-3 country code such as \"SGP\" or a full country name such as \"Singapore\" can also be used."
+                                        },
+                                        "postal_code": {
+                                            "type": "string",
+                                            "description": "The postal code. For example, 94043."
+                                        },
+                                        "first_name": {
+                                            "type": "string",
+                                            "description": "Optional. First name of the contact associated with the address."
+                                        },
+                                        "last_name": {
+                                            "type": "string",
+                                            "description": "Optional. Last name of the contact associated with the address."
+                                        },
+                                        "phone_number": {
+                                            "type": "string",
+                                            "description": "Optional. Phone number of the contact associated with the address."
+                                        },
+                                        "id": {
+                                            "type": "string",
+                                            "description": "ID specific to this shipping destination."
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                            "const": "shipping_address",
+                                            "description": "Destination type discriminator."
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ]
                     }
                 }
             }

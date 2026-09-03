@@ -576,19 +576,47 @@ final class SchemaGenerator
         $schema = $this->resolveReferenceSchema($schema, $file);
 
         if (isset($schema['allOf']) && is_array($schema['allOf'])) {
-            $merged = ['type' => 'object', 'properties' => [], 'required' => []];
+            // The node's own members come first. A schema may carry `properties` *and* compose
+            // more through `allOf` -- `shopping/types/fulfillment_method.json` does from
+            // 2026-08-25 -- and seeding the merge with an empty map silently discarded every
+            // one of them. Nothing at 2026-04-08 had both, so this read as correct until the
+            // shape it could not express actually arrived.
+            $own = $schema;
+            unset($own['allOf']);
+            $merged = $this->projectRequestSchema($own, $file, $operation);
+            $merged['type'] = 'object';
+            $merged['properties'] = is_array($merged['properties'] ?? null) ? $merged['properties'] : [];
+            $merged['required'] = is_array($merged['required'] ?? null) ? $merged['required'] : [];
+
             foreach ($schema['allOf'] as $subSchema) {
                 if (! is_array($subSchema)) {
                     continue;
                 }
 
+                // A conditional branch contributes through `then`, not through itself, and only
+                // when its `if` holds. GeneratedSchemaValidator evaluates neither, so the
+                // branch's properties are folded in as optional and its `required` is dropped:
+                // making a conditional requirement unconditional would reject payloads the
+                // spec allows.
+                foreach ($this->conditionalBranches($subSchema) as $branch) {
+                    $projected = $this->projectRequestSchema($branch, $file, $operation);
+                    $merged['properties'] = $this->mergeConditionalProperties(
+                        $merged['properties'],
+                        is_array($projected['properties'] ?? null) ? $projected['properties'] : [],
+                    );
+                }
+
+                if (isset($subSchema['if'])) {
+                    continue;
+                }
+
                 $projected = $this->projectRequestSchema($subSchema, $file, $operation);
                 $merged['properties'] = [
-                    ...($merged['properties'] ?? []),
+                    ...$merged['properties'],
                     ...($projected['properties'] ?? []),
                 ];
                 $merged['required'] = array_values(array_unique([
-                    ...($merged['required'] ?? []),
+                    ...$merged['required'],
                     ...($projected['required'] ?? []),
                 ]));
             }
@@ -644,6 +672,58 @@ final class SchemaGenerator
         }
 
         return $projected;
+    }
+
+    /**
+     * The `then` (and `else`) schemas of a conditional `allOf` branch.
+     *
+     * @param array<string, mixed> $subSchema
+     * @return list<array<string, mixed>>
+     */
+    private function conditionalBranches(array $subSchema): array
+    {
+        if (! isset($subSchema['if'])) {
+            return [];
+        }
+
+        $branches = [];
+        foreach (['then', 'else'] as $keyword) {
+            if (is_array($subSchema[$keyword] ?? null)) {
+                $branches[] = $subSchema[$keyword];
+            }
+        }
+
+        return $branches;
+    }
+
+    /**
+     * Fold a conditional branch's properties into the merged map.
+     *
+     * `GeneratedSchemaValidator` cannot evaluate `if`, so a conditional narrowing cannot be
+     * enforced. What it can do is not be wrong in the direction that matters. Under `allOf`
+     * semantics a valid payload satisfies the unconditional half regardless of which condition
+     * holds, so keeping that half and dropping the narrowing accepts every valid payload and
+     * merely fails to reject some invalid ones. Preferring the branch instead would reject
+     * payloads the spec allows: `common/types/unit.json` says `scale` is 0-15, and only when
+     * `unit` is `C62` must it be 0 -- take the branch and every other unit loses 1-15.
+     *
+     * A property the branch introduces that the node does not define at all is a different
+     * case: there the branch is the only information there is, and it is added as optional.
+     * `fulfillment_method`'s `destinations` arrives that way.
+     *
+     * @param array<string, mixed> $merged
+     * @param array<string, mixed> $branch
+     * @return array<string, mixed>
+     */
+    private function mergeConditionalProperties(array $merged, array $branch): array
+    {
+        foreach ($branch as $property => $schema) {
+            if (! array_key_exists($property, $merged)) {
+                $merged[$property] = $schema;
+            }
+        }
+
+        return $merged;
     }
 
     /**
