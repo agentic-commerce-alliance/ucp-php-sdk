@@ -63,7 +63,8 @@ noticed rather than discovered.
 | 2d | `GET .../product/{id}` instead of `POST /catalog/product` | **T7** | Add POST; keep GET behind a config flag with a deprecation path. |
 | 3 | The SDK grades its own homework | **T12 → T13 → T14**, plus **T2** and **T27** | External conformance oracle, reproducible schema generation, drift detection. |
 
-Waves 0 to 2 (T1 to T14, plus T31) exist entirely to close this table. The
+Waves 0 to 2 (T1 to T14, plus T31) exist entirely to close this table. `T9` was
+withdrawn during Wave 1 -- see its entry -- so the wave is T4 to T8 plus T10 to T14. The
 `2026-08-25` bump itself is Wave 3.
 
 ## Decisions
@@ -161,7 +162,6 @@ signed-POST endpoint with no defined semantics.
 | Buyer consent | `BuyerConsent(bool $granted, ?string $timestamp)` | reverse-DNS keyed map of `consent_purpose` with per-segment opt-ins |
 | Quantity | `int $quantity`; `(int) ($row['quantity'] ?? 1)` casts an object to `1` | `anyOf` integer or `measure.json`, scale <= 15, integer bound +/-(2^53-1) |
 | Capability negotiation | name-only `array_intersect_key`; `version` published but never read; `supported_versions` never consulted | per-entity versions plus `requires: {protocol:{min,max}, capabilities:{...}}` intersection |
-| Identity linking id | `dev.ucp.common.identity` | `dev.ucp.common.identity_linking` |
 | Payment namespaces | `dev.ucp.shopping.*` | `dev.ucp.common.payment.*`; PAN and network token split into distinct credential types |
 | Fulfillment | `allows_`-prefixed flags, flat `description`, `multi_destination` map | prefix dropped, structured `description`, array of destinations, `type` enum opened, explicit `shipping`/`pickup` |
 | ECDSA signatures | DER from `openssl_sign` (~71 bytes, leading `0x30`); `alg="ES256"` | fixed-width raw `r||s` (64/96 bytes); registry ids such as `ecdsa-p256-sha256` |
@@ -477,26 +477,39 @@ handler set, guarding the asymmetry from returning.
 
 **Effort.** S · **Depends on.** none · **Blocks.** T20 (same method)
 
-### T9 — `fix(negotiation)!: use the normative dev.ucp.common.identity_linking id`
+### ~~T9 — use the normative `dev.ucp.common.identity_linking` id~~ — **withdrawn, premise false**
 
-**Why.** The SDK publishes `dev.ucp.common.identity`; the normative upstream name
-is `dev.ucp.common.identity_linking`. With a name-only negotiator this **silently
-fails to negotiate identity linking with any conformant peer**, which makes it a
-Wave 1 interop bug rather than a Wave 3 rename. Notably `SwagAgenticCommerce`
-already publishes `dev.ucp.common.identity_linking`
-(`UcpCapabilityCatalog.php:27`), so the SDK is the side that is wrong and the two
-currently disagree.
+This task was written on the claim that the SDK publishes
+`dev.ucp.common.identity` while the normative name is
+`dev.ucp.common.identity_linking`. **That is not true**, and the task is
+withdrawn rather than left as a trap for whoever picks it up.
 
-**Files.** `packages/core/src/Enum/UcpCapability.php`;
-`DefaultCapabilityNegotiator::supportedOperations()`;
-`packages/symfony-bundle/src/DependencyInjection/Configuration.php` (accept the
-old id in adopter config for one release with a deprecation notice);
-`examples/*/src/**`; tests.
+Verified: there is no bare `dev.ucp.common.identity` anywhere in `packages/`,
+`examples/`, `docs/` or the tests. Both example apps already publish
+`dev.ucp.common.identity_linking`
+(`DemoIdentityLinkingCapability.php:20`, `MerchantIdentityLinkingCapability.php:30`),
+which matches upstream's `schemas/common/identity_linking.json` and matches what
+`SwagAgenticCommerce` publishes. Nothing disagrees.
 
-**Scope note.** The wider "complete `UcpCapability` and remove every raw
-`dev.ucp.*` literal" refactor is T28. This issue is only the rename.
+The claim came from an exploration pass that listed capability names "seen in
+code" and picked up negotiation *test fixtures* — `dev.ucp.identity.oauth`,
+`dev.ucp.payment.tokenization`, `dev.ucp.shopping.loyalty` — which are arbitrary
+strings chosen to exercise intersection logic, not ids this SDK publishes.
 
-**Effort.** S · **Depends on.** none · **Pairs with.** plugin `P5`
+Two things it turned up that are real but are **not** this task:
+
+- `DefaultCapabilityNegotiator::supportedOperations()` maps operations by PHP
+  interface (`$capability instanceof CartCapabilityInterface`), not by capability
+  name, so there is no name string to rename in the negotiator at all.
+- `UcpCapability` has six cases and the example apps publish descriptors for
+  `dev.ucp.shopping.discount` and `dev.ucp.shopping.payment_tokenization` that
+  have none, so `discount.apply` stamps `UcpCapability::Cart` into its response
+  envelope. That is defensible — the response *is* a cart, and upstream models
+  discount as an extension of cart and checkout rather than a standalone
+  capability — but it is a question about capability identity, which belongs with
+  `T20` (versioned negotiation) and `T28` (completing the enum), not here.
+
+**Effort.** none · **Plugin.** `P5` is withdrawn for the same reason
 
 ## Wave 2 — Conformance harness
 
