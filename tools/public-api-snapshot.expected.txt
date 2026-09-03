@@ -215,7 +215,10 @@ class Ucp\Sdk\Model\Catalog\Product
   - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR', ?Ucp\Sdk\Model\Common\Unit $quantityUnit = null, ?Ucp\Sdk\Model\Common\UnitPrice $unitPrice = null)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\BuyerConsent
-  - __construct(bool $granted, ?string $timestamp = null)
+  - __construct(array $purposes = [])
+  - static fromArray(array $payload): self
+  - granted(string $purpose, ?string $segment = null): bool
+  - toArray(): array
 class Ucp\Sdk\Model\Checkout\Checkout
   - __construct(string $id, Ucp\Sdk\Enum\CheckoutStatus $status, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $continueUrl = null, ?string $expiresAt = null, ?Ucp\Sdk\Model\Checkout\OrderConfirmation $order = null, array $extra = [])
   - jsonSerialize(): array
@@ -226,6 +229,11 @@ class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
   - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
 class Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest
   - __construct(string $id, array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
+class Ucp\Sdk\Model\Checkout\ConsentPurpose
+  - __construct(bool $granted, string $source, string $description, array $segments = [], array $links = [])
+  - static fromArray(array $payload): ?self
+  - grantedFor(?string $segment = null): bool
+  - toArray(): array
 class Ucp\Sdk\Model\Checkout\DiscountCode
   - __construct(string $code)
 class Ucp\Sdk\Model\Checkout\FulfillmentSelection
