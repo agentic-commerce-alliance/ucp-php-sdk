@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+        {
+            "title": "Parcel",
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+                "id": { "type": "string" },
+                "weight": { "type": "integer" }
+            }
+        },
+        {
+            "title": "Envelope",
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+                "id": { "type": "string" },
+                "pages": { "type": "integer" }
+            }
+        }
+    ]
+}

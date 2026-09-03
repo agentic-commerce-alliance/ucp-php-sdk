@@ -79,6 +79,28 @@ final class ProtocolVersionSingleSourceTest extends TestCase
     }
 
     /**
+     * The previous protocol version is still nameable and no longer servable.
+     *
+     * `V20260408` stays in the enum because removing a case breaks consumers and because
+     * persisted rows and the pinned tree still refer to it. That must not make it configurable:
+     * its generated schemas are gone, so accepting it would advertise a version the SDK cannot
+     * validate against, and the failure would surface as a missing-directory error rather than
+     * as the configuration mistake it is.
+     */
+    #[Test]
+    public function theSupersededVersionIsStillNameableButNoLongerServable(): void
+    {
+        self::assertContains('2026-04-08', UcpProtocolVersion::knownVersions(), 'still nameable');
+        self::assertNotContains('2026-04-08', UcpProtocolVersion::supportedVersions());
+        self::assertFalse(UcpProtocolVersion::isSupported('2026-04-08'));
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Unsupported UCP protocol version');
+
+        $this->process(['version' => '2026-04-08']);
+    }
+
+    /**
      * A version the enum knows but whose schemas are not on disk must fail while the
      * container is being built. Deferring it to the first validated request turns a
      * deployment mistake into an intermittent runtime error on a live endpoint.

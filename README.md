@@ -6,7 +6,7 @@ This repo contains the shared SDK, a Symfony bundle, two example apps, local Doc
 
 ## Read this first
 
-**New to UCP?** UCP (Unified Commerce Protocol) is an open protocol that lets agents and external clients discover and use a merchant's commerce capabilities — catalog, cart, checkout, tokenization, identity linking, and order read — over a standard contract. This SDK implements the merchant side in PHP. Spec: <https://ucp.dev/specification/overview/> (protocol target `2026-04-08`).
+**New to UCP?** UCP (Unified Commerce Protocol) is an open protocol that lets agents and external clients discover and use a merchant's commerce capabilities — catalog, cart, checkout, tokenization, identity linking, and order read — over a standard contract. This SDK implements the merchant side in PHP. Spec: <https://ucp.dev/specification/overview/> (protocol target `2026-08-25`).
 
 **Want to integrate?** Start with the **[Getting Started guide](docs/getting-started.md)** — it takes you from `composer require` to your first request, for both the Symfony bundle and the framework-free core. Then run an [example app](#example-apps).
 
@@ -161,7 +161,7 @@ For live deployments and release readiness, use the [production operator checkli
 
 ## Scope
 
-Current protocol target: UCP `2026-04-08`.
+Current protocol target: UCP `2026-08-25`.
 
 In scope:
 

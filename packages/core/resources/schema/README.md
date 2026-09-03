@@ -4,18 +4,18 @@ This directory contains two schema views for the same pinned UCP version.
 
 ## `pinned/`
 
-`pinned/2026-04-08` is the committed upstream schema snapshot with the original folder structure preserved.
+`pinned/<version>` is the committed upstream schema snapshot with the original folder structure preserved. `pinned/2026-04-08` is kept alongside the active `pinned/2026-08-25` as a diffing reference for one release; only the active version has a `generated/` set.
 
 Use it when you need to inspect the source material as published by the protocol version itself.
 
 Example:
 
-- `pinned/2026-04-08/schemas/ucp.json`
-- `pinned/2026-04-08/discovery/profile_schema.json`
+- `pinned/2026-08-25/schemas/ucp.json`
+- `pinned/2026-08-25/schemas/profile.json`
 
 ## `generated/`
 
-`generated/2026-04-08` contains the flattened request and response validator files that the SDK runtime loads directly.
+`generated/2026-08-25` contains the flattened request and response validator files that the SDK runtime loads directly.
 
 Those files are intentionally arranged by operation name because `GeneratedSchemaValidator` resolves schema names such as:
 
@@ -42,8 +42,8 @@ snapshot and the flattened runtime schemas.
 Example:
 
 ```bash
-git clone --depth 1 --branch v2026-04-08 https://github.com/Universal-Commerce-Protocol/ucp.git var/ucp-v2026-04-08
-docker compose run --rm php bash scripts/sync-ucp-schemas.sh 2026-04-08 var/ucp-v2026-04-08
+git clone --depth 1 --branch v2026-08-25 https://github.com/Universal-Commerce-Protocol/ucp.git var/ucp-v2026-08-25
+docker compose run --rm php bash scripts/sync-ucp-schemas.sh 2026-08-25 var/ucp-v2026-08-25
 ```
 
 The version argument is required. It used to default, which meant omitting it regenerated

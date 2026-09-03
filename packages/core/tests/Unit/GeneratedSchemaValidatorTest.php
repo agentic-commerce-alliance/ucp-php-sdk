@@ -315,30 +315,27 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testAnAmbiguousOneOfSaysWhichSchemasMatched(): void
     {
-        // The opposite failure, and it reads identically without this: a destination
-        // carrying both `id` and `name` satisfies shipping_destination AND
-        // retail_location. The message used to be the same "exactly one" line, and it
-        // was read as the schema being unsatisfiable — the fix is to remove a field,
-        // not to add one.
-        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
+        // The opposite failure, and it reads identically without this: the message used to be
+        // the same "exactly one" line whether a payload matched no branch or several, and the
+        // two need opposite fixes -- add the field the intended branch wants, or remove the one
+        // that makes a second branch match.
+        //
+        // Deliberately a hand-written fixture rather than a generated schema. This was tested
+        // through `checkout.update.request`, whose destinations were an untagged oneOf at
+        // 2026-04-08; the tagged union that replaced them removed the ambiguity, so the test
+        // broke on upstream getting *better*. Nothing in the 2026-08-25 generated set is
+        // reachably ambiguous, and the behaviour under test is the validator's, not the spec's.
+        $validator = new GeneratedSchemaValidator(\dirname(__DIR__) . '/Fixtures/ambiguous-schema');
 
         try {
-            $validator->validate('checkout.update.request', [
-                'id' => 'checkout-1',
-                'fulfillment' => [
-                    'methods' => [[
-                        'type' => 'shipping',
-                        'line_item_ids' => ['line-1'],
-                        'destinations' => [['id' => 'destination-1', 'name' => 'Berlin Store']],
-                    ]],
-                ],
-            ]);
-            self::fail('A destination matching two branches must not validate.');
+            $validator->validate('demo.response', ['id' => 'shipment-1']);
+            self::fail('A payload matching two branches must not validate.');
         } catch (ValidationException $exception) {
             $violations = implode("\n", $exception->getViolations());
 
             self::assertStringContainsString('matches 2 allowed schemas', $violations);
-            self::assertStringContainsString('Retail Location', $violations);
+            self::assertStringContainsString('"Parcel"', $violations);
+            self::assertStringContainsString('"Envelope"', $violations);
         }
     }
 

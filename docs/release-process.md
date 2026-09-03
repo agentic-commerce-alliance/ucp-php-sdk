@@ -127,7 +127,7 @@ Each GitHub Release should include:
   - `ucp-php-sdk/core`
   - `ucp-php-sdk/symfony-bundle`
 - protocol target:
-  - currently UCP `2026-04-08`
+  - currently UCP `2026-08-25`
 - main included scope:
   - discovery
   - catalog

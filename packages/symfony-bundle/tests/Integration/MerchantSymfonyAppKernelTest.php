@@ -269,7 +269,7 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $agentCard = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('http://localhost:8081/ucp/a2a', $agentCard['url']);
-        self::assertSame('2026-04-08', $agentCard['version']);
+        self::assertSame('2026-08-25', $agentCard['version']);
     }
 
     #[Test]

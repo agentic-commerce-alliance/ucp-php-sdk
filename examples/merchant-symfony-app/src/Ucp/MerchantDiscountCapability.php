@@ -9,6 +9,7 @@ use MerchantSymfonyApp\Support\MerchantSettings;
 use MerchantSymfonyApp\Support\PriceCalculator;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\DiscountCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
 use Ucp\Sdk\Model\Common\Message;
@@ -31,7 +32,7 @@ final class MerchantDiscountCapability implements DiscountCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.discount',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/discount.json',
             ['dev.ucp.shopping.cart'],
