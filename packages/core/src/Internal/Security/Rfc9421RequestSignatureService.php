@@ -19,7 +19,8 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     private const DEFAULT_SIGNATURE_LABEL = 'sig';
 
     /** @var list<string> */
-    private const SIGNED_COMPONENTS = ['@method', '@target-uri', 'content-digest'];
+    private const SIGNED_COMPONENTS = ['@method', '@target-uri'];
+    private const CONTENT_DIGEST = 'content-digest';
 
     private readonly SignatureComponentResolver $componentResolver;
     private readonly EcdsaSignatureCodec $signatureCodec;
@@ -40,10 +41,17 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         $created ??= time();
         $expires ??= $created + $this->maxLifetimeSeconds;
         $algorithm = SignatureAlgorithm::fromIdentifier($key->algorithm);
-        $digest = $this->contentDigestService->create($request->body);
+
+        // Content-Digest is representation metadata (RFC 9530): a request with no
+        // representation has none to describe, so a bodyless GET neither carries nor covers it.
+        $hasBody = $request->body !== '';
+        $components = $hasBody
+            ? [...self::SIGNED_COMPONENTS, self::CONTENT_DIGEST]
+            : self::SIGNED_COMPONENTS;
+        $digest = $hasBody ? $this->contentDigestService->create($request->body) : null;
         $signatureParams = sprintf(
             '(%s);created=%d;expires=%d;keyid="%s";alg="%s"',
-            implode(' ', array_map(static fn (string $component): string => '"' . $component . '"', self::SIGNED_COMPONENTS)),
+            implode(' ', array_map(static fn (string $component): string => '"' . $component . '"', $components)),
             $created,
             $expires,
             $key->kid,
@@ -53,8 +61,11 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
 
         // The digest is not on the request yet, so overlay the one about to be sent.
         $headers = $this->normalizeHeaders($request->headers);
-        $headers['content-digest'] = $digest;
-        $base = $this->signatureBase($request, self::SIGNED_COMPONENTS, $signatureParams, $headers);
+        if ($digest !== null) {
+            $headers[self::CONTENT_DIGEST] = $digest;
+        }
+
+        $base = $this->signatureBase($request, $components, $signatureParams, $headers);
         $signature = '';
         if (!openssl_sign($base, $signature, $key->privateKeyPem, $this->opensslAlgorithm($algorithm))) {
             throw new SignatureException('Unable to sign request.');
@@ -63,11 +74,12 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         // openssl emits DER; the wire format is fixed-width r||s.
         $signature = $this->signatureCodec->derToRaw($signature, $algorithm->coordinateBytes());
 
-        return [
-            'Content-Digest' => $digest,
+        $headers = [
             'Signature-Input' => $signatureInput,
             'Signature' => self::DEFAULT_SIGNATURE_LABEL . '=:' . base64_encode($signature) . ':',
         ];
+
+        return $digest === null ? $headers : ['Content-Digest' => $digest, ...$headers];
     }
 
     public function verify(HttpRequest $request, array $keys): SignatureVerificationResult
@@ -110,8 +122,17 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 throw new SignatureException('Signature lifetime exceeds the allowed window.');
             }
 
-            $this->contentDigestService->verify($request->body, $digest);
-            $contentDigestVerified = true;
+            if (in_array(self::CONTENT_DIGEST, $components, true)) {
+                $this->contentDigestService->verify($request->body, $digest);
+                $contentDigestVerified = true;
+            } elseif ($request->body !== '') {
+                // The security half of making the digest conditional. Without this, stripping
+                // content-digest from the covered list is a body-swap primitive: the signature
+                // still verifies over method and target, and nothing has attested to the bytes.
+                throw new SignatureException(
+                    'Signature does not cover content-digest, so the request body is unattested.',
+                );
+            }
             $signature = $this->extractSignatureValue($signatureHeader, $label);
             $key = $this->resolveKey($keys, $kid);
             $algorithm = SignatureAlgorithm::fromIdentifier($key->algorithm);
@@ -141,7 +162,10 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 $replayChecked = true;
             }
 
-            return new SignatureVerificationResult(true, $kid, $key->algorithm, $created, $expires, true, $replayChecked);
+            // Was a hardcoded `true`, so every successful verification claimed the digest had
+            // been checked -- harmless while it always had been, and an overstatement the moment
+            // a bodyless request legitimately has nothing to digest.
+            return new SignatureVerificationResult(true, $kid, $key->algorithm, $created, $expires, $contentDigestVerified, $replayChecked);
         } catch (SignatureException $exception) {
             return new SignatureVerificationResult(false, failureReason: $exception->getMessage(), contentDigestVerified: $contentDigestVerified);
         }
