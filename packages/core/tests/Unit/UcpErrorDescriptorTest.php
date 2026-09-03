@@ -59,10 +59,20 @@ final class UcpErrorDescriptorTest extends TestCase
     #[Test]
     public function itCarriesTheErrorCodeOfTheExceptionsThatDefineTheirOwn(): void
     {
+        // A capability mismatch is a business outcome, not a transport error: the handler ran
+        // on the inputs it was given and reported what it found. The spec's error-code table
+        // puts it at 200 for REST, alongside a `status: error` envelope.
         $negotiation = UcpErrorDescriptor::fromThrowable(NegotiationException::capabilitiesIncompatible());
         self::assertSame('negotiation', $negotiation->type);
         self::assertSame('capabilities_incompatible', $negotiation->code);
-        self::assertSame(400, $negotiation->httpStatus);
+        self::assertSame(200, $negotiation->httpStatus);
+
+        // An unusable profile version is a transport error, and a different one: 422, not the
+        // 400 both used to share. A platform reading only the status could not otherwise tell
+        // "your profile is unusable" from "we have nothing in common".
+        $version = UcpErrorDescriptor::fromThrowable(NegotiationException::versionUnsupported());
+        self::assertSame('version_unsupported', $version->code);
+        self::assertSame(422, $version->httpStatus);
 
         $profile = UcpErrorDescriptor::fromThrowable(AgentProfileException::unreachable('https://platform.example/.well-known/ucp'));
         self::assertSame('ucp', $profile->type);
