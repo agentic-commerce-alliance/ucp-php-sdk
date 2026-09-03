@@ -41,6 +41,16 @@ The adapter layer is optional convenience, not a mandatory abstraction.
 
 ## The Three Mapping Layers
 
+## Route Shapes Worth Knowing
+
+`catalog.product` is served at **`POST /ucp/v1/catalog/product`** with the id in the body, which
+is what `services/shopping/rest.openapi.json` has defined at every published protocol version.
+The pre-0.0.6 `GET /ucp/v1/catalog/product/{id}` remains behind
+`ucp_sdk.legacy_routes.catalog_product_get` for one minor. Prefer the POST route: a path
+parameter can only supply `id`, so the other six properties of `catalog.product.request` —
+`selected`, `filters`, `preferences`, `context`, `signals`, `attribution` — are unreachable over
+the legacy route.
+
 ## 1. Protocol Mapping
 
 Lives in `packages/symfony-bundle`.

@@ -163,6 +163,10 @@ For live deployments and release readiness, use the [production operator checkli
 
 Current protocol target: UCP `2026-04-08`.
 
+Measured against the upstream conformance suite rather than self-declared — see
+[docs/conformance.md](docs/conformance.md) for where this SDK actually stands and what is
+enforced in CI.
+
 In scope:
 
 - discovery
