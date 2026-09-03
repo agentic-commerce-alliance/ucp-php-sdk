@@ -11,7 +11,19 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\SchemaConfig;
 use Doctrine\DBAL\Schema\Table;
 
-/** @internal */
+/**
+ * Creates or updates the tables the SDK's Doctrine DBAL storage adapters need.
+ *
+ * Public because an adopter has to run it from wherever its platform installs things, and that
+ * is usually outside the request lifecycle: `SwagAgenticCommerce` calls it from the Shopware
+ * plugin's `install()` and `update()` hooks, before the plugin is active and before the
+ * container it would otherwise resolve this from exists.
+ *
+ * That also makes it the one class here whose contract covers *when* it may be called, not just
+ * how: it must stay idempotent and additive, because it runs again on every plugin update
+ * against storage that already has data. A change that is safe on an empty schema and not on a
+ * populated one breaks installations rather than requests.
+ */
 final class SchemaBootstrapper
 {
     private StorageSchemaDefinition $schemaDefinition;
