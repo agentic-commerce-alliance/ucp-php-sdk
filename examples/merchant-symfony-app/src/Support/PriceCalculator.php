@@ -7,7 +7,6 @@ namespace MerchantSymfonyApp\Support;
 use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
-use Ucp\Sdk\Model\Checkout\FulfillmentSelection;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Money;
 
@@ -16,6 +15,7 @@ final class PriceCalculator
     public function __construct(
         private readonly ProductCatalog $catalog,
         private readonly MerchantSettings $settings,
+        private readonly FulfillmentPlanner $fulfillmentPlanner = new FulfillmentPlanner(),
     ) {
     }
 
@@ -64,9 +64,10 @@ final class PriceCalculator
     /**
      * @param list<LineItem> $lineItems
      * @param list<DiscountCode> $discounts
+     * @param array<string, mixed>|null $fulfillment the planned fulfillment object, not the request selection
      * @return list<Money>
      */
-    public function calculateTotals(array $lineItems, array $discounts = [], ?FulfillmentSelection $fulfillment = null): array
+    public function calculateTotals(array $lineItems, array $discounts = [], ?array $fulfillment = null): array
     {
         $subtotal = 0.0;
         foreach ($lineItems as $lineItem) {
@@ -78,14 +79,10 @@ final class PriceCalculator
             $discountAmount += self::discountAmount($discount->code, $subtotal);
         }
 
-        $shipping = 4.90;
-        if ($fulfillment?->methodId === 'pickup-store') {
-            $shipping = 0.0;
-        }
-
-        if ($fulfillment?->methodId === 'express-shipping') {
-            $shipping = 12.90;
-        }
+        // Nothing until the platform selects an option. Quoting a shipping charge against a
+        // choice nobody made produces a total the buyer never agreed to, and it makes the
+        // subtotal-plus-fulfillment arithmetic unverifiable from the response alone.
+        $shipping = $this->fulfillmentPlanner->selectedOptionAmount($fulfillment);
 
         $taxableBase = max(0.0, $subtotal - $discountAmount + $shipping);
         $tax = round($taxableBase * 0.19, 2);

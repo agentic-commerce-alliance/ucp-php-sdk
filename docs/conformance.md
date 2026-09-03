@@ -54,57 +54,52 @@ upgrade would turn an unrelated pull request red.
 
 Baseline at the pinned commit, against the merchant example, at `ucp_version: 2026-08-25`:
 
-**77 tests — 5 passed, 59 failed, 13 skipped.**
+**77 tests — 18 passed, 45 failed, 14 skipped.**
 
 | Module | Failed |
 | --- | ---: |
-| `checkout_lifecycle_test` | 11 |
 | `business_logic_test` | 7 |
 | `webhook_structure_test` | 6 |
+| `checkout_lifecycle_test` | 5 |
 | `discount_test` | 5 |
-| `totals_test` | 5 |
 | `idempotency_test` | 4 |
 | `order_test` | 4 |
-| `validation_test` | 4 |
-| `invalid_input_test` | 3 |
 | `simulation_url_security_test` | 3 |
-| `fulfillment_test` | 2 |
-| `ap2_test`, `binding_test`, `card_credential_test`, `protocol_test`, `webhook_test` | 1 each |
+| `validation_test` | 3 |
+| `invalid_input_test` | 2 |
+| `ap2_test`, `binding_test`, `card_credential_test`, `fulfillment_test`, `protocol_test`, `webhook_test` | 1 each |
 
-Passing:
+`totals_test` passes outright. So does the core checkout lifecycle — create, get, cancel,
+repeated cancel, complete, and refusing to complete a cancelled checkout.
 
-- `protocol_test::test_discovery`
-- `business_logic_test::test_totals_calculation_on_create`
-- `discount_test::test_client_applied_does_not_change_price`
-- `validation_test::test_out_of_stock`
-- `validation_test::test_structured_error_messages`
-
-The 13 skips are honest: the merchant example models no free-shipping threshold, no stored
+The skips are honest: the merchant example models no free-shipping threshold, no stored
 customers and no per-destination fulfillment options, so those fixtures are absent from
 `tests/conformance/test_fixtures.json` and the suite skips them rather than inventing an answer.
 
-### What the protocol-version switch changed
+### How it got here
 
-The lane previously ran at `2026-04-08` and reported **1 passed, 63 failed**. Serving
-`2026-08-25` moved it to **5 passed, 59 failed** — and, more usefully, moved the wall. The
-dominant failure used to be `capabilities_incompatible` on 59 of 63; now negotiation mostly
-succeeds and **44 of the 59 failures are `KeyError: 'fulfillment'`**: the suite reads a
-`fulfillment` object off checkout and order responses that the merchant example does not
-populate. That is example-app work, not SDK work, and it is the next thing worth doing here.
+| | Passed | Failed | Dominant failure |
+| --- | ---: | ---: | --- |
+| `2026-04-08` | 1 | 63 | `capabilities_incompatible` (59) |
+| `2026-08-25`, no fulfillment | 5 | 59 | `KeyError: 'fulfillment'` (44) |
+| `2026-08-25`, fulfillment emitted | 18 | 45 | no single cluster |
 
-One caveat on this number, recorded in
-[upstream/conformance-suite-protocol-version.md](upstream/conformance-suite-protocol-version.md):
-**the suite cannot actually assert `2026-08-25` behaviour.** It pins `ucp-sdk==0.4.4`, which is
-the `2026-04-08` model set, and its newest commit predates the `2026-08-25` specification. The
-`ucp_version` plumbing is version-agnostic, so the value is accepted and threaded into request
-envelopes, but the Pydantic models the assertions build responses with are a version behind.
-Some of the 59 are therefore model-shape mismatches rather than findings about this SDK. The
-lane re-arms on its own: when the suite adopts `ucp-sdk>=0.5.0`, those disappear and what is
-left is ours.
+Two changes account for the second step, and both were the merchant example rather than the SDK:
 
-Sending `2026-04-08` instead was considered and rejected. This SDK no longer serves that
-version, so every request would fail version negotiation and the lane would be uniformly red
-while reporting nothing about conformance.
+- **The example now emits `fulfillment`.** UCP models fulfillment as a negotiation — the
+  business publishes methods, the platform names a destination, the business prices the options
+  that destination allows, the platform picks one. Each step needs the previous one's answer, so
+  a response that omits `fulfillment` leaves the platform with nothing to select and the whole
+  conversation stops. That single omission was 44 failures, most of them in tests asserting
+  something else entirely that merely needed a completable checkout to get there.
+- **The suite's payment instruments come from a CSV, not from the JSON fixtures.**
+  `tests/conformance/payment_instruments.csv` now declares `merchant.card`; the upstream default
+  names `mock_payment_handler`, which this merchant rejects. That read as 24 occurrences of an
+  unrelated-looking handler error.
+
+Fixing the handler mismatch also exposed two real defects in the example that it had been
+masking, both now fixed: the reserved `fail_token` completed successfully, and a cancelled
+checkout could still be completed.
 
 ### The dominant finding at `2026-04-08`, for the record
 

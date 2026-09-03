@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MerchantSymfonyApp\Ucp;
 
+use MerchantSymfonyApp\Support\FulfillmentPlanner;
 use MerchantSymfonyApp\Support\JsonStateStore;
 use MerchantSymfonyApp\Support\MerchantSettings;
 use MerchantSymfonyApp\Support\PriceCalculator;
@@ -11,6 +12,7 @@ use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
@@ -31,6 +33,7 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         private readonly PriceCalculator $priceCalculator,
         private readonly UcpModelFactory $modelFactory,
         private readonly MerchantSettings $settings,
+        private readonly FulfillmentPlanner $fulfillmentPlanner = new FulfillmentPlanner(),
     ) {
     }
 
@@ -115,6 +118,15 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
     public function completeCheckout(string $id, RequestContext $context): Checkout
     {
         $checkout = $this->getCheckout($id, $context);
+
+        // Completing a cancelled checkout would mint an order against a session the buyer or
+        // the business already withdrew, and it reads as success to the caller.
+        if ($checkout->status === CheckoutStatus::Canceled) {
+            throw new ValidationException('This checkout was canceled and can no longer be completed.', [
+                sprintf('Checkout "%s" is in status "canceled".', $checkout->id),
+            ]);
+        }
+
         $orderId = 'ord_' . substr($checkout->id, 4);
 
         $completed = new Checkout(
@@ -193,13 +205,14 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         array $messages,
     ): Checkout {
         $canonicalLineItems = $this->priceCalculator->canonicalizeLineItems($lineItems);
+        $plannedFulfillment = $this->fulfillmentPlanner->plan($fulfillment, $canonicalLineItems);
 
         return new Checkout(
             $id,
             $status,
             $this->settings->currency,
             $canonicalLineItems,
-            $this->priceCalculator->calculateTotals($canonicalLineItems, $discounts, $fulfillment),
+            $this->priceCalculator->calculateTotals($canonicalLineItems, $discounts, $plannedFulfillment),
             $messages,
             [
                 new Link('privacy', $this->settings->baseUri . '/privacy', 'Privacy policy'),
@@ -209,13 +222,16 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             $this->settings->checkoutContinueUrl($id),
             gmdate('c', time() + 1800),
             null,
-            [
+            array_filter([
+                // Checkout::toArray() merges `extra` at the top level, which is where the
+                // fulfillment extension belongs on the wire.
+                'fulfillment' => $plannedFulfillment,
                 'merchant_reference' => [
                     'brand' => $this->settings->brandName,
                     'fulfillment_method' => $fulfillment?->methodId,
                     'discount_codes' => array_map(static fn (\Ucp\Sdk\Model\Checkout\DiscountCode $discount): string => $discount->code, $discounts),
                 ],
-            ],
+            ], static fn (mixed $value): bool => $value !== null),
         );
     }
 

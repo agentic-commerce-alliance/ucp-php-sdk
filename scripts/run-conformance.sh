@@ -57,6 +57,9 @@ fi
 # The suite reads its fixtures from a path it will not let us configure; see the header.
 cp tests/conformance/conformance_input.json "${checkout}/test_data/flower_shop/conformance_input.json"
 cp tests/conformance/test_fixtures.json "${checkout}/test_data/flower_shop/test_fixtures.json"
+# Payment instruments come from a CSV rather than the JSON fixtures, and the default names a
+# handler this merchant does not implement -- which reads as 24 unrelated test failures.
+cp tests/conformance/payment_instruments.csv "${checkout}/test_data/flower_shop/payment_instruments.csv"
 
 server_pid=''
 cleanup() {

@@ -19,7 +19,18 @@ final class MerchantPaymentMandateVerifier implements PaymentMandateVerifierInte
             ]);
         }
 
-        $hasToken = is_string($instrument->credential['token'] ?? null) && $instrument->credential['token'] !== '';
+        $token = $instrument->credential['token'] ?? null;
+
+        // A reserved token so the failure path can be exercised end to end. A demo merchant
+        // that only ever succeeds cannot show a caller what a declined payment looks like,
+        // and the failure path is the one worth copying correctly.
+        if ($token === 'fail_token') {
+            throw new ValidationException('The payment was declined by the merchant example.', [
+                'Payment token "fail_token" is reserved for demonstrating a declined payment.',
+            ]);
+        }
+
+        $hasToken = is_string($token) && $token !== '';
         $hasLastFour = is_string($instrument->credential['card_last4'] ?? null) && preg_match('/^\d{4}$/', $instrument->credential['card_last4']) === 1;
 
         if (! $hasToken && ! $hasLastFour) {
