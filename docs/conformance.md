@@ -160,8 +160,7 @@ Fix 3 changes no counts but removes the schema rejection, so those tests fail fu
 remaining failures are spread across modules as missing response fields rather than concentrated
 on one refusal — most of what is left is ours, and now visible.
 
-Patches and issue drafts are generated into `var/upstream/` and are not committed; regenerate
-them with `UCP_CONFORMANCE_NO_CHECKOUT=1` after applying changes to the checkout.
+Written up with patches in [upstream/](upstream/), including which are filed and which are not.
 
 ## Promoting a module to blocking
 
