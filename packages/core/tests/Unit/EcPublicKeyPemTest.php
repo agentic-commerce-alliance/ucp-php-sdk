@@ -92,6 +92,39 @@ final class EcPublicKeyPemTest extends TestCase
     }
 
     #[Test]
+    public function itEncodesAShortCoordinateAtTheFullCurveWidth(): void
+    {
+        $minimalForm = (string) base64_decode('UyIiffMWPWbLh3Dh5RjXtra4VBPEilBDhIygyyKsfQ==', true);
+        self::assertSame(31, strlen($minimalForm));
+
+        self::assertSame(
+            'AFMiIn3zFj1my4dw4eUY17a2uFQTxIpQQ4SMoMsirH0',
+            EcPublicKeyPem::encodeCoordinate($minimalForm, 'P-256'),
+        );
+    }
+
+    #[Test]
+    public function itEncodesAFullWidthCoordinateUnchanged(): void
+    {
+        // Deliberately not a generated key: openssl returns minimal-form integers, so one in 256
+        // of those is already a byte short and would be padded here -- making the assertion a
+        // coin flip rather than a statement about full-width input.
+        $coordinate = str_repeat("\x7f", 32);
+
+        self::assertSame(
+            self::base64UrlEncode($coordinate),
+            EcPublicKeyPem::encodeCoordinate($coordinate, 'P-256'),
+        );
+    }
+
+    #[Test]
+    public function itDoesNotPadACoordinateForACurveItHasNoWidthFor(): void
+    {
+        self::assertSame('AQI', EcPublicKeyPem::encodeCoordinate("\x01\x02", 'P-521'));
+        self::assertSame('AQI', EcPublicKeyPem::encodeCoordinate("\x01\x02", null));
+    }
+
+    #[Test]
     public function itRejectsAnEmptyCoordinate(): void
     {
         $this->expectException(SignatureException::class);
