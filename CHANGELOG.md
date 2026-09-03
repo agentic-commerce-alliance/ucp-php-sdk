@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- The discovery profile publishes every payment handler, instead of one per handler name. `DefaultProfileBuilder` assigned rather than appended, so two handlers sharing a name and differing by id — a tokenizer offering PAN and network-token variants, for instance — silently overwrote each other and the profile advertised whichever the registry happened to yield last. `PlatformProfile` types the map as `array<string, list<PaymentHandlerDescriptor>>` and `DefaultCapabilityNegotiator` intersects on id and already grouped its result as name to list, so the publisher was the only side that disagreed about the shape
 - Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
 
 ### Changed
