@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Security;
 
+use Ucp\Sdk\Enum\SignatureAlgorithm;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
@@ -15,29 +16,30 @@ use Ucp\Sdk\Service\SignatureReplayGuardInterface;
 /** @internal */
 final class Rfc9421RequestSignatureService implements RequestSignatureServiceInterface
 {
-    /** @var list<string> */
-    private const SUPPORTED_ALGORITHMS = ['ES256', 'ES384'];
     private const DEFAULT_SIGNATURE_LABEL = 'sig';
 
     /** @var list<string> */
     private const SIGNED_COMPONENTS = ['@method', '@target-uri', 'content-digest'];
 
     private readonly SignatureComponentResolver $componentResolver;
+    private readonly EcdsaSignatureCodec $signatureCodec;
 
     public function __construct(
         private readonly ContentDigestService $contentDigestService,
         private readonly ?SignatureReplayGuardInterface $replayGuard = null,
         private readonly int $maxLifetimeSeconds = 300,
         ?SignatureComponentResolver $componentResolver = null,
+        ?EcdsaSignatureCodec $signatureCodec = null,
     ) {
         $this->componentResolver = $componentResolver ?? new SignatureComponentResolver();
+        $this->signatureCodec = $signatureCodec ?? new EcdsaSignatureCodec();
     }
 
     public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
     {
         $created ??= time();
         $expires ??= $created + $this->maxLifetimeSeconds;
-        $this->assertSupportedAlgorithm($key->algorithm);
+        $algorithm = SignatureAlgorithm::fromIdentifier($key->algorithm);
         $digest = $this->contentDigestService->create($request->body);
         $signatureParams = sprintf(
             '(%s);created=%d;expires=%d;keyid="%s";alg="%s"',
@@ -45,7 +47,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
             $created,
             $expires,
             $key->kid,
-            $key->algorithm,
+            $algorithm->wireIdentifier(),
         );
         $signatureInput = self::DEFAULT_SIGNATURE_LABEL . '=' . $signatureParams;
 
@@ -54,11 +56,12 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         $headers['content-digest'] = $digest;
         $base = $this->signatureBase($request, self::SIGNED_COMPONENTS, $signatureParams, $headers);
         $signature = '';
-        $opensslAlgorithm = $this->opensslAlgorithm($key->algorithm);
-
-        if (!openssl_sign($base, $signature, $key->privateKeyPem, $opensslAlgorithm)) {
+        if (!openssl_sign($base, $signature, $key->privateKeyPem, $this->opensslAlgorithm($algorithm))) {
             throw new SignatureException('Unable to sign request.');
         }
+
+        // openssl emits DER; the wire format is fixed-width r||s.
+        $signature = $this->signatureCodec->derToRaw($signature, $algorithm->coordinateBytes());
 
         return [
             'Content-Digest' => $digest,
@@ -91,8 +94,8 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 throw new SignatureException('Signature-Input is missing required parameters.');
             }
 
-            if ($requestedAlgorithm !== null) {
-                $this->assertSupportedAlgorithm($requestedAlgorithm);
+            if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) === null) {
+                throw new SignatureException(sprintf('Unsupported signature algorithm "%s".', $requestedAlgorithm));
             }
 
             if ($created > time() + 60) {
@@ -111,8 +114,8 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
             $contentDigestVerified = true;
             $signature = $this->extractSignatureValue($signatureHeader, $label);
             $key = $this->resolveKey($keys, $kid);
-            $this->assertSupportedAlgorithm($key->algorithm);
-            if ($requestedAlgorithm !== null && $requestedAlgorithm !== $key->algorithm) {
+            $algorithm = SignatureAlgorithm::fromIdentifier($key->algorithm);
+            if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) !== $algorithm) {
                 throw new SignatureException('Signature algorithm does not match signing key.');
             }
 
@@ -122,8 +125,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 throw new SignatureException('Public key PEM is not available for signature verification.');
             }
 
-            $opensslAlgorithm = $this->opensslAlgorithm($key->algorithm);
-            $result = openssl_verify($base, $signature, $publicKeyPem, $opensslAlgorithm);
+            $result = openssl_verify($base, $this->toDer($signature, $algorithm), $publicKeyPem, $this->opensslAlgorithm($algorithm));
             if ($result !== 1) {
                 throw new SignatureException('Request signature verification failed.');
             }
@@ -270,15 +272,29 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         return implode("\n", $lines);
     }
 
-    private function assertSupportedAlgorithm(string $algorithm): void
+    /**
+     * Accepts the fixed-width form the spec requires, and DER for one transition release.
+     *
+     * Releases up to 0.0.5 emitted DER here, so a peer still running one of those keeps working
+     * across the upgrade. Dispatch is on length rather than on the leading 0x30 byte: a raw
+     * signature starts with 0x30 once every 256 signatures, which would misread a conformant
+     * signature as DER and reject it. A DER signature that happens to be exactly the raw length
+     * needs both halves to encode two bytes short, which is around one in 2^48.
+     */
+    private function toDer(string $signature, SignatureAlgorithm $algorithm): string
     {
-        if (! in_array($algorithm, self::SUPPORTED_ALGORITHMS, true)) {
-            throw new SignatureException(sprintf('Unsupported signature algorithm "%s".', $algorithm));
+        if (strlen($signature) === $algorithm->coordinateBytes() * 2) {
+            return $this->signatureCodec->rawToDer($signature, $algorithm->coordinateBytes());
         }
+
+        return $signature;
     }
 
-    private function opensslAlgorithm(string $algorithm): int
+    private function opensslAlgorithm(SignatureAlgorithm $algorithm): int
     {
-        return $algorithm === 'ES384' ? OPENSSL_ALGO_SHA384 : OPENSSL_ALGO_SHA256;
+        return match ($algorithm) {
+            SignatureAlgorithm::Es256 => OPENSSL_ALGO_SHA256,
+            SignatureAlgorithm::Es384 => OPENSSL_ALGO_SHA384,
+        };
     }
 }

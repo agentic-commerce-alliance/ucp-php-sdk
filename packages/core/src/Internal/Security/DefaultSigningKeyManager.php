@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Security;
 
+use Ucp\Sdk\Enum\SignatureAlgorithm;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Security\PublicSigningKey;
@@ -14,8 +15,16 @@ final class DefaultSigningKeyManager implements SigningKeyManagerInterface
 {
     public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
     {
-        $curveName = $algorithm === 'ES384' ? 'secp384r1' : 'prime256v1';
-        $curve = $algorithm === 'ES384' ? 'P-384' : 'P-256';
+        // Was `$algorithm === 'ES384' ? ... : ...`, so anything unrecognised silently produced a
+        // P-256 key labelled with whatever was asked for -- `generate($kid, 'HS256')` returned a
+        // key that then failed at signing time, or worse published a JWK whose `alg` and `crv`
+        // disagreed. Resolving through the enum rejects it here instead.
+        $resolved = SignatureAlgorithm::fromIdentifier($algorithm);
+        $curve = $resolved->curve();
+        $curveName = match ($resolved) {
+            SignatureAlgorithm::Es256 => 'prime256v1',
+            SignatureAlgorithm::Es384 => 'secp384r1',
+        };
         $resource = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,
             'curve_name' => $curveName,
@@ -36,7 +45,7 @@ final class DefaultSigningKeyManager implements SigningKeyManagerInterface
             $kid,
             $details['key'],
             $privateKey,
-            $algorithm,
+            $resolved->value,
             'EC',
             'sig',
             'active',
