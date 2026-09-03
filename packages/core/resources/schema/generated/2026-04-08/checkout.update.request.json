@@ -40,6 +40,8 @@
             "description": "List of line items being checked out."
         },
         "buyer": {
+            "title": "Buyer with Consent",
+            "description": "Buyer with consent tracking.",
             "type": "object",
             "properties": {
                 "first_name": {
