@@ -23,6 +23,8 @@ QA note:
 - dead-code and coverage gates apply mainly to `src/Internal`
 - do not add fake runtime usages just to satisfy a tool
 - if a public contract has no in-repo caller, that is normal for this package
+- this package requires only PHP and extensions; keep it that way, and prefer `ext-openssl` over a
+  crypto package (`CoreComposerDependencySurfaceTest` enforces it)
 
 ## Main Layout
 
