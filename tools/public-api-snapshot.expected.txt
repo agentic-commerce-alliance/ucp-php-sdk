@@ -212,7 +212,7 @@ class Ucp\Sdk\Model\Catalog\CatalogSearchResponse
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Catalog\Product
-  - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR')
+  - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR', ?Ucp\Sdk\Model\Common\Unit $quantityUnit = null, ?Ucp\Sdk\Model\Common\UnitPrice $unitPrice = null)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\BuyerConsent
   - __construct(bool $granted, ?string $timestamp = null)
@@ -239,10 +239,14 @@ class Ucp\Sdk\Model\Common\Buyer
   - __construct(?string $email = null, ?string $firstName = null, ?string $lastName = null, ?string $phoneNumber = null)
   - toArray(): array
 class Ucp\Sdk\Model\Common\LineItem
-  - __construct(string $id, string $title, float $price, int $quantity = 1, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR')
+  - __construct(string $id, string $title, float $price, int $quantity = 1, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR', ?Ucp\Sdk\Model\Common\Unit $quantityUnit = null, ?Ucp\Sdk\Model\Common\UnitPrice $unitPrice = null)
   - toArray(): array
 class Ucp\Sdk\Model\Common\Link
   - __construct(string $type, string $url, ?string $title = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Common\Measure
+  - __construct(Ucp\Sdk\Model\Common\Unit $unit, int $value)
+  - static fromArray(array $payload): ?self
   - toArray(): array
 class Ucp\Sdk\Model\Common\Message
   - __construct(string $type, string $content, ?string $severity = null, ?string $code = null, ?string $path = null)
@@ -260,6 +264,14 @@ class Ucp\Sdk\Model\Common\UcpErrorDescriptor
   - static forHttpStatus(int $httpStatus): self
   - static fromThrowable(Throwable $throwable): self
   - toMessage(string $content, ?string $path = null): Ucp\Sdk\Model\Common\Message
+class Ucp\Sdk\Model\Common\Unit
+  - __construct(string $unit, string $displayText, int $scale = 0)
+  - static fromArray(array $payload): ?self
+  - toArray(): array
+class Ucp\Sdk\Model\Common\UnitPrice
+  - __construct(int $amount, string $currency, Ucp\Sdk\Model\Common\Measure $measure, Ucp\Sdk\Model\Common\Measure $reference)
+  - static fromArray(array $payload): ?self
+  - toArray(): array
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
   - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false)
   - isCapabilityEnabled(string $capabilityName): bool
