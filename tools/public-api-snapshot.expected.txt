@@ -343,6 +343,7 @@ class Ucp\Sdk\Model\Security\PublicSigningKey
   - __construct(string $kid, string $algorithm = 'ES256', string $keyType = 'EC', string $use = 'sig', ?string $curve = null, ?string $x = null, ?string $y = null, ?string $publicKeyPem = null, array $jwk = [])
   - static fromJwk(array $entry): self
   - toJwk(): array
+  - static tryFromJwk(array $entry): ?self
 class Ucp\Sdk\Model\Security\SignatureVerificationResult
   - __construct(bool $verified, ?string $kid = null, ?string $algorithm = null, ?int $created = null, ?int $expires = null, bool $contentDigestVerified = false, bool $replayChecked = false, ?string $failureReason = null)
 class Ucp\Sdk\Model\Webhook\OrderWebhookPayload

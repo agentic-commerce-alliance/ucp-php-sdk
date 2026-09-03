@@ -15,6 +15,17 @@ final class PublicSigningKey
     ];
 
     /**
+     * JWK members that only ever appear on a *private* key.
+     *
+     * A profile publishes public keys; `profile.json` forbids these outright. A key carrying one
+     * is either a mistake that leaked a secret into a public document or an attempt to have us
+     * treat one as a verification key, and neither should be quietly accepted.
+     *
+     * @var list<string>
+     */
+    private const PRIVATE_JWK_MEMBERS = ['d', 'p', 'q', 'dp', 'dq', 'qi', 'oth', 'k'];
+
+    /**
      * @param array<string, string> $jwk
      */
     public function __construct(
@@ -51,15 +62,50 @@ final class PublicSigningKey
     }
 
     /**
+     * Parses a JWK, or returns null when it is one this SDK cannot verify with.
+     *
+     * The spec is explicit that the `kty`, `crv` and `alg` vocabularies are **open**: a verifier
+     * must tolerate values it does not recognise, select keys by `kid`, and let an unsupported
+     * key affect only the signature that references it. It must not reject the whole profile.
+     *
+     * `fromJwk()` throws, and `PlatformProfile` called it in a loop with no `try`, so a single
+     * Ed25519 key in an otherwise usable profile made the entire profile unparseable -- and a
+     * platform publishing one is doing exactly what the spec recommends for Web Bot Auth
+     * interop. Callers reading a remote profile want this method; callers validating their own
+     * input want `fromJwk()`.
+     *
+     * A key carrying private material is still rejected outright rather than skipped: that is
+     * malformed input, not an unsupported algorithm.
+     *
+     * @param array<string, mixed> $entry
+     */
+    public static function tryFromJwk(array $entry): ?self
+    {
+        self::assertNoPrivateMaterial($entry);
+
+        try {
+            return self::fromJwk($entry);
+        } catch (ValidationException) {
+            return null;
+        }
+    }
+
+    /**
      * @param array<string, mixed> $entry
      */
     public static function fromJwk(array $entry): self
     {
+        self::assertNoPrivateMaterial($entry);
+
         $kid = self::requiredString($entry, 'kid');
-        $algorithm = self::requiredString($entry, 'alg', $kid);
         $keyType = self::requiredString($entry, 'kty', $kid);
-        $use = self::requiredString($entry, 'use', $kid);
         $curve = self::requiredString($entry, 'crv', $kid);
+
+        // `alg` and `use` are optional in `profile.json`; only `kid` and `kty` are required, and
+        // a verifier derives the algorithm from the curve when `alg` is absent. Requiring them
+        // rejected conformant keys.
+        $algorithm = self::optionalString($entry, 'alg') ?? self::algorithmForCurve($kid, $curve);
+        $use = self::optionalString($entry, 'use') ?? 'sig';
 
         $expectedCurve = self::expectedCurve($kid, $algorithm);
         self::assertSupported($kid, 'kty', $keyType, 'EC');
@@ -128,6 +174,31 @@ final class PublicSigningKey
         if ($actual !== $expected) {
             throw new ValidationException(sprintf('Public signing key "%s" uses unsupported %s "%s".', $kid, $field, $actual));
         }
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     */
+    private static function assertNoPrivateMaterial(array $entry): void
+    {
+        foreach (self::PRIVATE_JWK_MEMBERS as $member) {
+            if (array_key_exists($member, $entry)) {
+                throw new ValidationException(sprintf(
+                    'Public signing key carries the private JWK member "%s"; a profile publishes public keys only.',
+                    $member,
+                ));
+            }
+        }
+    }
+
+    private static function algorithmForCurve(string $kid, string $curve): string
+    {
+        $algorithm = array_search($curve, self::SUPPORTED_ALGORITHM_CURVES, true);
+        if (! is_string($algorithm)) {
+            throw new ValidationException(sprintf('Public signing key "%s" uses unsupported crv "%s".', $kid, $curve));
+        }
+
+        return $algorithm;
     }
 
     private static function expectedCurve(string $kid, string $algorithm): string

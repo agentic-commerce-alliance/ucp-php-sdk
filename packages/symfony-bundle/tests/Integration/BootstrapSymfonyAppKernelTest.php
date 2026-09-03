@@ -33,7 +33,7 @@ final class BootstrapSymfonyAppKernelTest extends WebTestCase
         self::assertArrayNotHasKey('supported_versions', $payload['ucp']);
         self::assertArrayNotHasKey('capabilities', $payload);
         self::assertArrayNotHasKey('payment_handlers', $payload);
-        self::assertNotEmpty($payload['signing_keys']);
+        self::assertNotEmpty($payload['keys']);
     }
 
     #[Test]
