@@ -13,6 +13,12 @@ The following namespaces are part of the curated stable surface:
 - selected interfaces in `Ucp\Sdk\Service`
 - `Ucp\Sdk\Adapter`
 - public bundle entrypoints in `Ucp\Sdk\Symfony`
+- `Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor` and `ShoppingOperationRequest`
+- `Ucp\Sdk\Symfony\Bridge\DoctrineDbal\SchemaBootstrapper`
+
+The last two are carve-outs from otherwise-internal namespaces, so they are named
+individually rather than by namespace. Anything else under
+`Ucp\Sdk\Symfony\Operation` or `Ucp\Sdk\Symfony\Bridge` remains internal.
 
 ## Replaceable services
 
@@ -37,9 +43,41 @@ services behind these interfaces:
 The following namespaces are internal and may change in minor releases:
 
 - `Ucp\Sdk\Internal`
-- `Ucp\Sdk\Symfony\Bridge`
+- `Ucp\Sdk\Symfony\Bridge`, except `DoctrineDbal\SchemaBootstrapper`
 - `Ucp\Sdk\Symfony\EventListener`
 - default Doctrine DBAL repositories
+
+`@internal` is load-bearing rather than advisory here: the backward-compatibility
+check skips symbols marked with it, so a signature change to an internal class is
+invisible to that gate. Removing the annotation is therefore the act of promotion,
+and adding one to something adopters already use silently removes its protection.
+
+## Running an operation from your own transport
+
+`ShoppingOperationExecutor` is how a transport this bundle does not ship reaches the
+capability layer with the same guarantees the REST routes get -- negotiation
+enforcement, payload mapping, request and response schema validation, and the
+response envelope:
+
+```php
+$response = $executor->execute(new ShoppingOperationRequest(
+    'cart.get',
+    payload: [],
+    context: $requestContext,
+    id: $cartId,
+));
+```
+
+`$id` exists for operations whose resource identifier arrives from the transport
+rather than the payload, so callers do not have to duplicate it into `$payload`.
+
+## Bootstrapping storage
+
+`SchemaBootstrapper::ensureSchema()` creates or updates the tables the Doctrine DBAL
+storage adapters need. Adopters call it from wherever their platform installs things,
+which is typically outside the request lifecycle -- before the container that would
+otherwise provide it exists. It is idempotent and additive, and must stay that way,
+because it runs again on every upgrade against storage that already holds data.
 
 ## Extension hooks
 

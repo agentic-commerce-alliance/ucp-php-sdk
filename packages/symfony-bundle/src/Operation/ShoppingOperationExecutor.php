@@ -36,7 +36,24 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
-/** @internal */
+/**
+ * Runs a UCP shopping operation, whatever transport asked for it.
+ *
+ * This is the seam between a transport and the capability layer: negotiation enforcement,
+ * payload mapping, request and response schema validation, the capability call, and the
+ * response envelope, once, for all fourteen operations. The REST controllers and the A2A
+ * JSON-RPC endpoint are both thin wrappers over it.
+ *
+ * It is public because an adopter serving UCP over a transport this bundle does not ship has
+ * no other way to get those guarantees. Reimplementing them per transport is how a business
+ * ends up validating on one path and not another -- `SwagAgenticCommerce`'s thirteen Store API
+ * MCP tools call this for exactly that reason.
+ *
+ * Marked `@internal` until 0.0.6, which did not describe how it was used and, more to the
+ * point, excluded it from the backward-compatibility check: Roave skips internal symbols, so a
+ * signature change here was invisible to the gate while thirteen files downstream depended on
+ * it.
+ */
 final class ShoppingOperationExecutor
 {
     /**
