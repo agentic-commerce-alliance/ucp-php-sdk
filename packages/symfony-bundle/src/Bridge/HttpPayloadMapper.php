@@ -370,12 +370,26 @@ final class HttpPayloadMapper
      * @param mixed $payload
      * @return list<DiscountCode>
      */
+    /**
+     * `discounts.codes` is a list of strings, and always has been.
+     *
+     * This read a list of objects with a `code` member -- a shape no published schema defines
+     * -- so discount codes sent by a conformant peer were dropped and the checkout was priced
+     * as though none had been supplied. The object form is still accepted for one release
+     * because this SDK invented it and adopters may be sending it.
+     */
     private function toDiscounts(mixed $payload): array
     {
         $discounts = [];
         foreach (is_array($payload) ? $payload : [] as $row) {
-            if (is_array($row) && isset($row['code'])) {
-                $discounts[] = new DiscountCode((string) $row['code']);
+            if (is_string($row) && trim($row) !== '') {
+                $discounts[] = new DiscountCode($row);
+
+                continue;
+            }
+
+            if (is_array($row) && is_string($row['code'] ?? null) && trim($row['code']) !== '') {
+                $discounts[] = new DiscountCode($row['code']);
             }
         }
 

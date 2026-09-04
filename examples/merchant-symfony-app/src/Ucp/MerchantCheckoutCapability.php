@@ -17,6 +17,7 @@ use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
 use Ucp\Sdk\Model\Checkout\OrderConfirmation;
+use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Common\Link;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
@@ -70,6 +71,7 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             $request->buyer,
             CheckoutStatus::Incomplete,
             [new Message('info', 'Checkout created from merchant example.')],
+            $request->payment,
         );
 
         $this->stateStore->put(self::COLLECTION, $checkout->id, $checkout->toArray());
@@ -108,6 +110,7 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             $request->buyer,
             $status,
             [new Message('info', 'Checkout updated and re-priced.')],
+            $request->payment,
         );
 
         $this->stateStore->put(self::COLLECTION, $checkout->id, $checkout->toArray());
@@ -124,6 +127,15 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         if ($checkout->status === CheckoutStatus::Canceled) {
             throw new ValidationException('This checkout was canceled and can no longer be completed.', [
                 sprintf('Checkout "%s" is in status "canceled".', $checkout->id),
+            ]);
+        }
+
+        // Completing twice would mint a second order for one payment. The order id is derived
+        // from the checkout id, so the second call would also overwrite the first order rather
+        // than fail visibly.
+        if ($checkout->status === CheckoutStatus::Completed) {
+            throw new ValidationException('This checkout was already completed.', [
+                sprintf('Checkout "%s" is in status "completed".', $checkout->id),
             ]);
         }
 
@@ -150,7 +162,10 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             'permalink_url' => $this->settings->orderPermalink($orderId),
             'currency' => $completed->currency,
             'line_items' => array_map(static fn ($item): array => $item->toArray(), $completed->lineItems),
-            'fulfillment' => [],
+            // An empty PHP array encodes as `[]`, and `fulfillment` is an object. Carrying the
+            // checkout's own fulfillment is both correct and what makes the order a snapshot
+            // of what was actually agreed.
+            'fulfillment' => is_array($completed->extra['fulfillment'] ?? null) ? $completed->extra['fulfillment'] : null,
             'totals' => array_map(static fn ($money): array => $money->toArray(), $completed->totals),
             'messages' => array_map(static fn ($message): array => $message->toArray(), $completed->messages),
             'links' => array_map(static fn ($link): array => $link->toArray(), [
@@ -169,6 +184,15 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
     public function cancelCheckout(string $id, RequestContext $context): Checkout
     {
         $checkout = $this->getCheckout($id, $context);
+
+        // The order already exists and has been paid for. Cancelling the checkout it came from
+        // would leave the two disagreeing about whether the purchase happened; cancelling the
+        // order is a different operation with different consequences.
+        if ($checkout->status === CheckoutStatus::Completed) {
+            throw new ValidationException('This checkout was already completed and can no longer be canceled.', [
+                sprintf('Checkout "%s" is in status "completed".', $checkout->id),
+            ]);
+        }
 
         $canceled = new Checkout(
             $checkout->id,
@@ -203,6 +227,7 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         ?\Ucp\Sdk\Model\Common\Buyer $buyer,
         CheckoutStatus $status,
         array $messages,
+        ?PaymentInstrument $payment = null,
     ): Checkout {
         $canonicalLineItems = $this->priceCalculator->canonicalizeLineItems($lineItems);
         $plannedFulfillment = $this->fulfillmentPlanner->plan($fulfillment, $canonicalLineItems);
@@ -224,8 +249,13 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             null,
             array_filter([
                 // Checkout::toArray() merges `extra` at the top level, which is where the
-                // fulfillment extension belongs on the wire.
+                // capability extensions belong on the wire.
                 'fulfillment' => $plannedFulfillment,
+                'discounts' => [
+                    'codes' => array_map(static fn (\Ucp\Sdk\Model\Checkout\DiscountCode $discount): string => $discount->code, $discounts),
+                    'applied' => $this->priceCalculator->appliedDiscounts($canonicalLineItems, $discounts),
+                ],
+                'payment' => $this->paymentView($payment),
                 'merchant_reference' => [
                     'brand' => $this->settings->brandName,
                     'fulfillment_method' => $fulfillment?->methodId,
@@ -233,6 +263,38 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
                 ],
             ], static fn (mixed $value): bool => $value !== null),
         );
+    }
+
+    /**
+     * The `payment` object a checkout response carries.
+     *
+     * Always present, even with nothing in it. A platform reads `payment.instruments` to learn
+     * what it may select from and to echo back on update; omitting the object entirely leaves
+     * it dereferencing null rather than reading an empty list, and the two mean different
+     * things -- "no instruments" against "this business did not answer".
+     *
+     * @return array<string, mixed>
+     */
+    private function paymentView(?PaymentInstrument $payment): array
+    {
+        if ($payment === null) {
+            return ['instruments' => []];
+        }
+
+        $instrument = [
+            'id' => 'instr_selected',
+            'handler_id' => $payment->handlerId,
+            'type' => $payment->type,
+            // The business echoes the platform's choice back so a subsequent update can be
+            // built from the response rather than from what the caller happens to remember.
+            'selected' => true,
+        ];
+
+        if ($payment->billingAddress !== []) {
+            $instrument['billing_address'] = $payment->billingAddress;
+        }
+
+        return ['instruments' => [$instrument]];
     }
 
     private function generateId(string $prefix): string

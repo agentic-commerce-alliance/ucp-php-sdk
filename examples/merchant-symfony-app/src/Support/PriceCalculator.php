@@ -118,14 +118,116 @@ final class PriceCalculator
         'FIVEOFF' => ['type' => 'fixed', 'value' => 5.0],
     ];
 
+    /**
+     * The discounts that actually applied, as the response reports them.
+     *
+     * A negative `discount` entry in `totals` says how much came off; it does not say which
+     * code produced it, and with several codes in play there is no way to work that out from
+     * the total alone. `discounts.applied[]` is what makes a discount attributable -- and it
+     * carries `allocations[]` so a platform can show which line the money came off.
+     *
+     * Unknown codes are simply absent: a code that matched nothing is not an applied discount,
+     * and reporting it with a zero amount would claim it did something.
+     *
+     * @param list<LineItem> $lineItems
+     * @param list<DiscountCode> $discounts
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function appliedDiscounts(array $lineItems, array $discounts): array
+    {
+        $subtotal = 0.0;
+        foreach ($lineItems as $lineItem) {
+            $subtotal += $lineItem->price * $lineItem->quantity;
+        }
+
+        $applied = [];
+        foreach ($discounts as $discount) {
+            $amount = self::discountAmount($discount->code, $subtotal);
+            if ($amount <= 0.0) {
+                continue;
+            }
+
+            $minorUnits = (int) round($amount * 100);
+            $applied[] = [
+                'code' => $discount->code,
+                'title' => self::discountTitle($discount->code),
+                'amount' => $minorUnits,
+                'automatic' => false,
+                'method' => 'across',
+                'allocations' => $this->allocations($lineItems, $subtotal, $minorUnits),
+            ];
+        }
+
+        return $applied;
+    }
+
+    /**
+     * Split a discount across the line items it came off, in whole minor units.
+     *
+     * The allocations have to sum to the discount exactly. Rounding each share independently
+     * loses or invents a unit whenever the split is uneven, so the last line absorbs whatever
+     * the earlier roundings left over.
+     *
+     * @param list<LineItem> $lineItems
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function allocations(array $lineItems, float $subtotal, int $minorUnits): array
+    {
+        if ($lineItems === [] || $subtotal <= 0.0) {
+            return [];
+        }
+
+        $allocations = [];
+        $assigned = 0;
+        $lastIndex = count($lineItems) - 1;
+
+        foreach ($lineItems as $index => $lineItem) {
+            $share = $index === $lastIndex
+                ? $minorUnits - $assigned
+                : (int) round($minorUnits * ($lineItem->price * $lineItem->quantity) / $subtotal);
+
+            $assigned += $share;
+            $allocations[] = [
+                'path' => sprintf('$.line_items[%d]', $index),
+                'amount' => $share,
+            ];
+        }
+
+        return $allocations;
+    }
+
+    private static function discountTitle(string $code): string
+    {
+        $discount = self::lookupDiscount($code);
+        if ($discount === null) {
+            return $code;
+        }
+
+        return $discount['type'] === 'percentage'
+            ? sprintf('%s%% off', rtrim(rtrim(number_format($discount['value'] * 100, 1, '.', ''), '0'), '.'))
+            : sprintf('%.2f off', $discount['value']);
+    }
+
     public static function knowsDiscountCode(string $code): bool
     {
-        return array_key_exists($code, self::DISCOUNT_CODES);
+        return self::lookupDiscount($code) !== null;
+    }
+
+    /**
+     * Discount codes are matched case-insensitively, which `discounts.codes` requires.
+     *
+     * @return array{type: 'percentage'|'fixed', value: float}|null
+     */
+    private static function lookupDiscount(string $code): ?array
+    {
+        return self::DISCOUNT_CODES[strtoupper(trim($code))] ?? null;
     }
 
     private static function discountAmount(string $code, float $subtotal): float
     {
-        $discount = self::DISCOUNT_CODES[$code] ?? null;
+        $discount = self::lookupDiscount($code);
         if ($discount === null) {
             return 0.0;
         }
