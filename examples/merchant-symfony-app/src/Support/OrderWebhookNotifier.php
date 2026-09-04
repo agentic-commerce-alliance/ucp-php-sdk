@@ -104,7 +104,11 @@ final class OrderWebhookNotifier
             // The order exists and the buyer has paid. Failing the completion response because
             // the platform's receiver is down would turn their outage into ours; the SDK
             // records the delivery attempt either way.
-            $this->logger?->warning('Order webhook delivery failed.', [
+            $this->logger?->warning(sprintf(
+                'Order webhook delivery to %s failed: %s',
+                $target,
+                $exception->getMessage(),
+            ), [
                 'order_id' => $orderId,
                 'target' => $target,
                 'exception' => $exception->getMessage(),

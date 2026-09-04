@@ -68,10 +68,10 @@ final class Kernel extends BaseKernel
         $services->set(MerchantSettings::class)
             ->args([
                 $baseUri,
-                $_ENV['MERCHANT_BRAND_NAME'] ?? $_SERVER['MERCHANT_BRAND_NAME'] ?? 'Acme Outdoor',
+                self::env('MERCHANT_BRAND_NAME') ?? 'Acme Outdoor',
                 'EUR',
                 'DE',
-                $_ENV['MERCHANT_WEBHOOK_TARGET'] ?? $_SERVER['MERCHANT_WEBHOOK_TARGET'] ?? $baseUri . '/merchant/demo/webhook-inbox',
+                self::env('MERCHANT_WEBHOOK_TARGET') ?? $baseUri . '/merchant/demo/webhook-inbox',
             ]);
 
         $services->set(JsonStateStore::class)
@@ -122,11 +122,27 @@ final class Kernel extends BaseKernel
      */
     private function stateDir(): string
     {
-        $configured = $_ENV['UCP_MERCHANT_STATE_DIR'] ?? $_SERVER['UCP_MERCHANT_STATE_DIR'] ?? null;
+        $configured = self::env('UCP_MERCHANT_STATE_DIR');
 
-        return is_string($configured) && $configured !== ''
+        return $configured !== null
             ? rtrim($configured, '/')
             : $this->getProjectDir() . '/var';
+    }
+
+    /**
+     * One reader for the environment, because there are three places to look and they disagree.
+     *
+     * `$_ENV` is only populated when `variables_order` says so, and under `php -S` it commonly
+     * is not. Reading it alone made the console and the HTTP server resolve different state
+     * directories from the same configuration -- so a signing key generated on the command line
+     * landed in a database the server never opened, and the server then declined to sign
+     * anything while reporting no configuration problem at all.
+     */
+    private static function env(string $name): ?string
+    {
+        $value = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     private function baseUri(): string
@@ -134,14 +150,12 @@ final class Kernel extends BaseKernel
         // getenv() too: whether the environment reaches `$_ENV` depends on `variables_order`,
         // and under `php -S` it commonly does not. Falling back silently to a different host
         // than the one the operator asked for changes which agents this app will talk to.
-        $baseUri = $_ENV['UCP_MERCHANT_BASE_URI'] ?? $_SERVER['UCP_MERCHANT_BASE_URI'] ?? getenv('UCP_MERCHANT_BASE_URI');
-
-        return is_string($baseUri) && $baseUri !== '' ? $baseUri : 'http://localhost:8081';
+        return self::env('UCP_MERCHANT_BASE_URI') ?? 'http://localhost:8081';
     }
 
     private function signaturePolicy(): string
     {
-        return $_ENV['UCP_SIGNATURE_POLICY'] ?? $_SERVER['UCP_SIGNATURE_POLICY'] ?? 'log';
+        return self::env('UCP_SIGNATURE_POLICY') ?? 'log';
     }
 
     private function profileFetchingDevelopmentMode(): bool

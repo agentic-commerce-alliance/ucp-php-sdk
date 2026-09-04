@@ -49,7 +49,12 @@ fi
 # before sending it upstream -- is not silently reverted on the next run.
 if [ -z "${UCP_CONFORMANCE_NO_CHECKOUT:-}" ]; then
     git -C "${checkout}" fetch --quiet origin
-    git -C "${checkout}" checkout --quiet "${pinned}"
+    git -C "${checkout}" checkout --quiet --force "${pinned}"
+    # Hard reset, not just a checkout: `git checkout <sha>` keeps working-tree modifications, so
+    # the patches below would be applied on top of themselves on a second local run -- and, worse,
+    # a hand-edit made while debugging would silently persist into a run reported as pinned.
+    git -C "${checkout}" reset --quiet --hard "${pinned}"
+    git -C "${checkout}" clean --quiet -fd
 fi
 echo "conformance suite pinned at ${pinned}"
 
@@ -100,6 +105,15 @@ if [ -z "${UCP_CONFORMANCE_SKIP_SERVER:-}" ]; then
     # relaxes what the SDK accepts is exactly what would make a conformance run pass for the
     # wrong reason. The trailing index.php is the router script and is not optional -- without
     # it the built-in server 404s every UCP path before the application is reached.
+    # A merchant with no signing key cannot sign a webhook, and the dispatcher refuses to send
+    # one unsigned -- so without this the order events simply never leave, and the suite reports
+    # it as the business failing to announce the order. The state directory is wiped per run, so
+    # the key has to be provisioned per run too.
+    APP_ENV=prod APP_DEBUG=0 \
+        UCP_MERCHANT_BASE_URI="${server_url}" \
+        UCP_MERCHANT_STATE_DIR="${state_dir}" \
+        php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate >> "${server_log}" 2>&1
+
     APP_ENV=prod APP_DEBUG=0 \
         UCP_MERCHANT_BASE_URI="${server_url}" \
         UCP_MERCHANT_STATE_DIR="${state_dir}" \

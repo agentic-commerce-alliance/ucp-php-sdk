@@ -52,68 +52,51 @@ upgrade would turn an unrelated pull request red.
 
 ## Where we stand
 
-**The lane's numbers are not currently reproducible from a clean clone, and nothing is
-enforced until they are.**
+Baseline from a **clean clone**, twice in a row with identical failure sets:
 
-A working tree carrying hand-applied fixes to `var/conformance` produced **53 passed / 11
-failed**. Deleting that checkout and re-running the same command produces **2 passed / 62
-failed**, with every failure downstream of the same thing: the merchant answers
-`capabilities_incompatible`, so no checkout is ever created and everything after it fails.
+**77 tests — 53 passed, 11 failed, 13 skipped**, on `ucp-sdk` 0.5.0 (UCP `2026-08-25`).
 
-`scripts/run-conformance.sh` now applies the patches in `docs/upstream/` after checking out the
-pinned commit, and fails loudly if one stops applying. That accounts for the fixes this
-repository has written down — the mock agent profile declaring one capability where the tests
-exercise seven, chiefly — and on its own it does **not** close the gap. Something else in that
-working tree was making the lane pass and was never committed.
+Seven modules are green and **enforced** in CI via `tests/conformance/enforced-modules.txt`:
+`checkout_lifecycle` (11), `discount` (6), `protocol` (2), `simulation_url_security` (3),
+`totals` (5), `validation` (6), `webhook` (1). Running just that set exits 0 with 34 passed.
 
-What has been ruled out:
+### What made it reproducible
 
-- **Not the `ucp-sdk` pin.** Disabling the check makes no difference to the pristine number.
-- **Not version-aware negotiation.** Temporarily accepting any capability version leaves the
-  result unchanged at 2 passed / 62 failed, so the strict matching added for capability versions
-  is not what empties the intersection.
-- **Not port collisions.** The suite starts a mock agent server per test method on a fixed port
-  and logs 54-82 bind failures per run, but that count is as high in the runs that passed as in
-  the ones that do not.
+Three things, none of which were about the tests:
 
-Two real defects were found while establishing this, and both are fixed regardless of what the
-lane reports: the merchant example read `UCP_MERCHANT_BASE_URI` from `$_ENV`/`$_SERVER` only, so
-under `php -S` it silently fell back to a different host than the operator asked for; and it
-then derived its allowed-profile-host list from that host, treating `localhost` and `127.0.0.1`
-as different origins. Which agents the app would talk to was therefore decided by
-`variables_order` rather than by configuration.
+- **The runner hard-resets the checkout.** `git checkout <sha>` keeps working-tree
+  modifications, so hand-applied fixes survived every run and a "pinned" result was nothing of
+  the kind. This is what made an earlier 53/11 unreproducible — a clean clone gave 1 passed.
+- **The runner applies `docs/upstream/*.patch` itself.** The suite does not pass against any
+  conformant merchant unpatched: its mock agent profile declares one capability where the tests
+  exercise seven, so everything touching checkout is refused before it starts.
+- **The merchant is given a signing key before it boots.** The dispatcher refuses to send an
+  unsigned webhook, and the state directory is wiped per run, so with no key the order events
+  never left — reported by the suite as the business failing to announce the order.
 
-### The improvements are real; the measurement of them is not
+The third one was hidden behind a fourth defect: `Kernel` read configuration from `$_ENV` and
+`$_SERVER` only, and `$_ENV` is populated only when `variables_order` says so — which under
+`php -S` it commonly does not. The console and the HTTP server therefore resolved *different*
+state directories from the same configuration, so a key generated on the command line landed in
+a database the server never opened. All of the Kernel's environment reads now go through one
+resolver that also consults `getenv()`.
 
-The work behind the numbers below stands on its own — each item was a defect with a test, and
-`composer qa` covers them. What is not currently defensible is the claim that the suite
-reports a particular score.
+`examples/merchant-symfony-app/bin/console` is new. The SDK ships its operational commands --
+signing-key rotation, storage cleanup, nonce purging -- as console commands, and the example had
+no entry point for any of them.
 
-| | Reported | Measured against |
+### The eleven that remain
+
+None is fixable here, which is why none is enforced.
+
+| Failing | # | Why |
 | --- | ---: | --- |
-| `2026-04-08` | 1 passed | a pristine clone |
-| `2026-08-25`, no fulfillment | 5 passed | the modified working tree |
-| fulfillment emitted | 18 passed | the modified working tree |
-| discounts, payment, order shape | 39 passed | the modified working tree |
-| webhooks, idempotency, negotiation, simulation | 53 passed | the modified working tree |
-| any of the above, clean clone | 2 passed | a pristine clone |
-
-Re-establishing a reproducible baseline is the next task in this lane, and it comes before
-enforcing anything.
-
-### What is still failing, and why none of it is enforced
-
-Every remaining failure is outside this repository. Blocking on one would teach people to
-ignore a red check.
-
-| Failing | Count | Why |
-| --- | ---: | --- |
-| `ap2_test`, `binding_test`, `card_credential_test` | 3 | The suite hardcodes `handler_id: "mock_payment_handler"` instead of reading `payment_instruments.csv`. A business must reject a handler it does not implement, so rejecting is correct and the literal is the defect — [upstream defect 4](upstream/conformance-suite-defects.md) |
-| `business_logic_test::test_buyer_consent` | 1 | The suite sends `buyer.consent` as the four `2026-04-08` booleans. At `2026-08-25` the request schema constrains it with `propertyNames: reverse_domain_name`, so validation rejects it — the `ucp-sdk==0.4.4` pin, [upstream blocker](upstream/conformance-suite-protocol-version.md) |
-| `idempotency_test::test_idempotency_create` | 1 | The "conflicting" payload sets `currency = "EUR"`, which is already this merchant's currency, so it is byte-identical to the original and replaying it is correct — [upstream defect 5](upstream/conformance-suite-defects.md) |
-| `fulfillment_test::test_fulfillment_flow` | 1 | Asserts `total == price + shipping`, ignoring the 19% VAT this German merchant charges. `totals_test` and `business_logic_test` both model tax correctly — [upstream defect 6](upstream/conformance-suite-defects.md) |
-| `order_test`, `invalid_input_test` (adjustments) | 4 | `PUT /orders/{id}` and order adjustments. The upstream OpenAPI at `2026-08-25` defines only `GET /orders/{id}`, so implementing these means inventing a wire contract. Its own slice, with its own design discussion |
-| `webhook_structure_test::test_signature_covers_ucp_agent` | 1 | The webhook signature must cover `@authority`. The covered-component list is being made configurable in the signature lane; adding it here would collide |
+| `ap2`, `binding`, `card_credential` | 3 | The suite hardcodes `handler_id: "mock_payment_handler"` instead of reading `payment_instruments.csv`. A business must reject a handler it does not implement — [defect 4](upstream/conformance-suite-defects.md) |
+| `business_logic::test_buyer_consent` | 1 | Constructs consent from the four `2026-04-08` booleans against a `2026-08-25` model, which raises in the suite's own code before a request is sent |
+| `idempotency::test_idempotency_create` | 1 | The "conflict" payload sets `currency = "EUR"`, already this merchant's currency, so it is byte-identical and replaying is correct — [defect 5](upstream/conformance-suite-defects.md) |
+| `fulfillment::test_fulfillment_flow` | 1 | Asserts `total == price + shipping`, ignoring VAT, contradicting `totals_test` and `business_logic_test` — [defect 6](upstream/conformance-suite-defects.md) |
+| `order`, `invalid_input` (adjustments) | 4 | `PUT /orders/{id}`; the upstream OpenAPI at `2026-08-25` defines only `GET` |
+| `webhook_structure::test_signature_covers_ucp_agent` | 1 | Needs `@authority` in the signed component list, which the signature lane is making configurable |
 
 ### How it got here
 

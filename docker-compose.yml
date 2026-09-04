@@ -54,6 +54,7 @@ services:
       - >-
         rm -rf /tmp/ucp-conformance-state examples/merchant-symfony-app/var/cache &&
         mkdir -p /tmp/ucp-conformance-state &&
+        php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate &&
         php -S 127.0.0.1:8081 -t examples/merchant-symfony-app/public
         examples/merchant-symfony-app/public/index.php
     healthcheck:

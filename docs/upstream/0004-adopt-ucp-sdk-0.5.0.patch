@@ -106,7 +106,7 @@ index 3a2e8fa..3d244d2 100644
  # Rebuild models to resolve forward references
  checkout.Checkout.model_rebuild(_types_namespace={"Payment": Payment})
 diff --git a/idempotency_test.py b/idempotency_test.py
-index a1b8fb3..126ee55 100644
+index a1b8fb3..efd0bed 100644
 --- a/idempotency_test.py
 +++ b/idempotency_test.py
 @@ -19,7 +19,7 @@ import uuid
@@ -118,19 +118,8 @@ index a1b8fb3..126ee55 100644
    Payment,
  )
  
-@@ -72,6 +72,10 @@ class IdempotencyTest(integration_test_utils.IntegrationTestBase):
-       response1.status_code,
-       msg="Idempotency Failed: Status code mismatch.",
-     )
-+    a, b = response1.json(), response2.json()
-+    print("PROBE_DIFF", [k for k in set(a) | set(b) if a.get(k) != b.get(k)])
-+    print("PROBE_A", {k: a.get(k) for k in set(a) | set(b) if a.get(k) != b.get(k)})
-+    print("PROBE_B", {k: b.get(k) for k in set(a) | set(b) if a.get(k) != b.get(k)})
-     self.assertEqual(
-       response2.json(),
-       response1.json(),
 diff --git a/integration_test_utils.py b/integration_test_utils.py
-index 826a018..af7bcd2 100644
+index 0feb4f4..af7bcd2 100644
 --- a/integration_test_utils.py
 +++ b/integration_test_utils.py
 @@ -32,8 +32,8 @@ from fastapi.responses import JSONResponse
@@ -152,16 +141,6 @@ index 826a018..af7bcd2 100644
          address_country=dest_data.get(
            "address_country", dest_data.get("country", "US")
          ),
-@@ -1098,6 +1099,9 @@ class IntegrationTestBase(absltest.TestCase):
-         "type": "shipping",
-         "destinations": [address],
-         "selected_destination_id": "dest_default",
-+        "line_item_ids": [
-+          li.id for li in (checkout_obj.line_items or []) if li.id
-+        ],
-       }
-       if method_id:
-         method_payload["id"] = method_id
 diff --git a/invalid_input_test.py b/invalid_input_test.py
 index 404e14d..a7fb2a0 100644
 --- a/invalid_input_test.py
@@ -195,7 +174,7 @@ index 3ae9ece..5166a79 100644
  # Rebuild models to resolve forward references
  checkout.Checkout.model_rebuild(_types_namespace={"Payment": Payment})
 diff --git a/protocol_test.py b/protocol_test.py
-index 42769f1..3a2f215 100644
+index 87cbbfc..3a2f215 100644
 --- a/protocol_test.py
 +++ b/protocol_test.py
 @@ -19,11 +19,11 @@ import integration_test_utils
@@ -212,25 +191,6 @@ index 42769f1..3a2f215 100644
    Payment,
  )
  
-@@ -317,7 +317,8 @@ class ProtocolTest(integration_test_utils.IntegrationTestBase):
-       advertised_version, "Discovery profile must advertise a UCP version"
-     )
-     headers = integration_test_utils.get_headers()
--    headers["UCP-Agent"] = f'profile="..."; version="{advertised_version}"'
-+    agent = headers["UCP-Agent"]
-+    headers["UCP-Agent"] = f'{agent}; version="{advertised_version}"'
-     response = self.client.post(
-       checkout_sessions_url,
-       json=create_payload.model_dump(
-@@ -328,7 +329,7 @@ class ProtocolTest(integration_test_utils.IntegrationTestBase):
-     self.assert_response_status(response, [200, 201])
- 
-     # 2. Incompatible Version
--    headers["UCP-Agent"] = 'profile="..."; version="2099-01-01"'
-+    headers["UCP-Agent"] = f'{agent}; version="2099-01-01"'
-     response = self.client.post(
-       checkout_sessions_url,
-       json=create_payload.model_dump(
 diff --git a/pyproject.toml b/pyproject.toml
 index 1eca52d..d39c90f 100644
 --- a/pyproject.toml
@@ -244,202 +204,6 @@ index 1eca52d..d39c90f 100644
      "fastapi>=0.109.0",
      "uvicorn[standard]>=0.38.0",
      "ruff>=0.14.11",
-diff --git a/shopping-agent-test.json b/shopping-agent-test.json
-index bc7d5ed..2a3c1ff 100644
---- a/shopping-agent-test.json
-+++ b/shopping-agent-test.json
-@@ -2,6 +2,56 @@
-   "ucp": {
-     "version": "{ucp_version}",
-     "capabilities": {
-+      "dev.ucp.shopping.catalog.search": [
-+        {
-+          "name": "dev.ucp.shopping.catalog.search",
-+          "version": "{ucp_version}",
-+          "spec": "https://ucp.dev/{ucp_version}/specification/catalog/search/",
-+          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/catalog_search.json"
-+        }
-+      ],
-+      "dev.ucp.shopping.catalog.lookup": [
-+        {
-+          "name": "dev.ucp.shopping.catalog.lookup",
-+          "version": "{ucp_version}",
-+          "spec": "https://ucp.dev/{ucp_version}/specification/catalog/lookup/",
-+          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/catalog_lookup.json"
-+        }
-+      ],
-+      "dev.ucp.shopping.cart": [
-+        {
-+          "name": "dev.ucp.shopping.cart",
-+          "version": "{ucp_version}",
-+          "spec": "https://ucp.dev/{ucp_version}/specification/cart/",
-+          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/cart.json"
-+        }
-+      ],
-+      "dev.ucp.shopping.checkout": [
-+        {
-+          "name": "dev.ucp.shopping.checkout",
-+          "version": "{ucp_version}",
-+          "spec": "https://ucp.dev/{ucp_version}/specification/checkout/",
-+          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/checkout.json"
-+        }
-+      ],
-+      "dev.ucp.shopping.discount": [
-+        {
-+          "name": "dev.ucp.shopping.discount",
-+          "version": "{ucp_version}",
-+          "spec": "https://ucp.dev/{ucp_version}/specification/extensions/discount/",
-+          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/discount.json",
-+          "extends": "dev.ucp.shopping.cart"
-+        }
-+      ],
-+      "dev.ucp.shopping.fulfillment": [
-+        {
-+          "name": "dev.ucp.shopping.fulfillment",
-+          "version": "{ucp_version}",
-+          "spec": "https://ucp.dev/{ucp_version}/specification/extensions/fulfillment/",
-+          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/fulfillment.json",
-+          "extends": "dev.ucp.shopping.checkout"
-+        }
-+      ],
-       "dev.ucp.shopping.order": [
-         {
-           "name": "dev.ucp.shopping.order",
-diff --git a/test_data/flower_shop/conformance_input.json b/test_data/flower_shop/conformance_input.json
-index d458112..7a6b55c 100644
---- a/test_data/flower_shop/conformance_input.json
-+++ b/test_data/flower_shop/conformance_input.json
-@@ -1,26 +1,24 @@
- {
--  "ucp_version": "2026-04-08",
-+  "ucp_version": "2026-08-25",
-   "required_capabilities": [
-     "dev.ucp.shopping.checkout",
-     "dev.ucp.shopping.order",
--    "dev.ucp.shopping.discount",
--    "dev.ucp.shopping.fulfillment",
--    "dev.ucp.shopping.buyer_consent"
-+    "dev.ucp.shopping.discount"
-   ],
--  "currency": "USD",
-+  "currency": "EUR",
-   "items": [
-     {
--      "id": "bouquet_roses",
--      "title": "Red Rose",
--      "price": 3500
-+      "id": "tent-4p",
-+      "title": "Summit 4P Tent",
-+      "price": 24900
-     }
-   ],
-   "out_of_stock_item": {
--    "id": "gardenias",
--    "title": "Gardenias"
-+    "id": "map-alpine",
-+    "title": "Alpine Trail Map"
-   },
-   "non_existent_item": {
--    "id": "pink_wumpus",
-+    "id": "pink-wumpus",
-     "title": "Pink Wumpus"
-   }
- }
-diff --git a/test_data/flower_shop/payment_instruments.csv b/test_data/flower_shop/payment_instruments.csv
-index 29baacb..1a03f7c 100644
---- a/test_data/flower_shop/payment_instruments.csv
-+++ b/test_data/flower_shop/payment_instruments.csv
-@@ -1,4 +1,4 @@
- id,type,brand,last_digits,token,handler_id
--instr_1,card,Visa,1234,success_token,mock_payment_handler
--instr_2,card,Mastercard,5678,success_token,mock_payment_handler
--instr_fail,card,Visa,0000,fail_token,mock_payment_handler
-+instr_1,card,Visa,1234,success_token,merchant.card
-+instr_2,card,Mastercard,5678,success_token,merchant.card
-+instr_fail,card,Visa,0000,fail_token,merchant.card
-diff --git a/test_data/flower_shop/test_fixtures.json b/test_data/flower_shop/test_fixtures.json
-index 92c23dc..a58f74b 100644
---- a/test_data/flower_shop/test_fixtures.json
-+++ b/test_data/flower_shop/test_fixtures.json
-@@ -1,72 +1,15 @@
- {
-   "test_fixtures": {
-     "valid_item": {
--      "sku": "bouquet_roses",
--      "expected_price": 35.0,
-+      "sku": "tent-4p",
-+      "expected_price": 249.0,
-       "quantity": 1
-     },
--    "valid_discount_code": "10OFF",
-+    "valid_discount_code": "SAVE10",
-     "expected_discount_percentage": 10.0,
--    "valid_discount_code_2": "WELCOME20",
-+    "valid_discount_code_2": "SAVE20",
-     "expected_discount_percentage_2": 20.0,
--    "valid_fixed_discount_code": "FIXED500",
--    "expected_fixed_discount_reduction": 5.0,
--    "known_customer": {
--      "full_name": "John Doe",
--      "email": "john.doe@example.com",
--      "addresses": [
--        {
--          "street_address": "123 Main St",
--          "address_locality": "Springfield",
--          "address_region": "IL",
--          "postal_code": "62704",
--          "address_country": "US"
--        },
--        {
--          "street_address": "456 Oak Ave",
--          "address_locality": "Metropolis",
--          "address_region": "NY",
--          "postal_code": "10012",
--          "address_country": "US"
--        }
--      ]
--    },
--    "known_customer_without_address": {
--      "full_name": "Jane Doe",
--      "email": "jane.doe@example.com"
--    },
--    "free_shipping_min_subtotal": 100.0,
--    "free_shipping_item_sku": "bouquet_roses",
--    "dynamic_fulfillment": {
--      "domestic": {
--        "destination": {
--          "street_address": "123 Main St",
--          "address_locality": "Springfield",
--          "address_region": "IL",
--          "postal_code": "62704",
--          "address_country": "US"
--        },
--        "expected_option_id": "exp-ship-us"
--      },
--      "international": {
--        "destination": {
--          "street_address": "25 King St W",
--          "address_locality": "Toronto",
--          "address_region": "ON",
--          "postal_code": "M5V 2H1",
--          "address_country": "CA"
--        },
--        "expected_option_id": "exp-ship-intl"
--      }
--    }
--  },
--  "shipping_locations": {
--    "domestic_destination": {
--      "street": "123 Market St",
--      "city": "San Francisco",
--      "state": "CA",
--      "postal_code": "94105",
--      "country": "US"
--    }
-+    "valid_fixed_discount_code": "FIVEOFF",
-+    "expected_fixed_discount_reduction": 5.0
-   }
- }
 diff --git a/totals_test.py b/totals_test.py
 index 74bab34..aae42cf 100644
 --- a/totals_test.py
@@ -454,7 +218,7 @@ index 74bab34..aae42cf 100644
  # Rebuild models to resolve forward references (needed to parse a full
  # checkout response before driving a discount update).
 diff --git a/validation_test.py b/validation_test.py
-index 07b061d..174cfa4 100644
+index 07b061d..5894ab7 100644
 --- a/validation_test.py
 +++ b/validation_test.py
 @@ -20,13 +20,13 @@ from ucp_sdk.models.schemas.shopping import (
@@ -474,15 +238,6 @@ index 07b061d..174cfa4 100644
  from pydantic import ValidationError
  
  
-@@ -329,6 +329,8 @@ class ValidationTest(integration_test_utils.IntegrationTestBase):
-       headers=integration_test_utils.get_headers(),
-     )
- 
-+    print("PROBE_STATUS", response.status_code)
-+    import json as _j; print("PROBE_MSGS", _j.dumps(response.json().get("messages")))
-     self.assert_business_error(
-       response,
-       accepted_codes={"not_found", "item_unavailable"},
 diff --git a/webhook_test.py b/webhook_test.py
 index e3768b4..8722f64 100644
 --- a/webhook_test.py
