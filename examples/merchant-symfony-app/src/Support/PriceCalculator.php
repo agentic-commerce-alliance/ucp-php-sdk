@@ -30,7 +30,7 @@ final class PriceCalculator
         foreach ($requestedItems as $requestedItem) {
             $product = $this->catalog->find($requestedItem->id);
             if ($product === null) {
-                throw new ResourceNotFoundException(sprintf('Product "%s" does not exist.', $requestedItem->id));
+                throw new ResourceNotFoundException(sprintf('Product "%s" was not found in this catalog.', $requestedItem->id));
             }
 
             // Stock was published in every catalog response and checked nowhere, so the field

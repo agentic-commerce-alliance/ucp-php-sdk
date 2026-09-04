@@ -103,9 +103,25 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
                     'card_last4' => '4242',
                 ],
             ],
+            // The shape a platform actually sends: a destination to price against, and the
+            // option chosen from the ones the business offered for it.
             'fulfillment' => [
-                'type' => 'shipping',
-                'method_id' => 'express-shipping',
+                'methods' => [[
+                    'id' => 'ful_method_1',
+                    'type' => 'shipping',
+                    'line_item_ids' => [$created['line_items'][0]['id']],
+                    'destinations' => [[
+                        'id' => 'dest_1',
+                        'address_country' => 'DE',
+                        'postal_code' => '10115',
+                    ]],
+                    'selected_destination_id' => 'dest_1',
+                    'groups' => [[
+                        'id' => 'ful_group_1',
+                        'line_item_ids' => [$created['line_items'][0]['id']],
+                        'selected_option_id' => 'express-shipping',
+                    ]],
+                ]],
             ],
         ], JSON_THROW_ON_ERROR));
 
@@ -222,9 +238,25 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
                 'first_name' => 'Alex',
                 'last_name' => 'Summit',
             ],
+            // The shape a platform actually sends: a destination to price against, and the
+            // option chosen from the ones the business offered for it.
             'fulfillment' => [
-                'type' => 'shipping',
-                'method_id' => 'express-shipping',
+                'methods' => [[
+                    'id' => 'ful_method_1',
+                    'type' => 'shipping',
+                    'line_item_ids' => [$checkout['line_items'][0]['id']],
+                    'destinations' => [[
+                        'id' => 'dest_1',
+                        'address_country' => 'DE',
+                        'postal_code' => '10115',
+                    ]],
+                    'selected_destination_id' => 'dest_1',
+                    'groups' => [[
+                        'id' => 'ful_group_1',
+                        'line_item_ids' => [$checkout['line_items'][0]['id']],
+                        'selected_option_id' => 'express-shipping',
+                    ]],
+                ]],
             ],
             'payment' => [
                 'type' => 'card',

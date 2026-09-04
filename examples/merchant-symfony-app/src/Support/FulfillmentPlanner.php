@@ -97,6 +97,78 @@ final class FulfillmentPlanner
     }
 
     /**
+     * The order's view of fulfillment, which is not the checkout's.
+     *
+     * A checkout carries `methods[]` -- the choices still open. An order carries
+     * `expectations[]`: what the buyer was told would happen, now that the choosing is over.
+     * Reusing the checkout object here would answer a different question than the one asked.
+     *
+     * @param array<string, mixed>|null $fulfillment the planned checkout fulfillment
+     * @param list<LineItem> $lineItems
+     *
+     * @return array<string, mixed>|null
+     */
+    public function orderExpectations(?array $fulfillment, array $lineItems = []): ?array
+    {
+        $method = $fulfillment['methods'][0] ?? null;
+        if (! is_array($method)) {
+            return null;
+        }
+
+        $group = $method['groups'][0] ?? null;
+        $selectedOptionId = is_array($group) ? $group['selected_option_id'] ?? null : null;
+        if (! is_string($selectedOptionId)) {
+            return null;
+        }
+
+        $type = $this->methodType($method);
+        $option = null;
+        foreach (self::OPTIONS[$type] ?? [] as $candidate) {
+            if ($candidate['id'] === $selectedOptionId) {
+                $option = $candidate;
+                break;
+            }
+        }
+
+        if ($option === null) {
+            return null;
+        }
+
+        $destination = [];
+        foreach (is_array($method['destinations'] ?? null) ? $method['destinations'] : [] as $candidate) {
+            if (is_array($candidate) && ($candidate['id'] ?? null) === ($method['selected_destination_id'] ?? null)) {
+                $destination = $candidate;
+                break;
+            }
+        }
+
+        // `destination` is a postal address, so the discriminator and identifier that belong to
+        // the checkout's destination contract are not part of it.
+        unset($destination['type'], $destination['id']);
+
+        // An expectation references line items with their quantities, not by bare id: what is
+        // being promised is a delivery of so many of each, and a split shipment promises some
+        // of them now and the rest later.
+        $covered = is_array($method['line_item_ids'] ?? null) ? $method['line_item_ids'] : [];
+        $expectationItems = [];
+        foreach ($lineItems as $lineItem) {
+            if (in_array($lineItem->id, $covered, true)) {
+                $expectationItems[] = ['id' => $lineItem->id, 'quantity' => $lineItem->quantity];
+            }
+        }
+
+        return ['expectations' => [[
+            'id' => 'exp_1',
+            'line_items' => $expectationItems,
+            'method_type' => $type,
+            'destination' => $destination,
+            // The title the buyer chose by, not the internal option id.
+            'description' => $option['title'],
+            'fulfillable_on' => gmdate('c', time() + $option['days'] * 86400),
+        ]]];
+    }
+
+    /**
      * The surcharge the selected option adds, in major units.
      *
      * Nothing is charged until an option is chosen: a business that bills for shipping the

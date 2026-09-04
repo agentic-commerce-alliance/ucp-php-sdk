@@ -98,6 +98,18 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
 
     public function updateCheckout(CheckoutUpdateRequest $request, RequestContext $context): Checkout
     {
+        $existing = $this->stateStore->find(self::COLLECTION, $request->id);
+        $existingStatus = is_string($existing['status'] ?? null) ? CheckoutStatus::tryFrom($existing['status']) : null;
+
+        // A cancelled or completed checkout is settled. Re-pricing one would answer with a
+        // success and a new total for a session that can no longer be paid.
+        if ($existingStatus === CheckoutStatus::Canceled || $existingStatus === CheckoutStatus::Completed) {
+            throw new ValidationException(
+                sprintf('This checkout is %s and can no longer be updated.', $existingStatus->value),
+                [sprintf('Checkout "%s" is in status "%s".', $request->id, $existingStatus->value)],
+            );
+        }
+
         $status = $request->payment !== null && $request->buyer !== null
             ? CheckoutStatus::ReadyForComplete
             : CheckoutStatus::Incomplete;
@@ -139,6 +151,16 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             ]);
         }
 
+        // Nobody has said where this is going, so there is nothing to promise the buyer and
+        // the total does not yet include what delivering it costs.
+        if ($this->fulfillmentPlanner->orderExpectations(
+            is_array($checkout->extra['fulfillment'] ?? null) ? $checkout->extra['fulfillment'] : null,
+        ) === null) {
+            throw new ValidationException('This checkout has no fulfillment selection and cannot be completed.', [
+                'Select a fulfillment destination and option before completing the checkout.',
+            ]);
+        }
+
         $orderId = 'ord_' . substr($checkout->id, 4);
 
         $completed = new Checkout(
@@ -162,10 +184,13 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             'permalink_url' => $this->settings->orderPermalink($orderId),
             'currency' => $completed->currency,
             'line_items' => array_map(static fn ($item): array => $item->toArray(), $completed->lineItems),
-            // An empty PHP array encodes as `[]`, and `fulfillment` is an object. Carrying the
-            // checkout's own fulfillment is both correct and what makes the order a snapshot
-            // of what was actually agreed.
-            'fulfillment' => is_array($completed->extra['fulfillment'] ?? null) ? $completed->extra['fulfillment'] : null,
+            // An order's fulfillment is not a checkout's: the checkout carries the methods
+            // still open to choose from, the order carries what the buyer was told would
+            // happen now the choosing is over.
+            'fulfillment' => $this->fulfillmentPlanner->orderExpectations(
+                is_array($completed->extra['fulfillment'] ?? null) ? $completed->extra['fulfillment'] : null,
+                $completed->lineItems,
+            ),
             'totals' => array_map(static fn ($money): array => $money->toArray(), $completed->totals),
             'messages' => array_map(static fn ($message): array => $message->toArray(), $completed->messages),
             'links' => array_map(static fn ($link): array => $link->toArray(), [
