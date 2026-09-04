@@ -69,21 +69,36 @@ final class EmbeddedControllerTest extends TestCase
     }
 
     /**
-     * Documents a configuration trap rather than an intention. The setting is called
-     * `allowed_agent_domains`, but OriginMatcher normalises each entry as a full origin
-     * and drops anything without an http/https scheme -- so a merchant who configures
-     * `agent.example`, which is what the name asks for, gets an empty allow-list and
-     * every agent refused. The entry is discarded silently, which is the part that makes
-     * this hard to diagnose from the outside.
+     * The setting is called `allowed_agent_domains`, so a bare domain has to work -- and
+     * has to cover subdomains, since an agent operator publishes its profile at one name
+     * and frames from another. This used to be the trap: entries were normalised as full
+     * origins and anything without a scheme was dropped silently, so configuring the
+     * thing the name asks for produced an empty allow-list and refused every agent.
      */
     #[Test]
-    public function anAllowedDomainWithoutASchemeIsSilentlyIgnored(): void
+    public function aBareDomainIsAcceptedAndCoversItsSubdomains(): void
+    {
+        $controller = $this->controller(allowedAgentDomains: ['agent.example']);
+
+        $exact = $controller->cart('cart-1', $this->requestFrom('https://agent.example'));
+        $sub = $controller->cart('cart-1', $this->requestFrom('https://checkout.agent.example'));
+
+        self::assertSame('https://agent.example', $exact->headers->get('Access-Control-Allow-Origin'));
+        self::assertSame('https://checkout.agent.example', $sub->headers->get('Access-Control-Allow-Origin'));
+    }
+
+    /**
+     * A bare domain names no scheme, and the safe reading of silence is https -- admitting
+     * plaintext framing because an entry omitted a scheme is a downgrade nobody asked for.
+     */
+    #[Test]
+    public function aBareDomainDoesNotAdmitPlaintextFraming(): void
     {
         $controller = $this->controller(allowedAgentDomains: ['agent.example']);
 
         $this->expectException(AccessDeniedHttpException::class);
 
-        $controller->cart('cart-1', $this->requestFrom('https://agent.example'));
+        $controller->cart('cart-1', $this->requestFrom('http://agent.example'));
     }
 
     #[Test]
