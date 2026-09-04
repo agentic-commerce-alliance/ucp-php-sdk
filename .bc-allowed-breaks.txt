@@ -34,4 +34,10 @@
 #      and the newest release tag -- and an entry that is live for one is legitimately
 #      stale for the other.
 #
-# No accepted breaks are currently outstanding.
+# BuyerConsent is keyed by reverse-DNS purpose. The two removed properties never existed
+# on the wire at any published version -- 2026-04-08 defines buyer.consent as four
+# booleans -- so nothing conformant read them. See CHANGELOG.md, "Changed (breaking)"
+# under Unreleased: buyer consent purposes.
+[BC] REMOVED: Property Ucp\Sdk\Model\Checkout\BuyerConsent#$granted was removed
+[BC] REMOVED: Property Ucp\Sdk\Model\Checkout\BuyerConsent#$timestamp was removed
+[BC] CHANGED: The parameter $granted of Ucp\Sdk\Model\Checkout\BuyerConsent#__construct() changed from bool to a non-contravariant array

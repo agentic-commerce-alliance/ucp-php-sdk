@@ -122,7 +122,7 @@ final class HttpPayloadMapper
             $this->toSignals($payload['signals'] ?? null),
             $this->toDiscounts($payload['discounts']['codes'] ?? []),
             $this->toFulfillment($payload['fulfillment'] ?? null),
-            $this->toConsent($payload['buyer_consent'] ?? null),
+            $this->toConsent($payload),
             $this->nullableString($payload['cart_id'] ?? null),
             $this->toSelectedPaymentInstrument($payload['payment'] ?? null),
         );
@@ -139,7 +139,7 @@ final class HttpPayloadMapper
             $this->toBuyer($payload['buyer'] ?? null),
             $this->toDiscounts($payload['discounts']['codes'] ?? []),
             $this->toFulfillment($payload['fulfillment'] ?? null),
-            $this->toConsent($payload['buyer_consent'] ?? null),
+            $this->toConsent($payload),
             $this->toSelectedPaymentInstrument($payload['payment'] ?? null),
         );
     }
@@ -400,14 +400,27 @@ final class HttpPayloadMapper
     }
 
     /**
-     * @param mixed $payload
+     * Consent lives at `buyer.consent`, which is where every published schema has put it.
+     *
+     * The top-level `buyer_consent` fallback is this SDK's own invention -- it was advertised in
+     * the MCP tool schemas and read here, so adopters may be sending it. It is honoured for one
+     * release and then removed; a conformant peer never sends it.
+     *
+     * @param array<string, mixed> $payload
      */
-    private function toConsent(mixed $payload): ?BuyerConsent
+    private function toConsent(array $payload): ?BuyerConsent
     {
-        if (! is_array($payload)) {
+        $buyer = $payload['buyer'] ?? null;
+        $consent = is_array($buyer) ? $buyer['consent'] ?? null : null;
+
+        if (! is_array($consent)) {
+            $consent = $payload['buyer_consent'] ?? null;
+        }
+
+        if (! is_array($consent)) {
             return null;
         }
 
-        return new BuyerConsent((bool) ($payload['granted'] ?? false), $payload['timestamp'] ?? null);
+        return BuyerConsent::fromArray($consent);
     }
 }
