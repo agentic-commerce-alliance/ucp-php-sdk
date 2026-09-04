@@ -127,8 +127,17 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
             $created = isset($parts['created']) ? (int) $parts['created'] : null;
             $expires = isset($parts['expires']) ? (int) $parts['expires'] : null;
 
-            if ($kid === null || $created === null || $expires === null) {
-                throw new SignatureException('Signature-Input is missing required parameters.');
+            // `expires` is deliberately not required. The specification's default signature
+            // shape carries `created` and `keyid` and nothing else; `expires` belongs to the
+            // web-bot-auth shape. Demanding it refused every peer signing the way the spec
+            // describes -- and said so with a message that named no parameter, so the peer
+            // could not tell which one it was missing.
+            //
+            // This is the same class of defect as emitting DER signatures: self-consistent,
+            // green against our own signer, and unable to talk to anyone else. Found by an
+            // external spec-derived agent, which is the only kind of test that could.
+            if ($kid === null || $created === null) {
+                throw new SignatureException('Signature-Input must carry both keyid and created.');
             }
 
             if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) === null) {
@@ -157,12 +166,21 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 throw new SignatureException('Signature created timestamp is too far in the future.');
             }
 
-            if ($expires < time() - 60) {
-                throw new SignatureException('Signature has expired.');
-            }
+            if ($expires !== null) {
+                if ($expires < time() - 60) {
+                    throw new SignatureException('Signature has expired.');
+                }
 
-            if (($expires - $created) > $this->maxLifetimeSeconds) {
-                throw new SignatureException('Signature lifetime exceeds the allowed window.');
+                if (($expires - $created) > $this->maxLifetimeSeconds) {
+                    throw new SignatureException('Signature lifetime exceeds the allowed window.');
+                }
+            } elseif ($created < time() - $this->maxLifetimeSeconds) {
+                // A signature naming no expiry is still not valid forever. Bounding its age by
+                // the same window keeps the replay protection that requiring `expires` was
+                // reaching for, without refusing the shape the spec defines. The nonce guard
+                // below is the other half; this is what stops a captured signature being
+                // replayable after the nonce record has been purged.
+                throw new SignatureException('Signature is older than the allowed window.');
             }
 
             if (in_array(self::CONTENT_DIGEST, $components, true)) {
