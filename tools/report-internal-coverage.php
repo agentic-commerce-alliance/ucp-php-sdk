@@ -27,6 +27,17 @@ $groups = [
         'include' => ['packages/core/src/Internal/'],
         'exclude' => [],
     ],
+    // The published surface -- models, adapters, events, enums -- was measured by nothing
+    // until now, and six AdapterBacked* wrappers had sat at zero coverage as a result.
+    // Internal/ is where the algorithms live and rightly carries the higher bar; this is
+    // the part adopters actually construct, and "never executed once" is not a state it
+    // should be able to reach quietly.
+    'core_public' => [
+        'label' => 'packages/core/src public surface',
+        'target' => 90.0,
+        'include' => ['packages/core/src/'],
+        'exclude' => ['packages/core/src/Internal/'],
+    ],
     'symfony_runtime' => [
         'label' => 'packages/symfony-bundle/src runtime',
         'target' => 75.0,
