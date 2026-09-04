@@ -202,6 +202,10 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             'buyer' => $completed->buyer?->toArray(),
             'created_at' => gmdate('c'),
             'merchant_reference' => $completed->extra['merchant_reference'] ?? [],
+            // Recorded now, while the platform is still on the line. Everything that happens
+            // to this order afterwards -- a shipment, a refund -- has no request to answer and
+            // no profile being fetched, so the destination has to be remembered here.
+            'webhook_target' => $this->orderWebhookNotifier?->resolveTarget($context),
         ]);
         $this->stateStore->put(self::COLLECTION, $completed->id, $completed->toArray());
 

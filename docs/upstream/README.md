@@ -14,7 +14,7 @@ findings from the same failing suite.
 | [spec-request-time-validation.md](spec-request-time-validation.md) | `Universal-Commerce-Protocol/ucp` | **not filed** |
 | [conformance-suite-protocol-version.md](conformance-suite-protocol-version.md) | `Universal-Commerce-Protocol/conformance` | **not filed** |
 
-The three `.patch` files are the proposed fixes for the conformance suite. Apply them to a
+The `.patch` files are the proposed fixes for the conformance suite. Apply them to a
 checkout of that repository, not to this one:
 
 ```bash

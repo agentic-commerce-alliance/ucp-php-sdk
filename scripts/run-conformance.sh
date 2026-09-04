@@ -34,6 +34,10 @@ state_dir="${UCP_MERCHANT_STATE_DIR:-${repo}/var/conformance-state}"
 report="${UCP_CONFORMANCE_REPORT:-${repo}/var/reports/conformance/junit.xml}"
 server_log="$(dirname "${report}")/merchant.log"
 python_bin="${PYTHON:-python3}"
+# Shared by both sides. The suite defaults it to a fresh uuid, which the merchant cannot know,
+# so the simulation endpoint would answer 403 to a correct-secret test.
+SIMULATION_SECRET="${SIMULATION_SECRET:-ucp-conformance-simulation-secret}"
+export SIMULATION_SECRET
 
 mkdir -p "$(dirname "${report}")"
 
@@ -81,6 +85,7 @@ if [ -z "${UCP_CONFORMANCE_SKIP_SERVER:-}" ]; then
     APP_ENV=prod APP_DEBUG=0 \
         UCP_MERCHANT_BASE_URI="${server_url}" \
         UCP_MERCHANT_STATE_DIR="${state_dir}" \
+        SIMULATION_SECRET="${SIMULATION_SECRET}" \
         php -S "${server_url#http://}" \
             -t examples/merchant-symfony-app/public \
             examples/merchant-symfony-app/public/index.php \

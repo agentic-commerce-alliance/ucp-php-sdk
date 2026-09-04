@@ -1,6 +1,16 @@
 # Conformance modules that must pass. Anything listed here is blocking in CI.
 #
-# Empty on purpose. One test passes today (protocol_test.py::ProtocolTest::test_discovery), and
-# a gate over a module that is not green is not a gate. Promote a module by adding it here once
-# it has been green on main for ten consecutive runs; docs/conformance.md records the procedure
-# and what currently stands between each module and that state.
+# A module goes in once it is green, and it stays green: that is the point. If one of these
+# starts failing, the pull request that did it is the one that fixed it, which is cheaper for
+# everyone than discovering it later against a suite nobody was watching.
+#
+# A module is NOT listed while it fails for a reason outside this repository. Blocking on
+# something we cannot fix teaches people to ignore a red check. docs/conformance.md records
+# what stands between each unlisted module and this file.
+checkout_lifecycle_test.py
+discount_test.py
+protocol_test.py
+simulation_url_security_test.py
+totals_test.py
+validation_test.py
+webhook_test.py

@@ -377,6 +377,8 @@ final class HttpPayloadMapper
      * -- so discount codes sent by a conformant peer were dropped and the checkout was priced
      * as though none had been supplied. The object form is still accepted for one release
      * because this SDK invented it and adopters may be sending it.
+     *
+     * @return list<DiscountCode>
      */
     private function toDiscounts(mixed $payload): array
     {

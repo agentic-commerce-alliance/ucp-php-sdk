@@ -28,6 +28,7 @@ use Ucp\Sdk\Service\OrderWebhookPublisherInterface;
 final class OrderWebhookNotifier
 {
     public const EVENT_ORDER_CREATED = 'order.created';
+    public const EVENT_ORDER_UPDATED = 'order.updated';
 
     public function __construct(
         private readonly OrderWebhookPublisherInterface $publisher,
@@ -41,13 +42,51 @@ final class OrderWebhookNotifier
      */
     public function orderCreated(array $order, RequestContext $context): void
     {
-        $target = $this->targetUrl($context);
+        $this->send(self::EVENT_ORDER_CREATED, $order, $this->targetUrl($context), $context);
+    }
+
+    /**
+     * Something changed after the purchase -- a shipment, a refund, a cancellation.
+     *
+     * These happen on the business's schedule, with no request to answer, so the target has to
+     * come from what was recorded when the order was placed rather than from a profile that is
+     * not being fetched.
+     *
+     * @param array<string, mixed> $order
+     */
+    public function orderUpdated(array $order, RequestContext $context): void
+    {
+        $recorded = $order['webhook_target'] ?? null;
+
+        $this->send(
+            self::EVENT_ORDER_UPDATED,
+            $order,
+            is_string($recorded) && $recorded !== '' ? $recorded : $this->targetUrl($context),
+            $context,
+        );
+    }
+
+    /**
+     * Where events for this order should go, resolved while the platform is still on the line.
+     */
+    public function resolveTarget(RequestContext $context): ?string
+    {
+        return $this->targetUrl($context);
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     */
+    private function send(string $event, array $order, ?string $target, RequestContext $context): void
+    {
         if ($target === null) {
             return;
         }
 
         $orderId = is_string($order['id'] ?? null) ? $order['id'] : '';
-        $payload = new OrderWebhookPayload(self::EVENT_ORDER_CREATED, $orderId, [
+        unset($order['webhook_target']);
+
+        $payload = new OrderWebhookPayload($event, $orderId, [
             // The delivery is the same current-state snapshot `order.get` would return, not a
             // delta: a receiver that missed an earlier event must not have to reconstruct
             // state from the ones it did get.

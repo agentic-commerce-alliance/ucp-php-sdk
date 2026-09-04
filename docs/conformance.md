@@ -54,27 +54,35 @@ upgrade would turn an unrelated pull request red.
 
 Baseline at the pinned commit, against the merchant example, at `ucp_version: 2026-08-25`:
 
-**77 tests — 18 passed, 45 failed, 14 skipped.**
+**77 tests — 53 passed, 11 failed, 13 skipped.**
 
-| Module | Failed |
-| --- | ---: |
-| `business_logic_test` | 7 |
-| `webhook_structure_test` | 6 |
-| `checkout_lifecycle_test` | 5 |
-| `discount_test` | 5 |
-| `idempotency_test` | 4 |
-| `order_test` | 4 |
-| `simulation_url_security_test` | 3 |
-| `validation_test` | 3 |
-| `invalid_input_test` | 2 |
-| `ap2_test`, `binding_test`, `card_credential_test`, `fulfillment_test`, `protocol_test`, `webhook_test` | 1 each |
+Eight modules are green, seven of them **enforced** — listed in
+`tests/conformance/enforced-modules.txt` and blocking in CI:
 
-`totals_test` passes outright. So does the core checkout lifecycle — create, get, cancel,
-repeated cancel, complete, and refusing to complete a cancelled checkout.
+| Module | Enforced | Note |
+| --- | :---: | --- |
+| `checkout_lifecycle_test` | yes | 11/11 |
+| `discount_test` | yes | 6/6 |
+| `protocol_test` | yes | 2/2 |
+| `simulation_url_security_test` | yes | 3/3 |
+| `totals_test` | yes | 5/5 |
+| `validation_test` | yes | 6/6 |
+| `webhook_test` | yes | 1/1, 2 skipped |
+| `fulfillment_structure_test` | no | every test skipped, so enforcing it asserts nothing |
 
-The skips are honest: the merchant example models no free-shipping threshold, no stored
-customers and no per-destination fulfillment options, so those fixtures are absent from
-`tests/conformance/test_fixtures.json` and the suite skips them rather than inventing an answer.
+### What is still failing, and why none of it is enforced
+
+Every remaining failure is outside this repository. Blocking on one would teach people to
+ignore a red check.
+
+| Failing | Count | Why |
+| --- | ---: | --- |
+| `ap2_test`, `binding_test`, `card_credential_test` | 3 | The suite hardcodes `handler_id: "mock_payment_handler"` instead of reading `payment_instruments.csv`. A business must reject a handler it does not implement, so rejecting is correct and the literal is the defect — [upstream defect 4](upstream/conformance-suite-defects.md) |
+| `business_logic_test::test_buyer_consent` | 1 | The suite sends `buyer.consent` as the four `2026-04-08` booleans. At `2026-08-25` the request schema constrains it with `propertyNames: reverse_domain_name`, so validation rejects it — the `ucp-sdk==0.4.4` pin, [upstream blocker](upstream/conformance-suite-protocol-version.md) |
+| `idempotency_test::test_idempotency_create` | 1 | The "conflicting" payload sets `currency = "EUR"`, which is already this merchant's currency, so it is byte-identical to the original and replaying it is correct — [upstream defect 5](upstream/conformance-suite-defects.md) |
+| `fulfillment_test::test_fulfillment_flow` | 1 | Asserts `total == price + shipping`, ignoring the 19% VAT this German merchant charges. `totals_test` and `business_logic_test` both model tax correctly — [upstream defect 6](upstream/conformance-suite-defects.md) |
+| `order_test`, `invalid_input_test` (adjustments) | 4 | `PUT /orders/{id}` and order adjustments. The upstream OpenAPI at `2026-08-25` defines only `GET /orders/{id}`, so implementing these means inventing a wire contract. Its own slice, with its own design discussion |
+| `webhook_structure_test::test_signature_covers_ucp_agent` | 1 | The webhook signature must cover `@authority`. The covered-component list is being made configurable in the signature lane; adding it here would collide |
 
 ### How it got here
 
@@ -82,24 +90,23 @@ customers and no per-destination fulfillment options, so those fixtures are abse
 | --- | ---: | ---: | --- |
 | `2026-04-08` | 1 | 63 | `capabilities_incompatible` (59) |
 | `2026-08-25`, no fulfillment | 5 | 59 | `KeyError: 'fulfillment'` (44) |
-| `2026-08-25`, fulfillment emitted | 18 | 45 | no single cluster |
+| fulfillment emitted | 18 | 45 | no single cluster |
+| discounts, payment, order shape | 39 | 25 | — |
+| webhooks, idempotency, negotiation, simulation | 53 | 11 | — |
 
-Two changes account for the second step, and both were the merchant example rather than the SDK:
+What the last three steps found, in order of how much they were worth:
 
-- **The example now emits `fulfillment`.** UCP models fulfillment as a negotiation — the
-  business publishes methods, the platform names a destination, the business prices the options
-  that destination allows, the platform picks one. Each step needs the previous one's answer, so
-  a response that omits `fulfillment` leaves the platform with nothing to select and the whole
-  conversation stops. That single omission was 44 failures, most of them in tests asserting
-  something else entirely that merely needed a completable checkout to get there.
-- **The suite's payment instruments come from a CSV, not from the JSON fixtures.**
-  `tests/conformance/payment_instruments.csv` now declares `merchant.card`; the upstream default
-  names `mock_payment_handler`, which this merchant rejects. That read as 24 occurrences of an
-  unrelated-looking handler error.
-
-Fixing the handler mismatch also exposed two real defects in the example that it had been
-masking, both now fixed: the reserved `fail_token` completed successfully, and a cancelled
-checkout could still be completed.
+- **Discount codes were never read.** `HttpPayloadMapper::toDiscounts()` expected
+  `[{"code": "X"}]`; every published schema says `codes` is a list of strings. Checkouts were
+  priced as though no code had been sent.
+- **Fulfillment was never emitted**, so nothing downstream of selecting an option could run.
+- **A replayed idempotent response was not the response that was sent** — the envelope's empty
+  `services` map came back as an empty list, because the store decoded to associative arrays
+  and `{}` and `[]` are the same PHP value once flattened.
+- **Nothing announced an order.** No webhook was dispatched at all, and once one was, it
+  carried none of the Standard Webhooks identity headers and was never retried.
+- **The `UCP-Agent` version parameter was ignored**, so a platform asking for a version this
+  business does not serve was answered in the shapes of one it does.
 
 ### The dominant finding at `2026-04-08`, for the record
 

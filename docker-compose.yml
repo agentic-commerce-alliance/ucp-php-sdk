@@ -44,6 +44,7 @@ services:
       APP_DEBUG: '0'
       UCP_MERCHANT_BASE_URI: http://127.0.0.1:8081
       UCP_MERCHANT_STATE_DIR: /tmp/ucp-conformance-state
+      SIMULATION_SECRET: ${SIMULATION_SECRET:-ucp-conformance-simulation-secret}
     # The trailing index.php is the router script. Without it PHP's built-in server answers 404
     # for every UCP path before the application is reached, because it only falls back to a
     # front controller for requests that map to a directory.
