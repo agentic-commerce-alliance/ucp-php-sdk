@@ -247,4 +247,46 @@ final class HttpPayloadMapperTest extends TestCase
 
         self::assertNull($request->consent);
     }
+
+    /**
+     * Signals are an agent's hints about the shopping context, and no SDK code reads them
+     * back -- they exist to be handed to a capability implementation, which is why nothing
+     * exercised Signals::toArray(). That makes the pass-through the whole contract: what
+     * the agent sent has to arrive intact and readable, on every request that accepts it.
+     */
+    #[Test]
+    public function itCarriesSignalsThroughToEveryRequestThatAcceptsThem(): void
+    {
+        $mapper = new HttpPayloadMapper();
+        $signals = ['referrer' => 'https://agent.example', 'session_count' => 3, 'returning' => true];
+        $lineItems = [[
+            'item' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
+            'quantity' => 1,
+        ]];
+
+        $cart = $mapper->toCartCreateRequest(['line_items' => $lineItems, 'signals' => $signals]);
+        $checkout = $mapper->toCheckoutCreateRequest(['line_items' => $lineItems, 'signals' => $signals]);
+
+        self::assertSame($signals, $cart->signals?->toArray());
+        self::assertSame($signals, $checkout->signals?->toArray());
+    }
+
+    /**
+     * A payload with no signals must produce null rather than an empty Signals object, so
+     * a capability can tell "the agent sent no hints" from "the agent sent an empty set".
+     * A scalar where an object belongs is the same answer -- it is not signals.
+     */
+    #[Test]
+    public function itReportsAbsentSignalsAsNullRatherThanAsAnEmptySet(): void
+    {
+        $mapper = new HttpPayloadMapper();
+        $lineItems = [[
+            'item' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
+            'quantity' => 1,
+        ]];
+
+        self::assertNull($mapper->toCartCreateRequest(['line_items' => $lineItems])->signals);
+        self::assertNull($mapper->toCartCreateRequest(['line_items' => $lineItems, 'signals' => 'nonsense'])->signals);
+        self::assertSame([], $mapper->toCartCreateRequest(['line_items' => $lineItems, 'signals' => []])->signals?->toArray());
+    }
 }

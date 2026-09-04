@@ -31,6 +31,7 @@ use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Event\ProfileBuiltEvent;
 use Ucp\Sdk\Internal\Configuration\StaticRuntimeConfigurationResolver;
 use Ucp\Sdk\Internal\Http\HttpAgentKeyDirectoryFetcher;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
@@ -119,6 +120,7 @@ use Ucp\Sdk\Symfony\EventListener\ExceptionListener;
 use Ucp\Sdk\Symfony\EventListener\IdempotencyResponseListener;
 use Ucp\Sdk\Symfony\EventListener\RequestContextListener;
 use Ucp\Sdk\Symfony\EventListener\ResponseSignatureListener;
+use Ucp\Sdk\Symfony\EventListener\UnsignableProfileListener;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
@@ -418,6 +420,13 @@ final class UcpSdkExtension extends Extension
         $container->autowire(ExceptionListener::class)
             ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->addTag('kernel.event_listener', ['event' => 'kernel.exception', 'method' => 'onKernelException']);
+        // Only when signatures are in play. With the policy off, a business that signs
+        // nothing is not misconfigured, and warning about it would be noise.
+        if ($config['signature_policy'] !== 'off') {
+            $container->autowire(UnsignableProfileListener::class)
+                ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+                ->addTag('kernel.event_listener', ['event' => ProfileBuiltEvent::class, 'method' => 'onProfileBuilt']);
+        }
 
         $container->setDefinition(GenerateSigningKeyCommand::class, new Definition(GenerateSigningKeyCommand::class, [
             new Reference(SigningKeyManagerInterface::class),

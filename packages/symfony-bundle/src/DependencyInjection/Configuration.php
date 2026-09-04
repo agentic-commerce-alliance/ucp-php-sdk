@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\DependencyInjection;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
+use Ucp\Sdk\Internal\Security\AgentDomainAllowList;
 use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
 
 final class Configuration implements ConfigurationInterface
@@ -32,8 +33,20 @@ final class Configuration implements ConfigurationInterface
                 ->arrayNode('allowed_profile_hosts')
                     ->scalarPrototype()->end()
                 ->end()
+                // Refused at container build rather than skipped at request time. An
+                // unusable entry used to be dropped silently, which left an operator with
+                // an allow-list that refused every agent and no indication why.
                 ->arrayNode('allowed_agent_domains')
-                    ->scalarPrototype()->end()
+                    ->scalarPrototype()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $entry): bool => ! is_string($entry) || ! AgentDomainAllowList::isUsableEntry($entry))
+                            ->thenInvalid(
+                                'Invalid ucp_sdk.allowed_agent_domains entry %s. Write a domain such as '
+                                . '"agent.example", which also covers its subdomains, or a full origin such as '
+                                . '"https://agent.example" to pin the scheme and port.',
+                            )
+                        ->end()
+                    ->end()
                 ->end()
                 ->booleanNode('profile_fetching_development_mode')->defaultFalse()->end()
                 ->enumNode('signature_policy')->values(['log', 'strict', 'off'])->defaultValue('log')->end()

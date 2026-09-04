@@ -7,13 +7,16 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
+use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Event\ProfileBuiltEvent;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
 use Ucp\Sdk\Internal\Service\DefaultProfileBuilder;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
+use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 
@@ -150,12 +153,119 @@ final class DefaultProfileBuilderTest extends TestCase
             ],
         ));
     }
+
+    /**
+     * Both extension points can rewrite the published profile, and they are not
+     * equivalent: a contributor returns a profile and the builder takes the return value,
+     * while a listener is handed a mutable event and has to call replaceProfile() for its
+     * work to survive. Nothing exercised the second one, so the builder could have
+     * discarded the event and every existing assertion would still have passed.
+     *
+     * The listener runs last, after every contributor, which is the part worth pinning
+     * rather than merely observing -- a host that needs the final word on what it
+     * publishes cannot get it from a contributor, because another contributor registered
+     * later would overwrite it.
+     */
+    public function testAListenerHasTheFinalSayOverEveryContributor(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [new VersionRewritingContributor('rewritten-by-contributor')],
+            [],
+            new ProfileReplacingEventDispatcher('rewritten-by-listener'),
+        );
+
+        $profile = $builder->build(new ProfileBuildInput('2026-04-08', 'https://shop.example'));
+
+        self::assertSame('rewritten-by-listener', $profile->version);
+    }
+
+    /**
+     * The input is on the event because a listener deciding what to publish needs to know
+     * what was asked for -- which base URI, which enabled capabilities. It was never read.
+     * The contributor here is what proves the listener sees the contributed profile rather
+     * than the one the builder assembled.
+     */
+    public function testTheProfileBuiltEventCarriesTheBuildInputAndTheContributedProfile(): void
+    {
+        $dispatcher = new ProfileReplacingEventDispatcher(null);
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [new VersionRewritingContributor('rewritten-by-contributor')],
+            [],
+            $dispatcher,
+        );
+        $input = new ProfileBuildInput('2026-04-08', 'https://shop.example');
+
+        $profile = $builder->build($input);
+
+        self::assertSame($input, $dispatcher->seenInput);
+        self::assertSame('rewritten-by-contributor', $dispatcher->seenProfile?->version);
+        self::assertSame('rewritten-by-contributor', $profile->version, 'A listener that replaces nothing must not undo the contributor.');
+    }
 }
 
 final class NullEventDispatcher implements EventDispatcherInterface
 {
     public function dispatch(object $event): object
     {
+        return $event;
+    }
+}
+
+final class VersionRewritingContributor implements ProfileContributorInterface
+{
+    public function __construct(private readonly string $version)
+    {
+    }
+
+    public function contribute(PlatformProfile $profile, ProfileBuildInput $input): PlatformProfile
+    {
+        return new PlatformProfile(
+            $this->version,
+            $profile->services,
+            $profile->capabilities,
+            $profile->paymentHandlers,
+            $profile->signingKeys,
+            $profile->supportedVersions,
+        );
+    }
+}
+
+final class ProfileReplacingEventDispatcher implements EventDispatcherInterface
+{
+    public ?ProfileBuildInput $seenInput = null;
+
+    public ?PlatformProfile $seenProfile = null;
+
+    public function __construct(private readonly ?string $replacementVersion)
+    {
+    }
+
+    public function dispatch(object $event): object
+    {
+        if (! $event instanceof ProfileBuiltEvent) {
+            return $event;
+        }
+
+        $this->seenInput = $event->getInput();
+        $this->seenProfile = $event->getProfile();
+
+        if ($this->replacementVersion === null) {
+            return $event;
+        }
+
+        $event->replaceProfile(new PlatformProfile(
+            $this->replacementVersion,
+            $this->seenProfile->services,
+            $this->seenProfile->capabilities,
+            $this->seenProfile->paymentHandlers,
+            $this->seenProfile->signingKeys,
+            $this->seenProfile->supportedVersions,
+        ));
+
         return $event;
     }
 }

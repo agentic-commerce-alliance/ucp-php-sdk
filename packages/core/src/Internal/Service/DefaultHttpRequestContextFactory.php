@@ -8,6 +8,7 @@ use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Internal\Security\AgentDomainAllowList;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Model\RequestContext;
@@ -206,19 +207,11 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
         }
 
-        if ($allowedAgentDomains !== []) {
-            $allowed = false;
-            foreach ($allowedAgentDomains as $allowedDomain) {
-                $allowedDomain = strtolower($allowedDomain);
-                if ($host === $allowedDomain || str_ends_with($host, '.' . $allowedDomain)) {
-                    $allowed = true;
-                    break;
-                }
-            }
-
-            if (! $allowed) {
-                throw new SignatureException('Platform agent domain is not allowed for the current runtime configuration.');
-            }
+        // Shared with the embedded transport's CORS check rather than reimplemented. This
+        // list used to be matched here as bare domains and there as full origins, so an
+        // entry that satisfied one gate was refused by the other.
+        if ($allowedAgentDomains !== [] && ! AgentDomainAllowList::matchesHost($host, $allowedAgentDomains)) {
+            throw new SignatureException('Platform agent domain is not allowed for the current runtime configuration.');
         }
     }
 
