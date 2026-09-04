@@ -9,6 +9,7 @@ The checklist is evergreen. Version-specific caveats still belong in the GitHub 
 - Configure `allowed_profile_hosts` with the exact platform profile hosts the SDK may fetch.
 - Configure `allowed_agent_domains` with the agent domains allowed to publish platform profiles and to frame browser-facing surfaces. An entry is either a domain such as `agent.example`, which also covers its subdomains and admits https only, or a full origin such as `https://agent.example:8443` when a scheme and port must be pinned exactly. A bare domain does not cover a non-default port, and `localhost`, `127.0.0.1` and `::1` may additionally be framed over http for local development. An entry the SDK cannot act on fails container compilation rather than being skipped, so a typo is reported where it was made.
 - Use `signature_policy: strict` for production unless the release notes explicitly document a temporary exception.
+- Provision a signing key with `ucp:signing-keys:generate` before serving traffic. Without one the profile publishes an empty `keys` list and discovery still succeeds, so the deployment looks healthy while no platform can verify anything it sends; the SDK logs a warning on the first profile build when `signature_policy` is not `off`. Prefer the command over `signing_keys.auto_generate`, which exists for examples and local development -- a key that appears by itself is a key nobody decided to trust.
 - Keep `profile_fetching_development_mode` disabled outside local development.
 - Enable non-REST transports only when the adopter has configured and tested them for that deployment.
 - For MCP, provide an explicit `transport_endpoints.mcp` value. The shared SDK publishes metadata only and does not provide a default `/ucp/mcp` runtime endpoint.
@@ -72,6 +73,6 @@ Before tagging, make sure the release has evidence for:
 - duplicate idempotency claim and concurrency behavior for mutating routes
 - strict-mode behavior for public well-known discovery endpoints
 - request and response validation, or explicit no-schema decisions, for every UCP operation exposed through REST and A2A
-- embedded full-origin matching
+- embedded origin matching for both allow-list forms: a domain with its subdomains, and a full origin with its scheme and port pinned
 - REST malformed JSON and scalar JSON handling
 - full QA and Composer metadata validation as described in [release-process.md](release-process.md)
