@@ -193,6 +193,34 @@ Do not create new files like `RELEASE_INFO.md`, `ALPHA_NOTES.md`, or `CURRENT_RE
 - order read
 - outbound order webhooks
 
+## Noticing That Upstream Moved
+
+Nothing in this repository used to ask that question. Every gate checks whether the SDK is
+self-consistent, and all of them stayed green through the weeks that UCP `2026-08-25` sat
+published and unadopted: the pinned schemas matched the generated ones, the tests passed, and the
+protocol had moved on without us.
+
+`composer spec-drift` asks it. The `spec-drift` workflow runs it weekly and keeps a single
+tracking issue in step with the answer -- opened when there is drift, edited when the drift
+changes, closed when it is gone. One issue rather than one a week, because a weekly duplicate is
+how a real finding ends up buried under notifications about itself.
+
+It checks three things, and they fail for different reasons:
+
+| Check | Means |
+| --- | --- |
+| A UCP release newer than `UcpProtocolVersion::current()` | Someone decides whether to adopt it. Not urgent, and not automatic -- the last adoption was a wave of work |
+| `.conformance-version` behind the suite's head | Informational. The suite moves constantly and pinning is deliberate; see `docs/conformance.md` before bumping |
+| A pinned tree no longer matching its upstream tag | **The quiet one.** A tag moved under us, nobody decided that, and the pinned copy is no longer the thing it claims to be |
+
+The third is the one no other check can make. `composer sync:verify` proves the generated
+schemas follow from the pinned copy, but it never looks upstream, so a retag leaves both green
+while the artifacts describe a specification that no longer exists.
+
+It is **not** part of `composer qa`, and not a failing job. It makes network calls, which the
+gate should not; and drift is a fact about upstream rather than a defect in a commit, so a red
+cross on a scheduled run would only teach people to ignore red crosses.
+
 ## Operational Notes
 
 - any new defaults, commands, or constraints
