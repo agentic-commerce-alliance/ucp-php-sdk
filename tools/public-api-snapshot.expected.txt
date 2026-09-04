@@ -274,6 +274,8 @@ class Ucp\Sdk\Model\Config\RuntimeConfiguration
   - isCapabilityEnabled(string $capabilityName): bool
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
+class Ucp\Sdk\Model\Http\HttpResponse
+  - __construct(int $statusCode, array $headers = [], string $body = '')
 interface Ucp\Sdk\Model\Http\HttpResponseChunkInterface
   - getContent(): string
   - isFirst(): bool
@@ -434,6 +436,8 @@ interface Ucp\Sdk\Service\ProtocolValidatorInterface
 interface Ucp\Sdk\Service\RequestSignatureServiceInterface
   - sign(Ucp\Sdk\Model\Http\HttpRequest $request, Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
   - verify(Ucp\Sdk\Model\Http\HttpRequest $request, array $keys): Ucp\Sdk\Model\Security\SignatureVerificationResult
+interface Ucp\Sdk\Service\ResponseSignatureServiceInterface
+  - sign(Ucp\Sdk\Model\Http\HttpResponse $response, Ucp\Sdk\Model\Http\HttpRequest $request, Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
 interface Ucp\Sdk\Service\RuntimeConfigurationResolverInterface
   - resolve(Ucp\Sdk\Model\Http\HttpRequest $request): Ucp\Sdk\Model\Config\RuntimeConfiguration
 interface Ucp\Sdk\Service\SchemaValidatorInterface
