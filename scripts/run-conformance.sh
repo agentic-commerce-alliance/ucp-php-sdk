@@ -53,6 +53,24 @@ if [ -z "${UCP_CONFORMANCE_NO_CHECKOUT:-}" ]; then
 fi
 echo "conformance suite pinned at ${pinned}"
 
+# The suite does not pass against any conformant merchant unpatched: its mock agent profile
+# declares one capability while the tests exercise seven, so everything touching checkout is
+# refused as `capabilities_incompatible` before it starts. docs/upstream/ carries the fixes and
+# the reasoning; they are applied here so the lane is reproducible from a clean clone rather
+# than depending on someone having applied them by hand.
+#
+# A patch that stops applying means upstream has changed that code -- possibly fixed it. That is
+# a finding, so it fails loudly instead of running a suite in an unknown state.
+if [ -z "${UCP_CONFORMANCE_NO_CHECKOUT:-}" ]; then
+    for patch in "${repo}"/docs/upstream/*.patch; do
+        [ -e "${patch}" ] || continue
+        if ! git -C "${checkout}" apply "${patch}"; then
+            echo "conformance: ${patch##*/} no longer applies. Upstream moved -- re-check docs/upstream/ before deleting it." >&2
+            exit 1
+        fi
+    done
+fi
+
 if [ ! -x "${venv}/bin/python" ]; then
     "${python_bin}" -m venv "${venv}"
 fi

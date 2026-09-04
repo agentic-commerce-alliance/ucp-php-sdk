@@ -52,23 +52,54 @@ upgrade would turn an unrelated pull request red.
 
 ## Where we stand
 
-Baseline at the pinned commit, against the merchant example, at `ucp_version: 2026-08-25`:
+**The lane's numbers are not currently reproducible from a clean clone, and nothing is
+enforced until they are.**
 
-**77 tests — 53 passed, 11 failed, 13 skipped.**
+A working tree carrying hand-applied fixes to `var/conformance` produced **53 passed / 11
+failed**. Deleting that checkout and re-running the same command produces **2 passed / 62
+failed**, with every failure downstream of the same thing: the merchant answers
+`capabilities_incompatible`, so no checkout is ever created and everything after it fails.
 
-Eight modules are green, seven of them **enforced** — listed in
-`tests/conformance/enforced-modules.txt` and blocking in CI:
+`scripts/run-conformance.sh` now applies the patches in `docs/upstream/` after checking out the
+pinned commit, and fails loudly if one stops applying. That accounts for the fixes this
+repository has written down — the mock agent profile declaring one capability where the tests
+exercise seven, chiefly — and on its own it does **not** close the gap. Something else in that
+working tree was making the lane pass and was never committed.
 
-| Module | Enforced | Note |
-| --- | :---: | --- |
-| `checkout_lifecycle_test` | yes | 11/11 |
-| `discount_test` | yes | 6/6 |
-| `protocol_test` | yes | 2/2 |
-| `simulation_url_security_test` | yes | 3/3 |
-| `totals_test` | yes | 5/5 |
-| `validation_test` | yes | 6/6 |
-| `webhook_test` | yes | 1/1, 2 skipped |
-| `fulfillment_structure_test` | no | every test skipped, so enforcing it asserts nothing |
+What has been ruled out:
+
+- **Not the `ucp-sdk` pin.** Disabling the check makes no difference to the pristine number.
+- **Not version-aware negotiation.** Temporarily accepting any capability version leaves the
+  result unchanged at 2 passed / 62 failed, so the strict matching added for capability versions
+  is not what empties the intersection.
+- **Not port collisions.** The suite starts a mock agent server per test method on a fixed port
+  and logs 54-82 bind failures per run, but that count is as high in the runs that passed as in
+  the ones that do not.
+
+Two real defects were found while establishing this, and both are fixed regardless of what the
+lane reports: the merchant example read `UCP_MERCHANT_BASE_URI` from `$_ENV`/`$_SERVER` only, so
+under `php -S` it silently fell back to a different host than the operator asked for; and it
+then derived its allowed-profile-host list from that host, treating `localhost` and `127.0.0.1`
+as different origins. Which agents the app would talk to was therefore decided by
+`variables_order` rather than by configuration.
+
+### The improvements are real; the measurement of them is not
+
+The work behind the numbers below stands on its own — each item was a defect with a test, and
+`composer qa` covers them. What is not currently defensible is the claim that the suite
+reports a particular score.
+
+| | Reported | Measured against |
+| --- | ---: | --- |
+| `2026-04-08` | 1 passed | a pristine clone |
+| `2026-08-25`, no fulfillment | 5 passed | the modified working tree |
+| fulfillment emitted | 18 passed | the modified working tree |
+| discounts, payment, order shape | 39 passed | the modified working tree |
+| webhooks, idempotency, negotiation, simulation | 53 passed | the modified working tree |
+| any of the above, clean clone | 2 passed | a pristine clone |
+
+Re-establishing a reproducible baseline is the next task in this lane, and it comes before
+enforcing anything.
 
 ### What is still failing, and why none of it is enforced
 

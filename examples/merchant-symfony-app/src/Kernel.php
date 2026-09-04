@@ -131,7 +131,12 @@ final class Kernel extends BaseKernel
 
     private function baseUri(): string
     {
-        return $_ENV['UCP_MERCHANT_BASE_URI'] ?? $_SERVER['UCP_MERCHANT_BASE_URI'] ?? 'http://localhost:8081';
+        // getenv() too: whether the environment reaches `$_ENV` depends on `variables_order`,
+        // and under `php -S` it commonly does not. Falling back silently to a different host
+        // than the one the operator asked for changes which agents this app will talk to.
+        $baseUri = $_ENV['UCP_MERCHANT_BASE_URI'] ?? $_SERVER['UCP_MERCHANT_BASE_URI'] ?? getenv('UCP_MERCHANT_BASE_URI');
+
+        return is_string($baseUri) && $baseUri !== '' ? $baseUri : 'http://localhost:8081';
     }
 
     private function signaturePolicy(): string
@@ -150,7 +155,15 @@ final class Kernel extends BaseKernel
     private function allowedProfileHosts(string $baseUri): array
     {
         $host = parse_url($baseUri, PHP_URL_HOST);
+        $host = is_string($host) && $host !== '' ? $host : 'localhost';
 
-        return is_string($host) ? [$host] : ['localhost'];
+        // `localhost` and `127.0.0.1` are one host, and which of them appears here depends on
+        // how this app was started rather than on who it should trust. Treating them as
+        // different made the set of reachable agents an accident of configuration -- an agent
+        // profile served on the other spelling was refused, and every operation after it failed
+        // as an empty capability intersection.
+        $loopback = ['localhost', '127.0.0.1', '::1', '[::1]'];
+
+        return in_array($host, $loopback, true) ? $loopback : [$host];
     }
 }

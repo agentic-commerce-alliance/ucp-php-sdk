@@ -1,16 +1,13 @@
 # Conformance modules that must pass. Anything listed here is blocking in CI.
 #
-# A module goes in once it is green, and it stays green: that is the point. If one of these
-# starts failing, the pull request that did it is the one that fixed it, which is cheaper for
-# everyone than discovering it later against a suite nobody was watching.
+# Empty, and not because nothing passes.
 #
-# A module is NOT listed while it fails for a reason outside this repository. Blocking on
-# something we cannot fix teaches people to ignore a red check. docs/conformance.md records
-# what stands between each unlisted module and this file.
-checkout_lifecycle_test.py
-discount_test.py
-protocol_test.py
-simulation_url_security_test.py
-totals_test.py
-validation_test.py
-webhook_test.py
+# The lane's results are currently not reproducible from a clean clone: a working tree carrying
+# hand-applied fixes produced 53 passed / 11 failed, while `rm -rf var/conformance` followed by
+# the same run produces 2 passed / 62 failed, every failure downstream of an empty capability
+# intersection. `scripts/run-conformance.sh` now applies the patches in docs/upstream/ so the
+# committed ones are at least accounted for, and that alone does not close the gap.
+#
+# Enforcing a module before the difference is understood would make CI fail for a reason nobody
+# can act on, which is worse than not gating at all. Fill this in once a clean clone reproduces
+# a stable number twice in a row; docs/conformance.md records where that stands.
