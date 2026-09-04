@@ -216,7 +216,7 @@ class Ucp\Sdk\Model\Catalog\CatalogSearchResponse
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Catalog\Product
-  - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR', ?Ucp\Sdk\Model\Common\Unit $quantityUnit = null, ?Ucp\Sdk\Model\Common\UnitPrice $unitPrice = null)
+  - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR', ?string $description = null, ?Ucp\Sdk\Model\Common\Unit $quantityUnit = null, ?Ucp\Sdk\Model\Common\UnitPrice $unitPrice = null)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\BuyerConsent
   - __construct(array $purposes = [])
