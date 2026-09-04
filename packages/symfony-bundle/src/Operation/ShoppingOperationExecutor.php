@@ -130,7 +130,10 @@ final class ShoppingOperationExecutor
         return $this->response(
             'catalog.product',
             new CatalogProductResponse($this->catalog($request->context)->getProduct($productRequest, $request->context)),
-            UcpCapability::CatalogProduct,
+            // Product detail is part of the lookup capability, not a capability of its own: both
+            // its request and response schemas come from `catalog_lookup.json`, and no published
+            // schema defines a `catalog.product` capability id.
+            UcpCapability::CatalogLookup,
             $request->context,
         );
     }

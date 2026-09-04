@@ -40,6 +40,19 @@
 # CHANGELOG.md, "Changed (breaking)" under Unreleased: the active protocol version.
 [BC] ADDED: Case Ucp\Sdk\Enum\UcpProtocolVersion::V20260825 was added
 
+# `dev.ucp.shopping.catalog.product` is an identifier this SDK invented -- no published schema
+# defines it at either version, and both of that operation's schemas come from
+# `catalog_lookup.json`, so product detail is part of the lookup capability. It was being stamped
+# into every product-detail response envelope, where a conformant peer would read a capability id
+# it cannot recognise. Adding the four ids the spec does define breaks an exhaustive match for the
+# same reason every other case addition does. See CHANGELOG.md, "Changed (breaking)" under
+# Unreleased: capability identifiers.
+[BC] REMOVED: Case Ucp\Sdk\Enum\UcpCapability::CatalogProduct was removed
+[BC] ADDED: Case Ucp\Sdk\Enum\UcpCapability::Discount was added
+[BC] ADDED: Case Ucp\Sdk\Enum\UcpCapability::Fulfillment was added
+[BC] ADDED: Case Ucp\Sdk\Enum\UcpCapability::BuyerConsent was added
+[BC] ADDED: Case Ucp\Sdk\Enum\UcpCapability::IdentityLinking was added
+
 # BuyerConsent is keyed by reverse-DNS purpose. The two removed properties never existed
 # on the wire at any published version -- 2026-04-08 defines buyer.consent as four
 # booleans -- so nothing conformant read them. See CHANGELOG.md, "Changed (breaking)"
