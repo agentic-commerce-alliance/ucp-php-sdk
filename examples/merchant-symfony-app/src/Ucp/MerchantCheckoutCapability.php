@@ -7,6 +7,7 @@ namespace MerchantSymfonyApp\Ucp;
 use MerchantSymfonyApp\Support\FulfillmentPlanner;
 use MerchantSymfonyApp\Support\JsonStateStore;
 use MerchantSymfonyApp\Support\MerchantSettings;
+use MerchantSymfonyApp\Support\OrderWebhookNotifier;
 use MerchantSymfonyApp\Support\PriceCalculator;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
@@ -35,6 +36,7 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         private readonly UcpModelFactory $modelFactory,
         private readonly MerchantSettings $settings,
         private readonly FulfillmentPlanner $fulfillmentPlanner = new FulfillmentPlanner(),
+        private readonly ?OrderWebhookNotifier $orderWebhookNotifier = null,
     ) {
     }
 
@@ -202,6 +204,11 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             'merchant_reference' => $completed->extra['merchant_reference'] ?? [],
         ]);
         $this->stateStore->put(self::COLLECTION, $completed->id, $completed->toArray());
+
+        $order = $this->stateStore->find(self::ORDER_COLLECTION, $orderId);
+        if (is_array($order)) {
+            $this->orderWebhookNotifier?->orderCreated($order, $context);
+        }
 
         return $completed;
     }
