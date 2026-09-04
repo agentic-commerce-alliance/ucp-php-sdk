@@ -34,6 +34,12 @@
 #      and the newest release tag -- and an entry that is live for one is legitimately
 #      stale for the other.
 #
+# Adding an enum case is a break, and Roave is right about it: an exhaustive `match` over
+# UcpProtocolVersion in consumer code stops being exhaustive and throws UnhandledMatchError.
+# The alternative is not adding the version, so this is the break the release is. See
+# CHANGELOG.md, "Changed (breaking)" under Unreleased: the active protocol version.
+[BC] ADDED: Case Ucp\Sdk\Enum\UcpProtocolVersion::V20260825 was added
+
 # BuyerConsent is keyed by reverse-DNS purpose. The two removed properties never existed
 # on the wire at any published version -- 2026-04-08 defines buyer.consent as four
 # booleans -- so nothing conformant read them. See CHANGELOG.md, "Changed (breaking)"

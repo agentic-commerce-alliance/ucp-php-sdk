@@ -8,6 +8,7 @@ use MerchantSymfonyApp\Support\JsonStateStore;
 use MerchantSymfonyApp\Support\MerchantSettings;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Order\OrderView;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
@@ -28,7 +29,7 @@ final class MerchantOrderCapability implements OrderCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.order',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/order/',
             'https://ucp.dev/schemas/shopping/order.json',
             null,

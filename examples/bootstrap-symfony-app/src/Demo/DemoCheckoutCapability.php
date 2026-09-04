@@ -6,6 +6,7 @@ namespace BootstrapSymfonyApp\Demo;
 
 use Ucp\Sdk\Contract\CheckoutCapabilityInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest;
@@ -27,7 +28,7 @@ final class DemoCheckoutCapability implements CheckoutCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.checkout',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/checkout/',
             'https://ucp.dev/schemas/shopping/checkout.json',
         );

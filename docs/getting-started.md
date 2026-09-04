@@ -11,7 +11,7 @@ checkout, tokenization, identity linking, and order read — over a standard con
 instead of every integration being bespoke. This SDK implements the merchant side of
 that protocol in PHP.
 
-- Protocol target in this repo: **`2026-04-08`**
+- Protocol target in this repo: **`2026-08-25`**
 - Specification: <https://ucp.dev/specification/overview/>
 
 You expose your commerce backend by implementing **capability contracts** (e.g.
@@ -120,7 +120,7 @@ final class CatalogCapability implements CatalogCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.catalog.search',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/catalog-search.json',
         );

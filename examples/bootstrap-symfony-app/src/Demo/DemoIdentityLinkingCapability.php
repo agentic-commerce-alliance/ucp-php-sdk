@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BootstrapSymfonyApp\Demo;
 
 use Ucp\Sdk\Contract\IdentityLinkingCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
 use Ucp\Sdk\Model\Identity\OAuthMetadata;
 use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
@@ -18,7 +19,7 @@ final class DemoIdentityLinkingCapability implements IdentityLinkingCapabilityIn
     {
         return new CapabilityDescriptor(
             'dev.ucp.common.identity_linking',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/identity-linking/',
             'https://ucp.dev/schemas/identity/oauth.json',
         );

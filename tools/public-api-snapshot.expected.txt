@@ -136,7 +136,11 @@ enum Ucp\Sdk\Enum\UcpCapability
   - static tryFrom(string|int $value): ?static
 enum Ucp\Sdk\Enum\UcpProtocolVersion
   - static cases(): array
+  - static current(): self
   - static from(string|int $value): static
+  - static isSupported(string $version): bool
+  - static knownVersions(): array
+  - static supportedVersions(): array
   - static tryFrom(string|int $value): ?static
 enum Ucp\Sdk\Enum\UcpResponseStatus
   - static cases(): array
