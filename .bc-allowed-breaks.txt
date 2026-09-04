@@ -34,4 +34,8 @@
 #      and the newest release tag -- and an entry that is live for one is legitimately
 #      stale for the other.
 #
-# No accepted breaks are currently outstanding.
+# Adding an enum case is a break, and Roave is right about it: an exhaustive `match` over
+# SignatureAlgorithm in consumer code stops being exhaustive and throws UnhandledMatchError.
+# Ed25519 is what the spec recommends and what web-bot-auth builds on, so the alternative is not
+# supporting it. See CHANGELOG.md, "Added" under Unreleased: Ed25519 signing keys.
+[BC] ADDED: Case Ucp\Sdk\Enum\SignatureAlgorithm::Ed25519 was added
