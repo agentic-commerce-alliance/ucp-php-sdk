@@ -348,6 +348,10 @@ class Ucp\Sdk\Model\Protocol\UcpOperationResponse
   - toArray(): array
 class Ucp\Sdk\Model\RequestContext
   - __construct(string $host, array $headers = [], ?string $platformProfileUri = null, ?Ucp\Sdk\Model\Profile\PlatformProfile $platformProfile = null, array $negotiatedCapabilities = [], bool $signatureVerified = false, ?string $idempotencyKey = null, ?string $oauthClientId = null, ?Ucp\Sdk\Model\Config\RuntimeConfiguration $runtimeConfiguration = null, ?Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities $negotiation = null, ?Ucp\Sdk\Model\Security\SignatureVerificationResult $requestSignatureVerification = null, ?Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult $merchantAuthorizationVerification = null, ?string $negotiationSessionId = null)
+class Ucp\Sdk\Model\Security\AgentKeyDirectory
+  - __construct(string $uri, array $keys = [])
+  - static fromArray(string $uri, array $payload): self
+  - toArray(): array
 class Ucp\Sdk\Model\Security\ManagedSigningKey
   - __construct(string $kid, string $publicKeyPem, string $privateKeyPem, string $algorithm = 'ES256', string $keyType = 'EC', string $use = 'sig', string $status = 'active', ?string $curve = 'P-256', ?string $createdAt = null, ?string $retireAt = null)
 class Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult
@@ -364,6 +368,11 @@ class Ucp\Sdk\Model\Webhook\OrderWebhookPayload
   - toArray(): array
 class Ucp\Sdk\Model\Webhook\WebhookDispatchResult
   - __construct(string $targetUrl, int $statusCode, bool $successful, bool $retryable = false, array $responseHeaders = [], ?string $responseBody = null)
+interface Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface
+  - delete(string $uri): bool
+  - find(string $uri, bool $allowExpired = false): ?Ucp\Sdk\Model\Security\AgentKeyDirectory
+  - purgeExpired(int $olderThanUnixTimestamp): void
+  - save(string $uri, Ucp\Sdk\Model\Security\AgentKeyDirectory $directory): void
 interface Ucp\Sdk\Repository\IdempotencyRepositoryInterface
   - claimPending(string $key, string $fingerprint): bool
   - delete(string $key): void
@@ -403,6 +412,8 @@ interface Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface
   - deleteManagedForTenant(?string $tenantIdentifier, string $kid): bool
   - findManagedForTenant(?string $tenantIdentifier, string $kid): ?Ucp\Sdk\Model\Security\ManagedSigningKey
   - saveManagedForTenant(?string $tenantIdentifier, Ucp\Sdk\Model\Security\ManagedSigningKey $key): void
+interface Ucp\Sdk\Service\AgentKeyDirectoryFetcherInterface
+  - fetch(string $uri): Ucp\Sdk\Model\Security\AgentKeyDirectory
 interface Ucp\Sdk\Service\AgentProfileFetcherInterface
   - fetch(string $uri): Ucp\Sdk\Model\Profile\PlatformProfile
 interface Ucp\Sdk\Service\CapabilityNegotiatorInterface

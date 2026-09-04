@@ -6,12 +6,27 @@ namespace Ucp\Sdk\Model\Security;
 
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Security\EcPublicKeyPem;
+use Ucp\Sdk\Internal\Security\Ed25519KeyCodec;
 
 final class PublicSigningKey
 {
     private const SUPPORTED_ALGORITHM_CURVES = [
         'ES256' => 'P-256',
         'ES384' => 'P-384',
+        'EdDSA' => 'Ed25519',
+    ];
+
+    /**
+     * Key types this SDK can verify with, and the curves that belong to each.
+     *
+     * An Edwards key is `OKP`, not `EC`, and RFC 8037 gives it no `y` -- the public key is
+     * carried whole in `x`. Checking `kty` against a single expected value was correct while EC
+     * was the only thing that could be verified with, and became a rejection of a key type this
+     * SDK now signs with itself.
+     */
+    private const KEY_TYPE_CURVES = [
+        'EC' => ['P-256', 'P-384'],
+        'OKP' => ['Ed25519'],
     ];
 
     /**
@@ -108,7 +123,7 @@ final class PublicSigningKey
         $use = self::optionalString($entry, 'use') ?? 'sig';
 
         $expectedCurve = self::expectedCurve($kid, $algorithm);
-        self::assertSupported($kid, 'kty', $keyType, 'EC');
+        self::assertKeyTypeCarriesCurve($kid, $keyType, $curve);
         self::assertSupported($kid, 'use', $use, 'sig');
         self::assertSupported($kid, 'crv', $curve, $expectedCurve);
 
@@ -116,8 +131,14 @@ final class PublicSigningKey
         $y = self::optionalString($entry, 'y');
         $publicKeyPem = self::optionalString($entry, 'public_key_pem');
 
-        if ($publicKeyPem === null && ($x === null || $y === null)) {
-            throw new ValidationException(sprintf('Public signing key "%s" must include either public_key_pem or x and y coordinates.', $kid));
+        // An OKP key has no `y`, so demanding one would reject every conformant Ed25519 key.
+        $needsY = $keyType !== 'OKP';
+        if ($publicKeyPem === null && ($x === null || ($needsY && $y === null))) {
+            throw new ValidationException(sprintf(
+                'Public signing key "%s" must include either public_key_pem or %s.',
+                $kid,
+                $needsY ? 'x and y coordinates' : 'an x coordinate',
+            ));
         }
 
         $publicKeyPem = $publicKeyPem !== null
@@ -167,6 +188,37 @@ final class PublicSigningKey
         }
 
         return $value;
+    }
+
+    /**
+     * The pairing is what matters: an `EC` key on `Ed25519`, or an `OKP` key on `P-256`,
+     * describes a point on a curve that key type does not use.
+     */
+    private static function assertKeyTypeCarriesCurve(string $kid, string $keyType, string $curve): void
+    {
+        $curves = self::KEY_TYPE_CURVES[$keyType] ?? null;
+
+        if ($curves === null) {
+            throw new ValidationException(sprintf('Public signing key "%s" uses unsupported kty "%s".', $kid, $keyType));
+        }
+
+        if (in_array($curve, $curves, true)) {
+            return;
+        }
+
+        // Two different mistakes, and telling them apart is the difference between "this SDK
+        // cannot verify with that curve" and "that curve does not belong to that key type".
+        $everySupported = array_merge(...array_values(self::KEY_TYPE_CURVES));
+        if (! in_array($curve, $everySupported, true)) {
+            throw new ValidationException(sprintf('Public signing key "%s" uses unsupported crv "%s".', $kid, $curve));
+        }
+
+        throw new ValidationException(sprintf(
+            'Public signing key "%s" pairs kty "%s" with crv "%s", which do not belong together.',
+            $kid,
+            $keyType,
+            $curve,
+        ));
     }
 
     private static function assertSupported(string $kid, string $field, string $actual, string $expected): void
@@ -219,12 +271,33 @@ final class PublicSigningKey
         }
     }
 
-    private static function normalizeJwkPublicKeyPem(string $curve, string $x, string $y, string $kid): string
+    private static function normalizeJwkPublicKeyPem(string $curve, string $x, ?string $y, string $kid): string
     {
         try {
+            // An Edwards key is the 32 bytes in `x` and nothing else, so there are no
+            // coordinates to assemble -- only a fixed DER header to put in front of them.
+            if ($curve === 'Ed25519') {
+                return (new Ed25519KeyCodec())->publicKeyToPem(self::decodeBase64Url($x, $kid));
+            }
+
+            if ($y === null) {
+                throw new ValidationException(sprintf('Public signing key "%s" is missing its y coordinate.', $kid));
+            }
+
             return EcPublicKeyPem::fromCoordinates($curve, $x, $y);
         } catch (\Throwable) {
             throw new ValidationException(sprintf('Public signing key "%s" contains unusable key material.', $kid));
         }
+    }
+
+    private static function decodeBase64Url(string $value, string $kid): string
+    {
+        $decoded = base64_decode(strtr($value, '-_', '+/'), true);
+
+        if ($decoded === false) {
+            throw new ValidationException(sprintf('Public signing key "%s" has a malformed x coordinate.', $kid));
+        }
+
+        return $decoded;
     }
 }
