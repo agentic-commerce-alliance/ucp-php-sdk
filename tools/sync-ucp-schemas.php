@@ -64,7 +64,10 @@ function main(array $argv): void
     }
 
     mirrorDirectory($schemaRoot, $pinnedRoot . '/schemas');
-    mirrorDirectory($source . '/source/discovery', $pinnedRoot . '/discovery');
+    // `source/discovery` existed up to 2026-04-08 and holds the profile schema. At 2026-08-25 it
+    // is gone and the profile schema moved to `source/schemas/profile.json`, which arrives with
+    // the mirror above. Removed rather than made optional: a directory that silently stops being
+    // copied is how a pinned tree keeps a stale file from the version before it.
     mirrorDirectory($source . '/source/services', $pinnedRoot . '/services');
     mirrorDirectory($source . '/source/handlers', $pinnedRoot . '/handlers');
     resetDirectory($generatedRoot);
@@ -270,6 +273,8 @@ function allowCartIdInsteadOfLineItems(array $schema): array
  */
 function operationSchemas(string $schemaRoot): array
 {
+    $errorResponse = errorResponseFile($schemaRoot);
+
     return [
         'catalog.search.request' => ['file' => 'shopping/catalog_search.json', 'pointer' => '/$defs/search_request'],
         'catalog.search.response' => ['file' => 'shopping/catalog_search.json', 'pointer' => '/$defs/search_response'],
@@ -278,16 +283,16 @@ function operationSchemas(string $schemaRoot): array
         'catalog.product.request' => ['file' => 'shopping/catalog_lookup.json', 'pointer' => '/$defs/get_product_request'],
         'catalog.product.response' => ['oneOf' => [
             ['file' => 'shopping/catalog_lookup.json', 'pointer' => '/$defs/get_product_response'],
-            ['file' => 'shopping/types/error_response.json'],
+            ['file' => $errorResponse],
         ]],
         'cart.create.request' => ['file' => 'shopping/cart.json', 'request' => 'create'],
-        'cart.create.response' => responseWithError('shopping/cart.json'),
+        'cart.create.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.get.request' => idRequest(),
-        'cart.get.response' => responseWithError('shopping/cart.json'),
+        'cart.get.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.update.request' => ['file' => 'shopping/cart.json', 'request' => 'update'],
-        'cart.update.response' => responseWithError('shopping/cart.json'),
+        'cart.update.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.cancel.request' => idRequest(),
-        'cart.cancel.response' => responseWithError('shopping/cart.json'),
+        'cart.cancel.response' => responseWithError('shopping/cart.json', $errorResponse),
         'discount.apply.request' => [
             'type' => 'object',
             'required' => ['cart_id', 'code'],
@@ -296,7 +301,7 @@ function operationSchemas(string $schemaRoot): array
                 'code' => ['type' => 'string'],
             ],
         ],
-        'discount.apply.response' => responseWithError('shopping/cart.json'),
+        'discount.apply.response' => responseWithError('shopping/cart.json', $errorResponse),
         'checkout.create.request' => [
             'file' => 'shopping/checkout.json',
             'request' => 'create',
@@ -304,21 +309,21 @@ function operationSchemas(string $schemaRoot): array
             // checkout, and there is nothing to convert on update or complete.
             'extensions' => [...checkoutExtensions(), ['file' => 'shopping/cart.json', 'pointer' => '/$defs/checkout']],
         ],
-        'checkout.create.response' => responseWithError('shopping/checkout.json'),
+        'checkout.create.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.get.request' => idRequest(),
-        'checkout.get.response' => responseWithError('shopping/checkout.json'),
+        'checkout.get.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.update.request' => [
             'file' => 'shopping/checkout.json',
             'request' => 'update',
             'extensions' => checkoutExtensions(),
         ],
-        'checkout.update.response' => responseWithError('shopping/checkout.json'),
+        'checkout.update.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.complete.request' => ['file' => 'shopping/checkout.json', 'request' => 'complete'],
-        'checkout.complete.response' => responseWithError('shopping/checkout.json'),
+        'checkout.complete.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.cancel.request' => idRequest(),
-        'checkout.cancel.response' => responseWithError('shopping/checkout.json'),
+        'checkout.cancel.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'order.get.request' => idRequest(),
-        'order.get.response' => responseWithError('shopping/order.json'),
+        'order.get.response' => responseWithError('shopping/order.json', $errorResponse),
         'tokenization.request' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/requestBody/content/application~1json/schema'],
         'tokenization.response' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/responses/200/content/application~1json/schema'],
     ];
@@ -329,7 +334,7 @@ function operationSchemas(string $schemaRoot): array
  *
  * Only the ones HttpPayloadMapper actually consumes, so the published contract
  * describes what the SDK acts on rather than everything the spec could compose.
- * `ap2_mandate.json` is deliberately absent: mandates travel through
+ * `common/payment_ap2_mandate.json` is deliberately absent: mandates travel through
  * PaymentMandateVerifierInterface, not through the checkout request payload.
  *
  * @return list<array{file: string, pointer: string}>
@@ -345,13 +350,32 @@ function checkoutExtensions(): array
 }
 
 /**
+ * Locates error_response.json, which is not in the same place in every version.
+ *
+ * It moved from `shopping/types` to `common/types` at 2026-08-25, along with the rest of the
+ * shared primitives. Both versions stay pinned and `--verify` regenerates each from its own
+ * copy, so the tool has to handle either layout rather than only the newest one -- hardcoding
+ * the new path made 2026-04-08 unreproducible, which is what `sync:verify` is for.
+ */
+function errorResponseFile(string $schemaRoot): string
+{
+    foreach (['common/types/error_response.json', 'shopping/types/error_response.json'] as $candidate) {
+        if (is_file($schemaRoot . '/' . $candidate)) {
+            return $candidate;
+        }
+    }
+
+    fail(sprintf('Unable to find error_response.json under "%s".', $schemaRoot));
+}
+
+/**
  * @return array{oneOf: list<array{file: string}>}
  */
-function responseWithError(string $file): array
+function responseWithError(string $file, string $errorResponse): array
 {
     return ['oneOf' => [
         ['file' => $file],
-        ['file' => 'shopping/types/error_response.json'],
+        ['file' => $errorResponse],
     ]];
 }
 
@@ -552,19 +576,47 @@ final class SchemaGenerator
         $schema = $this->resolveReferenceSchema($schema, $file);
 
         if (isset($schema['allOf']) && is_array($schema['allOf'])) {
-            $merged = ['type' => 'object', 'properties' => [], 'required' => []];
+            // The node's own members come first. A schema may carry `properties` *and* compose
+            // more through `allOf` -- `shopping/types/fulfillment_method.json` does from
+            // 2026-08-25 -- and seeding the merge with an empty map silently discarded every
+            // one of them. Nothing at 2026-04-08 had both, so this read as correct until the
+            // shape it could not express actually arrived.
+            $own = $schema;
+            unset($own['allOf']);
+            $merged = $this->projectRequestSchema($own, $file, $operation);
+            $merged['type'] = 'object';
+            $merged['properties'] = is_array($merged['properties'] ?? null) ? $merged['properties'] : [];
+            $merged['required'] = is_array($merged['required'] ?? null) ? $merged['required'] : [];
+
             foreach ($schema['allOf'] as $subSchema) {
                 if (! is_array($subSchema)) {
                     continue;
                 }
 
+                // A conditional branch contributes through `then`, not through itself, and only
+                // when its `if` holds. GeneratedSchemaValidator evaluates neither, so the
+                // branch's properties are folded in as optional and its `required` is dropped:
+                // making a conditional requirement unconditional would reject payloads the
+                // spec allows.
+                foreach ($this->conditionalBranches($subSchema) as $branch) {
+                    $projected = $this->projectRequestSchema($branch, $file, $operation);
+                    $merged['properties'] = $this->mergeConditionalProperties(
+                        $merged['properties'],
+                        is_array($projected['properties'] ?? null) ? $projected['properties'] : [],
+                    );
+                }
+
+                if (isset($subSchema['if'])) {
+                    continue;
+                }
+
                 $projected = $this->projectRequestSchema($subSchema, $file, $operation);
                 $merged['properties'] = [
-                    ...($merged['properties'] ?? []),
+                    ...$merged['properties'],
                     ...($projected['properties'] ?? []),
                 ];
                 $merged['required'] = array_values(array_unique([
-                    ...($merged['required'] ?? []),
+                    ...$merged['required'],
                     ...($projected['required'] ?? []),
                 ]));
             }
@@ -620,6 +672,58 @@ final class SchemaGenerator
         }
 
         return $projected;
+    }
+
+    /**
+     * The `then` (and `else`) schemas of a conditional `allOf` branch.
+     *
+     * @param array<string, mixed> $subSchema
+     * @return list<array<string, mixed>>
+     */
+    private function conditionalBranches(array $subSchema): array
+    {
+        if (! isset($subSchema['if'])) {
+            return [];
+        }
+
+        $branches = [];
+        foreach (['then', 'else'] as $keyword) {
+            if (is_array($subSchema[$keyword] ?? null)) {
+                $branches[] = $subSchema[$keyword];
+            }
+        }
+
+        return $branches;
+    }
+
+    /**
+     * Fold a conditional branch's properties into the merged map.
+     *
+     * `GeneratedSchemaValidator` cannot evaluate `if`, so a conditional narrowing cannot be
+     * enforced. What it can do is not be wrong in the direction that matters. Under `allOf`
+     * semantics a valid payload satisfies the unconditional half regardless of which condition
+     * holds, so keeping that half and dropping the narrowing accepts every valid payload and
+     * merely fails to reject some invalid ones. Preferring the branch instead would reject
+     * payloads the spec allows: `common/types/unit.json` says `scale` is 0-15, and only when
+     * `unit` is `C62` must it be 0 -- take the branch and every other unit loses 1-15.
+     *
+     * A property the branch introduces that the node does not define at all is a different
+     * case: there the branch is the only information there is, and it is added as optional.
+     * `fulfillment_method`'s `destinations` arrives that way.
+     *
+     * @param array<string, mixed> $merged
+     * @param array<string, mixed> $branch
+     * @return array<string, mixed>
+     */
+    private function mergeConditionalProperties(array $merged, array $branch): array
+    {
+        foreach ($branch as $property => $schema) {
+            if (! array_key_exists($property, $merged)) {
+                $merged[$property] = $schema;
+            }
+        }
+
+        return $merged;
     }
 
     /**

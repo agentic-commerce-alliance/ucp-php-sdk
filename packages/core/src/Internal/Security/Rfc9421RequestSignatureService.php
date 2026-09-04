@@ -10,6 +10,7 @@ use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Model\Security\PublicSigningKey;
 use Ucp\Sdk\Model\Security\SignatureVerificationResult;
+use Ucp\Sdk\Service\AgentKeyDirectoryFetcherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
 
@@ -20,6 +21,22 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
 
     /** @var list<string> */
     private const SIGNED_COMPONENTS = ['@method', '@target-uri'];
+    private const TAG_WEB_BOT_AUTH = 'web-bot-auth';
+
+    /**
+     * The tag on UCP's default signature shape, which every business must accept.
+     *
+     * Easy to miss, and this implementation did: `web-bot-auth` looks like the only tag
+     * worth naming, so refusing everything else refused the baseline as well. `sig1` carries
+     * no extra requirements -- it identifies the default shape rather than asking for
+     * anything -- which is exactly why it needs listing here: the refusal below exists to
+     * stop a tag whose requirements went unapplied, and this one has none.
+     */
+    private const TAG_DEFAULT = 'sig1';
+
+    /** Tags whose requirements this implementation actually applies. */
+    private const SUPPORTED_TAGS = [self::TAG_DEFAULT, self::TAG_WEB_BOT_AUTH];
+    private const SIGNATURE_AGENT = 'signature-agent';
     private const CONTENT_DIGEST = 'content-digest';
 
     private readonly SignatureComponentResolver $componentResolver;
@@ -35,6 +52,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         ?EcdsaSignatureCodec $signatureCodec = null,
         ?Ed25519KeyCodec $ed25519Codec = null,
         ?JwkThumbprint $jwkThumbprint = null,
+        private readonly ?AgentKeyDirectoryFetcherInterface $agentKeyDirectoryFetcher = null,
     ) {
         $this->componentResolver = $componentResolver ?? new SignatureComponentResolver();
         $this->signatureCodec = $signatureCodec ?? new EcdsaSignatureCodec();
@@ -42,8 +60,19 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         $this->jwkThumbprint = $jwkThumbprint ?? new JwkThumbprint();
     }
 
-    public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
-    {
+    /**
+     * The `$tag` parameter is deliberately not on `RequestSignatureServiceInterface`: adding a
+     * parameter to a published interface breaks every implementation of it, and emitting a tag
+     * is a signer concern that no caller reaches through the interface. This SDK verifies
+     * web-bot-auth signatures; it does not need to produce them through the abstraction.
+     */
+    public function sign(
+        HttpRequest $request,
+        ManagedSigningKey $key,
+        ?int $created = null,
+        ?int $expires = null,
+        ?string $tag = null,
+    ): array {
         $created ??= time();
         $expires ??= $created + $this->maxLifetimeSeconds;
         $algorithm = SignatureAlgorithm::fromIdentifier($key->algorithm);
@@ -63,6 +92,12 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
             $key->kid,
             $algorithm->wireIdentifier(),
         );
+
+        // The tag is a signature parameter, so it is covered: appending it afterwards would
+        // change `@signature-params` and leave a signature that verifies against nothing.
+        if ($tag !== null) {
+            $signatureParams .= sprintf(';tag="%s"', $tag);
+        }
         $signatureInput = self::DEFAULT_SIGNATURE_LABEL . '=' . $signatureParams;
 
         // The digest is not on the request yet, so overlay the one about to be sent.
@@ -109,6 +144,24 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
 
             if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) === null) {
                 throw new SignatureException(sprintf('Unsupported signature algorithm "%s".', $requestedAlgorithm));
+            }
+
+            // `tag` says what the signature is for. An unrecognised one is refused rather than
+            // ignored: a tag this implementation does not understand may carry requirements it
+            // therefore has not applied, and verifying anyway would report a check as passed
+            // that was never performed.
+            $tag = $parts['tag'] ?? null;
+            if ($tag !== null && ! in_array($tag, self::SUPPORTED_TAGS, true)) {
+                throw new SignatureException(sprintf('Unsupported signature tag "%s".', $tag));
+            }
+
+            // Web-bot-auth points at the agent's own key directory. Fetching it is an outbound
+            // request whose destination the caller chose, so it goes through the same allow-list
+            // and address pinning as a platform profile -- and only when the tag asks for it,
+            // because otherwise a `Signature-Agent` header alone would make every request an
+            // outbound fetch.
+            if ($tag === self::TAG_WEB_BOT_AUTH) {
+                $keys = [...$keys, ...$this->agentDirectoryKeys($headers)];
             }
 
             if ($created > time() + 60) {
@@ -256,6 +309,34 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     /**
      * @param list<PublicSigningKey> $keys
      */
+    /**
+     * The keys published at the request's `Signature-Agent` URL.
+     *
+     * A missing header is not an error here: the tag says the signer is a web bot, and a bot
+     * whose keys are already in the local set is a legitimate case. An unreachable directory is
+     * also not fatal on its own -- the signature simply fails to resolve a key, and reports that
+     * rather than reporting a network problem as a bad signature.
+     *
+     * @param array<string, string> $headers
+     *
+     * @return list<PublicSigningKey>
+     */
+    private function agentDirectoryKeys(array $headers): array
+    {
+        $header = $headers[self::SIGNATURE_AGENT] ?? null;
+        if ($header === null || $this->agentKeyDirectoryFetcher === null) {
+            return [];
+        }
+
+        // A structured-field string: `Signature-Agent: "https://agent.example/keys"`.
+        $uri = trim(trim($header), '"');
+        if ($uri === '') {
+            throw new SignatureException('Signature-Agent header is empty.');
+        }
+
+        return $this->agentKeyDirectoryFetcher->fetch($uri)->keys;
+    }
+
     /**
      * Finds the key a `keyid` names, by label or by RFC 7638 thumbprint.
      *
