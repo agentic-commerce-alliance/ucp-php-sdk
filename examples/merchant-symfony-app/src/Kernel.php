@@ -52,6 +52,12 @@ final class Kernel extends BaseKernel
             'allowed_agent_domains' => $this->allowedProfileHosts($baseUri),
             'profile_fetching_development_mode' => $this->profileFetchingDevelopmentMode(),
             'signature_policy' => $this->signaturePolicy(),
+            // The example provisions its own key on first use, so it boots into a state
+            // where it can actually sign what it publishes. A real merchant should leave
+            // this off and run `ucp:signing-keys:generate`, because a key that appears by
+            // itself is a key nobody decided to trust -- which is why the SDK warns rather
+            // than doing this for everyone.
+            'signing_keys' => ['auto_generate' => true],
             'transports' => ['rest', 'a2a', 'embedded'],
             'storage' => [
                 'dsn' => 'sqlite:///' . dirname(__DIR__) . '/var/ucp_sdk.sqlite',
