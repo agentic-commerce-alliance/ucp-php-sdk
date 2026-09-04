@@ -6,6 +6,7 @@ namespace MerchantSymfonyApp\Ucp;
 
 use MerchantSymfonyApp\Support\ProductCatalog;
 use Ucp\Sdk\Contract\CatalogCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
 use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
@@ -25,7 +26,7 @@ final class MerchantCatalogCapability implements CatalogCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.catalog.search',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/catalog-search.json',
             null,

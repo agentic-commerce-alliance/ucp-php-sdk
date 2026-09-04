@@ -87,11 +87,12 @@ final class EventListenersTest extends TestCase
         $listener->onKernelException($negotiationEvent);
         $negotiationResponse = $negotiationEvent->getResponse();
         self::assertNotNull($negotiationResponse);
-        self::assertSame(400, $negotiationResponse->getStatusCode());
-        self::assertSame(
-            'capabilities_incompatible',
-            json_decode((string) $negotiationResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR)['messages'][0]['code'],
-        );
+        // 200 with an error envelope: a capability mismatch is something the business decided,
+        // not a request it could not process.
+        self::assertSame(200, $negotiationResponse->getStatusCode());
+        $negotiationBody = json_decode((string) $negotiationResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertSame('capabilities_incompatible', $negotiationBody['messages'][0]['code']);
+        self::assertSame('error', $negotiationBody['ucp']['status'], 'a 200 must still say it failed');
 
         $notFoundEvent = new ExceptionEvent(
             $kernel,

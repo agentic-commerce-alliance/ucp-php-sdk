@@ -1,0 +1,107 @@
+name: conformance
+
+# Deliberately its own workflow rather than a job in ci.yml: it boots a server, clones an
+# upstream repository and installs a Python toolchain, none of which the four-way PHP matrix
+# should wait on.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Upstream publishes no tags, so the pin in .conformance-version is a commit SHA and moves
+    # only when someone bumps it. A weekly run still catches our own drift against it.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    name: upstream conformance suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install PHP dependencies
+        run: docker compose run --rm php composer install --no-interaction --no-progress
+
+      - name: Boot the merchant example
+        run: docker compose up -d --wait merchant
+
+      # Blocking. The allowlist is the set of modules this SDK is expected to pass; anything in
+      # it turning red is a regression. It starts empty on purpose -- one test passes today, and
+      # promoting a module before it is green would make the gate meaningless. See
+      # docs/conformance.md for the promotion procedure.
+      - name: Enforced modules
+        id: enforced
+        run: |
+          modules="$(grep -vE "^\s*(#|$)" tests/conformance/enforced-modules.txt | tr "\n" " ")"
+          if [ -z "${modules}" ]; then
+            echo "No modules are enforced yet; see docs/conformance.md." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          UCP_CONFORMANCE_MODULES="${modules}" docker compose run --rm \
+            -e UCP_CONFORMANCE_MODULES="${modules}" conformance
+
+      # Advisory, exactly like the PHP 8.5 lane and the BC-since-release comment in ci.yml. The
+      # point is to publish where we actually stand against a suite we did not write, not to
+      # block on a number that is not yet close to green.
+      - name: Full suite (advisory)
+        id: full
+        continue-on-error: true
+        run: docker compose run --rm conformance
+
+      - name: Summarise
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          report = Path("var/reports/conformance/junit.xml")
+          if not report.exists():
+              print("## Conformance\n\nNo report was produced; the suite did not run.")
+              raise SystemExit(0)
+          root = ET.parse(report).getroot()
+          suite = root if root.tag == "testsuite" else root[0]
+          modules = {}
+          for case in suite.iter("testcase"):
+              name = (case.get("classname") or "").split(".")[0]
+              bucket = modules.setdefault(name, {"pass": 0, "fail": 0, "skip": 0})
+              if case.find("failure") is not None or case.find("error") is not None:
+                  bucket["fail"] += 1
+              elif case.find("skipped") is not None:
+                  bucket["skip"] += 1
+              else:
+                  bucket["pass"] += 1
+          print("## Conformance\n")
+          print(f"`{suite.get('tests')}` tests — "
+                f"**{suite.get('failures')} failed**, "
+                f"{suite.get('skipped')} skipped\n")
+          print("| Module | Passed | Failed | Skipped |")
+          print("| --- | ---: | ---: | ---: |")
+          for name in sorted(modules):
+              b = modules[name]
+              print(f"| `{name}` | {b['pass']} | {b['fail']} | {b['skip']} |")
+          PY
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-report
+          path: var/reports/conformance/
+          if-no-files-found: warn
+
+      - name: Merchant log on failure
+        if: failure()
+        run: docker compose logs merchant | tail -50
+
+      - name: Stop the merchant
+        if: always()
+        run: docker compose down --remove-orphans

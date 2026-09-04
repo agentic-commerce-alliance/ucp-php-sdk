@@ -19,12 +19,29 @@ final class MerchantPaymentMandateVerifier implements PaymentMandateVerifierInte
             ]);
         }
 
-        $hasToken = is_string($instrument->credential['token'] ?? null) && $instrument->credential['token'] !== '';
+        $token = $instrument->credential['token'] ?? null;
+
+        // A reserved token so the failure path can be exercised end to end. A demo merchant
+        // that only ever succeeds cannot show a caller what a declined payment looks like,
+        // and the failure path is the one worth copying correctly.
+        if ($token === 'fail_token') {
+            throw new ValidationException('The payment was declined by the merchant example.', [
+                'Payment token "fail_token" is reserved for demonstrating a declined payment.',
+            ]);
+        }
+
+        $hasToken = is_string($token) && $token !== '';
         $hasLastFour = is_string($instrument->credential['card_last4'] ?? null) && preg_match('/^\d{4}$/', $instrument->credential['card_last4']) === 1;
 
-        if (! $hasToken && ! $hasLastFour) {
+        // A card credential carrying the number itself. This merchant publishes a tokenization
+        // capability, which is the condition the spec puts on accepting one: a PAN may be sent
+        // to a handler that tokenizes or encrypts it, and not to one that would merely store it.
+        $number = $instrument->credential['number'] ?? null;
+        $hasPan = is_string($number) && preg_match('/^\d{12,19}$/', $number) === 1;
+
+        if (! $hasToken && ! $hasLastFour && ! $hasPan) {
             throw new ValidationException('Missing merchant payment credential.', [
-                'Provide either a reusable token or a four-digit card suffix in the payment credential.',
+                'Provide a reusable token, a card number, or a four-digit card suffix in the payment credential.',
             ]);
         }
     }

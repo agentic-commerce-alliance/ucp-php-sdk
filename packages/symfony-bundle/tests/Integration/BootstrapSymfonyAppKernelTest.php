@@ -26,7 +26,7 @@ final class BootstrapSymfonyAppKernelTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $payload = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame('2026-04-08', $payload['ucp']['version']);
+        self::assertSame('2026-08-25', $payload['ucp']['version']);
         self::assertArrayHasKey('dev.ucp.shopping.checkout', $payload['ucp']['capabilities']);
         self::assertArrayHasKey('dev.ucp.shopping.order', $payload['ucp']['capabilities']);
         self::assertArrayHasKey('com.demo.tokenizer', $payload['ucp']['payment_handlers']);
@@ -160,7 +160,7 @@ final class BootstrapSymfonyAppKernelTest extends WebTestCase
         $this->request($client, 'GET', '/.well-known/ucp');
         self::assertResponseIsSuccessful();
         $profile = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame('2026-04-08', $profile['ucp']['version']);
+        self::assertSame('2026-08-25', $profile['ucp']['version']);
 
         $this->request($client, 'GET', '/.well-known/oauth-authorization-server');
         self::assertResponseIsSuccessful();

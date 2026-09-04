@@ -11,6 +11,7 @@ use MerchantSymfonyApp\Support\ProductCatalog;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use MerchantSymfonyApp\Ucp\MerchantCartCapability;
 use MerchantSymfonyApp\Ucp\MerchantCatalogCapability;
+use MerchantSymfonyApp\Ucp\MerchantCheckoutCapability;
 use MerchantSymfonyApp\Ucp\MerchantOrderCapability;
 use MerchantSymfonyApp\Ucp\MerchantOrderWebhookEnricher;
 use MerchantSymfonyApp\Ucp\MerchantPaymentHandler;
@@ -24,6 +25,7 @@ use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
 use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
+use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\RequestContext;
@@ -206,6 +208,16 @@ final class MerchantExampleCoverageTest extends TestCase
         );
     }
 
+    private function checkoutCapability(): MerchantCheckoutCapability
+    {
+        return new MerchantCheckoutCapability(
+            $this->stateStore(),
+            new PriceCalculator(new ProductCatalog(), $this->settings()),
+            new UcpModelFactory(),
+            $this->settings(),
+        );
+    }
+
     private function stateStore(): JsonStateStore
     {
         return new JsonStateStore($this->projectDir);
@@ -241,5 +253,35 @@ final class MerchantExampleCoverageTest extends TestCase
         }
 
         rmdir($path);
+    }
+
+    #[Test]
+    public function aCanceledCheckoutCannotBeCompleted(): void
+    {
+        // Completing one would mint an order against a session that was already withdrawn,
+        // and it would answer the caller with a success.
+        $capability = $this->checkoutCapability();
+        $checkout = $capability->createCheckout(
+            new CheckoutCreateRequest([new LineItem('tent-4p', 'Summit 4P Tent', 249.0)]),
+            $this->context(),
+        );
+        $capability->cancelCheckout($checkout->id, $this->context());
+
+        $this->expectException(ValidationException::class);
+
+        $capability->completeCheckout($checkout->id, $this->context());
+    }
+
+    #[Test]
+    public function theReservedFailureTokenIsDeclined(): void
+    {
+        // A demo merchant that only ever succeeds cannot show a caller what a declined
+        // payment looks like, and that is the path worth copying correctly.
+        $this->expectException(ValidationException::class);
+
+        (new MerchantPaymentMandateVerifier())->verify(
+            new PaymentInstrument('card', 'merchant.card', ['token' => 'fail_token']),
+            $this->context(),
+        );
     }
 }

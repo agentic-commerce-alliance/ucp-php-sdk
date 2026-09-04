@@ -147,7 +147,11 @@ enum Ucp\Sdk\Enum\UcpCapability
   - static tryFrom(string|int $value): ?static
 enum Ucp\Sdk\Enum\UcpProtocolVersion
   - static cases(): array
+  - static current(): self
   - static from(string|int $value): static
+  - static isSupported(string $version): bool
+  - static knownVersions(): array
+  - static supportedVersions(): array
   - static tryFrom(string|int $value): ?static
 enum Ucp\Sdk\Enum\UcpResponseStatus
   - static cases(): array
@@ -223,10 +227,13 @@ class Ucp\Sdk\Model\Catalog\CatalogSearchResponse
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Catalog\Product
-  - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR')
+  - __construct(string $id, string $title, float $price, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR', ?string $description = null, ?Ucp\Sdk\Model\Common\Unit $quantityUnit = null, ?Ucp\Sdk\Model\Common\UnitPrice $unitPrice = null)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\BuyerConsent
-  - __construct(bool $granted, ?string $timestamp = null)
+  - __construct(array $purposes = [])
+  - static fromArray(array $payload): self
+  - granted(string $purpose, ?string $segment = null): bool
+  - toArray(): array
 class Ucp\Sdk\Model\Checkout\Checkout
   - __construct(string $id, Ucp\Sdk\Enum\CheckoutStatus $status, string $currency, array $lineItems, array $totals, array $messages = [], array $links = [], ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?string $continueUrl = null, ?string $expiresAt = null, ?Ucp\Sdk\Model\Checkout\OrderConfirmation $order = null, array $extra = [])
   - jsonSerialize(): array
@@ -237,6 +244,11 @@ class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
   - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
 class Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest
   - __construct(string $id, array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
+class Ucp\Sdk\Model\Checkout\ConsentPurpose
+  - __construct(bool $granted, string $source, string $description, array $segments = [], array $links = [])
+  - static fromArray(array $payload): ?self
+  - grantedFor(?string $segment = null): bool
+  - toArray(): array
 class Ucp\Sdk\Model\Checkout\DiscountCode
   - __construct(string $code)
 class Ucp\Sdk\Model\Checkout\FulfillmentSelection
@@ -250,10 +262,14 @@ class Ucp\Sdk\Model\Common\Buyer
   - __construct(?string $email = null, ?string $firstName = null, ?string $lastName = null, ?string $phoneNumber = null)
   - toArray(): array
 class Ucp\Sdk\Model\Common\LineItem
-  - __construct(string $id, string $title, float $price, int $quantity = 1, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR')
+  - __construct(string $id, string $title, float $price, int $quantity = 1, ?string $imageUrl = null, array $extra = [], string $currency = 'EUR', ?Ucp\Sdk\Model\Common\Unit $quantityUnit = null, ?Ucp\Sdk\Model\Common\UnitPrice $unitPrice = null)
   - toArray(): array
 class Ucp\Sdk\Model\Common\Link
   - __construct(string $type, string $url, ?string $title = null)
+  - toArray(): array
+class Ucp\Sdk\Model\Common\Measure
+  - __construct(Ucp\Sdk\Model\Common\Unit $unit, int $value)
+  - static fromArray(array $payload): ?self
   - toArray(): array
 class Ucp\Sdk\Model\Common\Message
   - __construct(string $type, string $content, ?string $severity = null, ?string $code = null, ?string $path = null)
@@ -271,6 +287,14 @@ class Ucp\Sdk\Model\Common\UcpErrorDescriptor
   - static forHttpStatus(int $httpStatus): self
   - static fromThrowable(Throwable $throwable): self
   - toMessage(string $content, ?string $path = null): Ucp\Sdk\Model\Common\Message
+class Ucp\Sdk\Model\Common\Unit
+  - __construct(string $unit, string $displayText, int $scale = 0)
+  - static fromArray(array $payload): ?self
+  - toArray(): array
+class Ucp\Sdk\Model\Common\UnitPrice
+  - __construct(int $amount, string $currency, Ucp\Sdk\Model\Common\Measure $measure, Ucp\Sdk\Model\Common\Measure $reference)
+  - static fromArray(array $payload): ?self
+  - toArray(): array
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
   - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false)
   - isCapabilityEnabled(string $capabilityName): bool
@@ -317,9 +341,15 @@ class Ucp\Sdk\Model\Order\OrderView
   - jsonSerialize(): array
   - toArray(): array
 class Ucp\Sdk\Model\Profile\CapabilityDescriptor
-  - __construct(string $name, string $version, string $specUrl, string $schemaUrl, ?array $extends = null, array $config = [])
+  - __construct(string $name, string $version, string $specUrl, string $schemaUrl, ?array $extends = null, array $config = [], ?Ucp\Sdk\Model\Profile\CapabilityRequirements $requires = null)
   - static fromProfileEntry(string $name, array $entry): self
   - toProfileEntry(): array
+class Ucp\Sdk\Model\Profile\CapabilityRequirements
+  - __construct(?Ucp\Sdk\Model\Profile\VersionRange $protocol = null, array $capabilities = [])
+  - allowsProtocol(string $version): bool
+  - static fromArray(array $payload, string $context): self
+  - isEmpty(): bool
+  - toArray(): array
 class Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor
   - __construct(string $id, string $name, string $version, string $specUrl, string $configSchema, array $instrumentSchemas, array $config = [])
   - static fromArray(array $entry): self
@@ -333,6 +363,13 @@ class Ucp\Sdk\Model\Profile\ProfileBuildInput
 class Ucp\Sdk\Model\Profile\ServiceEndpoint
   - __construct(Ucp\Sdk\Enum\Transport $transport, string $endpoint, string $version, string $specUrl, ?string $schemaUrl = null)
   - static fromArray(array $entry): self
+  - toArray(): array
+class Ucp\Sdk\Model\Profile\VersionRange
+  - __construct(string $min, ?string $max = null)
+  - contains(string $version): bool
+  - static fromArray(array $payload, string $context): self
+  - highestWithin(array $versions): ?string
+  - intersect(self $other): ?self
   - toArray(): array
 class Ucp\Sdk\Model\Protocol\UcpEnvelope
   - __construct(string $version, Ucp\Sdk\Enum\UcpResponseStatus $status, array $services = [], array $capabilities = [], array $paymentHandlers = [])

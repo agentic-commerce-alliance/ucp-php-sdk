@@ -16,6 +16,7 @@ use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentAwareCheckoutCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
@@ -472,6 +473,60 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             new ShoppingOperationRequest('checkout.cancel', [], $context, 'checkout-1'),
             new ShoppingOperationRequest('order.get', [], $context, 'order-1'),
         ];
+    }
+
+    /**
+     * The envelope version used to be the enum case, named directly, so it stayed
+     * on whatever this SDK was compiled with no matter what the merchant had
+     * configured -- a business serving one version answered every request claiming
+     * another. It now follows the runtime configuration the request resolved with.
+     */
+    #[Test]
+    public function theResponseEnvelopeCarriesTheVersionTheRequestWasConfiguredWith(): void
+    {
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+        $context = new RequestContext(
+            'merchant.example',
+            runtimeConfiguration: new RuntimeConfiguration('2026-08-25', 'https://merchant.example'),
+        );
+
+        $envelope = $executor->execute(new ShoppingOperationRequest('order.get', [], $context, 'order-1'))->toArray()['ucp'];
+        self::assertIsArray($envelope);
+
+        self::assertSame('2026-08-25', $envelope['version']);
+    }
+
+    /**
+     * Transports that build a context without resolving configuration still have to
+     * name a version, and the one they name is the one this release serves.
+     */
+    #[Test]
+    public function theResponseEnvelopeFallsBackToTheVersionTheSdkServes(): void
+    {
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $envelope = $executor->execute(
+            new ShoppingOperationRequest('order.get', [], new RequestContext('merchant.example'), 'order-1'),
+        )->toArray()['ucp'];
+        self::assertIsArray($envelope);
+
+        self::assertSame(UcpProtocolVersion::current()->value, $envelope['version']);
     }
 }
 

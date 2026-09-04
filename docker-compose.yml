@@ -35,6 +35,52 @@ services:
       UCP_SDK_TEST_MYSQL_DSN: mysql://ucp:ucp@mysql:3306/ucp
       UCP_SDK_TEST_POSTGRES_DSN: postgres://ucp:ucp@postgres:5432/ucp
 
+  # The merchant example served over HTTP, as the conformance target.
+  merchant:
+    <<: *php-base
+    environment:
+      <<: *php-environment
+      APP_ENV: prod
+      APP_DEBUG: '0'
+      UCP_MERCHANT_BASE_URI: http://127.0.0.1:8081
+      UCP_MERCHANT_STATE_DIR: /tmp/ucp-conformance-state
+      SIMULATION_SECRET: ${SIMULATION_SECRET:-ucp-conformance-simulation-secret}
+    # The trailing index.php is the router script. Without it PHP's built-in server answers 404
+    # for every UCP path before the application is reached, because it only falls back to a
+    # front controller for requests that map to a directory.
+    command:
+      - sh
+      - -c
+      - >-
+        rm -rf /tmp/ucp-conformance-state examples/merchant-symfony-app/var/cache &&
+        mkdir -p /tmp/ucp-conformance-state &&
+        php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate &&
+        php -S 127.0.0.1:8081 -t examples/merchant-symfony-app/public
+        examples/merchant-symfony-app/public/index.php
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8081/.well-known/ucp') === false ? 1 : 0);"]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+
+  # Shares the merchant's network namespace on purpose. The suite runs its mock agent-profile
+  # and webhook servers on localhost and hardcodes `http://localhost:<port>` into the UCP-Agent
+  # header it sends, so the merchant has to resolve the same localhost the suite does.
+  conformance:
+    image: python:3.12
+    network_mode: "service:merchant"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      SERVER_URL: http://127.0.0.1:8081
+      UCP_CONFORMANCE_SKIP_SERVER: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    depends_on:
+      merchant:
+        condition: service_healthy
+    command: ["bash", "scripts/run-conformance.sh"]
+
   mysql:
     image: mysql:8.4
     environment:

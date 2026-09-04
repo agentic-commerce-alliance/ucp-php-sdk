@@ -1,0 +1,24 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MerchantSymfonyApp\Kernel;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Console\Input\ArgvInput;
+
+require dirname(__DIR__, 3) . '/vendor/autoload.php';
+
+// The SDK ships its operational commands -- signing-key rotation, storage cleanup, nonce purging
+// -- as console commands, and without an entry point this example had no way to run any of them.
+// That is not only inconvenient: a merchant with no signing key cannot sign a webhook, so the
+// omission silently disabled outbound order events.
+$input = new ArgvInput();
+$environment = (string) ($input->getParameterOption(['--env', '-e'], $_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? 'dev', true));
+$debug = filter_var(
+    $_SERVER['APP_DEBUG'] ?? $_ENV['APP_DEBUG'] ?? ($environment === 'dev'),
+    FILTER_VALIDATE_BOOL,
+) && ! $input->hasParameterOption('--no-debug', true);
+
+$application = new Application(new Kernel($environment, $debug));
+$application->run($input);

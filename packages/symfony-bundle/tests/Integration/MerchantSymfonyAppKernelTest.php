@@ -103,9 +103,25 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
                     'card_last4' => '4242',
                 ],
             ],
+            // The shape a platform actually sends: a destination to price against, and the
+            // option chosen from the ones the business offered for it.
             'fulfillment' => [
-                'type' => 'shipping',
-                'method_id' => 'express-shipping',
+                'methods' => [[
+                    'id' => 'ful_method_1',
+                    'type' => 'shipping',
+                    'line_item_ids' => [$created['line_items'][0]['id']],
+                    'destinations' => [[
+                        'id' => 'dest_1',
+                        'address_country' => 'DE',
+                        'postal_code' => '10115',
+                    ]],
+                    'selected_destination_id' => 'dest_1',
+                    'groups' => [[
+                        'id' => 'ful_group_1',
+                        'line_item_ids' => [$created['line_items'][0]['id']],
+                        'selected_option_id' => 'express-shipping',
+                    ]],
+                ]],
             ],
         ], JSON_THROW_ON_ERROR));
 
@@ -222,9 +238,25 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
                 'first_name' => 'Alex',
                 'last_name' => 'Summit',
             ],
+            // The shape a platform actually sends: a destination to price against, and the
+            // option chosen from the ones the business offered for it.
             'fulfillment' => [
-                'type' => 'shipping',
-                'method_id' => 'express-shipping',
+                'methods' => [[
+                    'id' => 'ful_method_1',
+                    'type' => 'shipping',
+                    'line_item_ids' => [$checkout['line_items'][0]['id']],
+                    'destinations' => [[
+                        'id' => 'dest_1',
+                        'address_country' => 'DE',
+                        'postal_code' => '10115',
+                    ]],
+                    'selected_destination_id' => 'dest_1',
+                    'groups' => [[
+                        'id' => 'ful_group_1',
+                        'line_item_ids' => [$checkout['line_items'][0]['id']],
+                        'selected_option_id' => 'express-shipping',
+                    ]],
+                ]],
             ],
             'payment' => [
                 'type' => 'card',
@@ -269,7 +301,7 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $agentCard = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('http://localhost:8081/ucp/a2a', $agentCard['url']);
-        self::assertSame('2026-04-08', $agentCard['version']);
+        self::assertSame('2026-08-25', $agentCard['version']);
     }
 
     #[Test]
@@ -421,5 +453,77 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         self::assertIsArray($response['result']);
 
         return $response['result'];
+    }
+
+    /**
+     * Fixtures the upstream conformance suite is configured with, exercised over HTTP.
+     *
+     * conformance_input.json declares an out_of_stock_item and a non_existent_item; both were
+     * unrepresentable here. Every product carried stock, and stock was published in catalog
+     * responses and checked nowhere, so an agent could fill a cart with items this merchant
+     * cannot ship and only find out never. Unknown ids passed straight through, so a typo
+     * became a line item priced at whatever the agent claimed.
+     */
+    #[Test]
+    public function itRefusesLineItemsItCannotFulfil(): void
+    {
+        $client = $this->createConfiguredClient($this->clearMerchantState(...));
+
+        $this->request($client, 'POST', '/ucp/v1/carts', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'line_items' => [[
+                'item' => ['id' => 'map-alpine', 'title' => 'Alpine Trail Map', 'price' => 19.0],
+                'quantity' => 1,
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(422);
+        $body = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('error', $body['ucp']['status']);
+        self::assertStringContainsString('exceeds available stock', $body['messages'][0]['content']);
+        self::assertSame('invalid_request', $body['messages'][0]['code']);
+
+        $this->request($client, 'POST', '/ucp/v1/carts', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'line_items' => [[
+                'item' => ['id' => 'pink-wumpus', 'title' => 'Not A Product', 'price' => 1.0],
+                'quantity' => 1,
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseStatusCodeSame(404);
+        $body = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('not_found', $body['messages'][0]['code']);
+    }
+
+    /**
+     * The suite is configured with two percentage codes and one fixed-amount code, and asserts
+     * the resulting total. Only SAVE10 existed, and any other string "applied" successfully
+     * while reducing the total by nothing -- so a typo was indistinguishable from a code this
+     * merchant does not run.
+     */
+    #[Test]
+    public function itAppliesKnownDiscountCodesAndRefusesUnknownOnes(): void
+    {
+        $client = $this->createConfiguredClient($this->clearMerchantState(...));
+
+        $this->request($client, 'POST', '/ucp/v1/carts', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'line_items' => [[
+                'item' => ['id' => 'tent-4p', 'title' => 'Summit 4P Tent', 'price' => 249.0],
+                'quantity' => 1,
+            ]],
+        ], JSON_THROW_ON_ERROR));
+        self::assertResponseStatusCodeSame(201);
+        $cart = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        // Amounts are minor units on the wire, and pinning them is the point: the totals were
+        // inflated a hundredfold by a rehydration bug that survived because the only assertion
+        // on a discounted total was that it is negative.
+        self::assertSame(24900, $cart['totals'][0]['amount'], 'subtotal is 249.00 EUR');
+
+        $discounted = $this->a2a($client, 'discount.apply', ['cart_id' => $cart['id'], 'code' => 'SAVE20']);
+        self::assertSame('discount', $discounted['totals'][1]['type']);
+        self::assertSame(-4980, $discounted['totals'][1]['amount'], '20% of 249.00');
+
+        $fixed = $this->a2a($client, 'discount.apply', ['cart_id' => $cart['id'], 'code' => 'FIVEOFF']);
+        self::assertSame(-500, $fixed['totals'][1]['amount'], 'a fixed 5.00 reduction');
     }
 }

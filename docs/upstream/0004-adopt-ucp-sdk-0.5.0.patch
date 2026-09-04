@@ -1,0 +1,253 @@
+diff --git a/ap2_test.py b/ap2_test.py
+index ded8ac0..1b21259 100644
+--- a/ap2_test.py
++++ b/ap2_test.py
+@@ -17,7 +17,7 @@
+ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ 
+diff --git a/binding_test.py b/binding_test.py
+index 9af67f3..d785238 100644
+--- a/binding_test.py
++++ b/binding_test.py
+@@ -17,7 +17,7 @@
+ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ 
+diff --git a/business_logic_test.py b/business_logic_test.py
+index 5396e8e..ebaa4b3 100644
+--- a/business_logic_test.py
++++ b/business_logic_test.py
+@@ -22,8 +22,8 @@ from ucp_sdk.models.schemas.shopping import (
+ )
+ from ucp_sdk.models.schemas.shopping import discount as discount
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping import payment_update_request
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types import payment_update_request
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ from ucp_sdk.models.schemas.shopping.types import buyer_update_request
+diff --git a/card_credential_test.py b/card_credential_test.py
+index c9496e3..aa52745 100644
+--- a/card_credential_test.py
++++ b/card_credential_test.py
+@@ -17,7 +17,7 @@
+ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ 
+diff --git a/checkout_lifecycle_test.py b/checkout_lifecycle_test.py
+index 44bba18..b7cc0de 100644
+--- a/checkout_lifecycle_test.py
++++ b/checkout_lifecycle_test.py
+@@ -20,8 +20,8 @@ from ucp_sdk.models.schemas.shopping import (
+   checkout_update_request as checkout_update_req,
+ )
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping import payment_update_request
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types import payment_update_request
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ from ucp_sdk.models.schemas.shopping.types import buyer_update_request
+@@ -128,6 +128,7 @@ class CheckoutLifecycleTest(integration_test_utils.IntegrationTestBase):
+ 
+     new_destination = shipping_destination.ShippingDestination(
+       id="dest_2",
++      type="shipping_address",
+       address_country="US",
+       postal_code="90210",
+       locality="Beverly Hills",
+diff --git a/fulfillment_structure_test.py b/fulfillment_structure_test.py
+index c940ace..430ea44 100644
+--- a/fulfillment_structure_test.py
++++ b/fulfillment_structure_test.py
+@@ -46,7 +46,7 @@ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+ from ucp_sdk.models.schemas.shopping import checkout_create_request
+-from ucp_sdk.models.schemas.shopping import payment_create_request
++from ucp_sdk.models.schemas.common.types import payment_create_request
+ from ucp_sdk.models.schemas import payment_handler
+ from ucp_sdk.models.schemas.shopping.types import item_create_request
+ from ucp_sdk.models.schemas.shopping.types import line_item_create_request
+diff --git a/fulfillment_test.py b/fulfillment_test.py
+index 3a2e8fa..3d244d2 100644
+--- a/fulfillment_test.py
++++ b/fulfillment_test.py
+@@ -19,10 +19,10 @@ import uuid
+ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+-from ucp_sdk.models.schemas.shopping.types import postal_address
++from ucp_sdk.models.schemas.common.types import postal_address
+ 
+ # Rebuild models to resolve forward references
+ checkout.Checkout.model_rebuild(_types_namespace={"Payment": Payment})
+diff --git a/idempotency_test.py b/idempotency_test.py
+index a1b8fb3..efd0bed 100644
+--- a/idempotency_test.py
++++ b/idempotency_test.py
+@@ -19,7 +19,7 @@ import uuid
+ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ 
+diff --git a/integration_test_utils.py b/integration_test_utils.py
+index 0feb4f4..af7bcd2 100644
+--- a/integration_test_utils.py
++++ b/integration_test_utils.py
+@@ -32,8 +32,8 @@ from fastapi.responses import JSONResponse
+ import httpx
+ from ucp_sdk.models.schemas.shopping import checkout_create_request
+ from ucp_sdk.models.schemas.shopping import checkout as f_models
+-from ucp_sdk.models.schemas.shopping import payment_create_request
+-from ucp_sdk.models.schemas.shopping import payment_update_request
++from ucp_sdk.models.schemas.common.types import payment_create_request
++from ucp_sdk.models.schemas.common.types import payment_update_request
+ from ucp_sdk.models.schemas.shopping.checkout_update_request import (
+   CheckoutUpdateRequest,
+ )
+@@ -891,6 +891,7 @@ class IntegrationTestBase(absltest.TestCase):
+       dest_data = ctx.get_test_destination()
+       destination = shipping_destination.ShippingDestination(
+         id="dest_1",
++        type="shipping_address",
+         address_country=dest_data.get(
+           "address_country", dest_data.get("country", "US")
+         ),
+diff --git a/invalid_input_test.py b/invalid_input_test.py
+index 404e14d..a7fb2a0 100644
+--- a/invalid_input_test.py
++++ b/invalid_input_test.py
+@@ -20,7 +20,7 @@ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+ from ucp_sdk.models.schemas.shopping import order
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ 
+diff --git a/order_test.py b/order_test.py
+index 3ae9ece..5166a79 100644
+--- a/order_test.py
++++ b/order_test.py
+@@ -22,12 +22,12 @@ import integration_test_utils
+ from pydantic import AnyUrl
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+ from ucp_sdk.models.schemas.shopping import order
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ from ucp_sdk.models.schemas.shopping.types import adjustment
+ from ucp_sdk.models.schemas.shopping.types import fulfillment_event
+-from ucp_sdk.models.schemas.shopping.types import total
++from ucp_sdk.models.schemas.common.types import total
+ 
+ # Rebuild models to resolve forward references
+ checkout.Checkout.model_rebuild(_types_namespace={"Payment": Payment})
+diff --git a/protocol_test.py b/protocol_test.py
+index 87cbbfc..3a2f215 100644
+--- a/protocol_test.py
++++ b/protocol_test.py
+@@ -19,11 +19,11 @@ import integration_test_utils
+ import httpx
+ from pydantic import TypeAdapter, ValidationError
+ from ucp_sdk.models.schemas.ucp import BusinessSchema
+-from ucp_sdk.models.schemas.shopping.types.reverse_domain_name import (
++from ucp_sdk.models.schemas.common.types.reverse_domain_name import (
+   ReverseDomainName,
+ )
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ 
+diff --git a/pyproject.toml b/pyproject.toml
+index 1eca52d..d39c90f 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -11,7 +11,7 @@ dependencies = [
+     "absl-py>=1.0.0",
+     "httpx>=0.26.0",
+     "pydantic>=2.12.0",
+-    "ucp-sdk==0.4.4",
++    "ucp-sdk==0.5.0",
+     "fastapi>=0.109.0",
+     "uvicorn[standard]>=0.38.0",
+     "ruff>=0.14.11",
+diff --git a/totals_test.py b/totals_test.py
+index 74bab34..aae42cf 100644
+--- a/totals_test.py
++++ b/totals_test.py
+@@ -34,7 +34,7 @@ directly and do not presume a client uses the SDK's coercing model.
+ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping.payment import Payment
++from ucp_sdk.models.schemas.common.types.payment import Payment
+ 
+ # Rebuild models to resolve forward references (needed to parse a full
+ # checkout response before driving a discount update).
+diff --git a/validation_test.py b/validation_test.py
+index 07b061d..5894ab7 100644
+--- a/validation_test.py
++++ b/validation_test.py
+@@ -20,13 +20,13 @@ from ucp_sdk.models.schemas.shopping import (
+   checkout_update_request as checkout_update_req,
+ )
+ from ucp_sdk.models.schemas.shopping import checkout as checkout
+-from ucp_sdk.models.schemas.shopping import payment_update_request
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types import payment_update_request
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ from ucp_sdk.models.schemas.shopping.types import item_update_request
+ from ucp_sdk.models.schemas.shopping.types import line_item_update_request
+-from ucp_sdk.models.schemas.shopping.types.error_response import ErrorResponse
++from ucp_sdk.models.schemas.common.types.error_response import ErrorResponse
+ from pydantic import ValidationError
+ 
+ 
+diff --git a/webhook_test.py b/webhook_test.py
+index e3768b4..8722f64 100644
+--- a/webhook_test.py
++++ b/webhook_test.py
+@@ -20,7 +20,7 @@ from typing import Any
+ from absl.testing import absltest
+ import integration_test_utils
+ from ucp_sdk.models.schemas.shopping import checkout
+-from ucp_sdk.models.schemas.shopping.payment import (
++from ucp_sdk.models.schemas.common.types.payment import (
+   Payment,
+ )
+ 

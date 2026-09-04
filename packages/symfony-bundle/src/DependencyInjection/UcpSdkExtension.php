@@ -52,6 +52,7 @@ use Ucp\Sdk\Internal\Service\DefaultProtocolValidator;
 use Ucp\Sdk\Internal\Service\RepositoryProfileSigningKeyProvider;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
+use Ucp\Sdk\Internal\Validation\SchemaDirectoryLocator;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
@@ -127,7 +128,6 @@ final class UcpSdkExtension extends Extension
     {
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
-        $coreRoot = dirname((string) (new \ReflectionClass(GeneratedSchemaValidator::class))->getFileName(), 4);
 
         $container->registerForAutoconfiguration(CapabilityInterface::class)->addTag('ucp_sdk.capability');
         $container->registerForAutoconfiguration(PaymentHandlerInterface::class)->addTag('ucp_sdk.payment_handler');
@@ -323,7 +323,7 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(PaymentHandlerRegistryInterface::class, new Alias(PaymentHandlerRegistry::class, true));
 
         $container->setDefinition(GeneratedSchemaValidator::class, new Definition(GeneratedSchemaValidator::class, [
-            $coreRoot . '/resources/schema/generated/2026-04-08',
+            SchemaDirectoryLocator::generated($config['version']),
         ]));
         $container->setAlias(SchemaValidatorInterface::class, new Alias(GeneratedSchemaValidator::class, true));
         $container->setDefinition(DefaultProtocolValidator::class, new Definition(DefaultProtocolValidator::class, [

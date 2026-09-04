@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Ucp\Sdk\Model\Checkout\BuyerConsent;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
 final class HttpPayloadMapperTest extends TestCase
@@ -186,5 +187,64 @@ final class HttpPayloadMapperTest extends TestCase
         $this->expectExceptionMessage('JSON request body must be an object.');
 
         $mapper->decode($request);
+    }
+
+    #[Test]
+    public function itReadsConsentFromTheBuyerObjectWhereTheSchemaPutsIt(): void
+    {
+        // Every published schema locates consent at buyer.consent. This mapper used to read a
+        // top-level buyer_consent key that no schema defines, so a conformant request arrived
+        // with its consent silently discarded.
+        $request = (new HttpPayloadMapper())->toCheckoutCreateRequest([
+            'line_items' => [],
+            'buyer' => [
+                'email' => 'buyer@example.com',
+                'consent' => [
+                    BuyerConsent::PURPOSE_MARKETING => [
+                        'granted' => true,
+                        'source' => 'business',
+                        'description' => 'Promotional email',
+                    ],
+                ],
+            ],
+        ]);
+
+        self::assertNotNull($request->consent);
+        self::assertTrue($request->consent->granted(BuyerConsent::PURPOSE_MARKETING));
+    }
+
+    #[Test]
+    public function itStillAcceptsTheTopLevelBuyerConsentKeyForOneRelease(): void
+    {
+        // Not conformant, but this SDK advertised it in its own MCP tool schemas, so adopters
+        // may be sending it. Removed at the 2026-08-25 flip.
+        $request = (new HttpPayloadMapper())->toCheckoutUpdateRequest('checkout_1', [
+            'buyer_consent' => ['marketing' => true],
+        ]);
+
+        self::assertNotNull($request->consent);
+        self::assertTrue($request->consent->granted(BuyerConsent::PURPOSE_MARKETING));
+    }
+
+    #[Test]
+    public function theBuyerObjectWinsOverTheLegacyTopLevelKey(): void
+    {
+        $request = (new HttpPayloadMapper())->toCheckoutCreateRequest([
+            'buyer' => ['consent' => ['marketing' => false]],
+            'buyer_consent' => ['marketing' => true],
+        ]);
+
+        self::assertNotNull($request->consent);
+        self::assertFalse($request->consent->granted(BuyerConsent::PURPOSE_MARKETING));
+    }
+
+    #[Test]
+    public function aRequestWithoutConsentCarriesNone(): void
+    {
+        $request = (new HttpPayloadMapper())->toCheckoutCreateRequest([
+            'buyer' => ['email' => 'buyer@example.com'],
+        ]);
+
+        self::assertNull($request->consent);
     }
 }

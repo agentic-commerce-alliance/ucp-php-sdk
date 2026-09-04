@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BootstrapSymfonyApp\Demo;
 
 use Ucp\Sdk\Contract\ProfileContributorInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
@@ -16,7 +17,7 @@ final class DemoProfileContributor implements ProfileContributorInterface
         $capabilities = $profile->capabilities;
         $capabilities['dev.ucp.shopping.checkout'][0] = new CapabilityDescriptor(
             'dev.ucp.shopping.checkout',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/checkout/',
             'https://ucp.dev/schemas/shopping/checkout.json',
             null,

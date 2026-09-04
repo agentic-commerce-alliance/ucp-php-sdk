@@ -35,7 +35,7 @@ consume the SDK.
   - `ucp-php-sdk/symfony-bundle`
 - The shared SDK is shop-agnostic. Do not add Shopware classes or Shopware-only concepts to `packages/core` or `packages/symfony-bundle`.
 - The example apps are plain Symfony apps. Do not add Shopware code there.
-- Protocol target is UCP `2026-04-08`.
+- Protocol target is UCP `2026-08-25`.
 - Scope now targets full UCP parity at the shared SDK layer: REST, A2A runtime, embedded transport hooks/controllers, and MCP profile metadata are shared SDK concerns when they stay shop-agnostic.
 - Doctrine DBAL is only the default Symfony storage adapter for SDK state. It is not the platform model for Shopware.
 - Platform-specific work belongs in its own integration package. Shopware-specific work should be DAL-first there.
@@ -169,7 +169,7 @@ final readonly class RequestRuntimeConfigurationResolver implements RuntimeConfi
         $host = parse_url($request->absoluteUri, PHP_URL_HOST) ?: '';
 
         return new RuntimeConfiguration(
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://' . $host,
             SignaturePolicy::Strict,
             true,
@@ -194,7 +194,7 @@ Example service wiring for adapter-backed capabilities:
 ```php
 $services->set(PlatformCatalogAdapter::class);
 $services->set(AdapterBackedCatalogCapability::class)
-    ->args([new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', '...', '...'), service(PlatformCatalogAdapter::class)])
+    ->args([new CapabilityDescriptor('dev.ucp.shopping.catalog', UcpProtocolVersion::current()->value, '...', '...'), service(PlatformCatalogAdapter::class)])
     ->tag('ucp_sdk.capability');
 ```
 

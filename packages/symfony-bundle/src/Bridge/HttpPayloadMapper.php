@@ -21,6 +21,8 @@ use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Signals;
+use Ucp\Sdk\Model\Common\Unit;
+use Ucp\Sdk\Model\Common\UnitPrice;
 use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
 use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
 
@@ -120,7 +122,7 @@ final class HttpPayloadMapper
             $this->toSignals($payload['signals'] ?? null),
             $this->toDiscounts($payload['discounts']['codes'] ?? []),
             $this->toFulfillment($payload['fulfillment'] ?? null),
-            $this->toConsent($payload['buyer_consent'] ?? null),
+            $this->toConsent($payload),
             $this->nullableString($payload['cart_id'] ?? null),
             $this->toSelectedPaymentInstrument($payload['payment'] ?? null),
         );
@@ -137,7 +139,7 @@ final class HttpPayloadMapper
             $this->toBuyer($payload['buyer'] ?? null),
             $this->toDiscounts($payload['discounts']['codes'] ?? []),
             $this->toFulfillment($payload['fulfillment'] ?? null),
-            $this->toConsent($payload['buyer_consent'] ?? null),
+            $this->toConsent($payload),
             $this->toSelectedPaymentInstrument($payload['payment'] ?? null),
         );
     }
@@ -322,6 +324,8 @@ final class HttpPayloadMapper
                 (float) ($item['price'] ?? 0.0),
                 (int) ($row['quantity'] ?? 1),
                 $item['image_url'] ?? null,
+                quantityUnit: is_array($item['quantity_unit'] ?? null) ? Unit::fromArray($item['quantity_unit']) : null,
+                unitPrice: is_array($item['unit_price'] ?? null) ? UnitPrice::fromArray($item['unit_price']) : null,
             );
         }
 
@@ -366,12 +370,28 @@ final class HttpPayloadMapper
      * @param mixed $payload
      * @return list<DiscountCode>
      */
+    /**
+     * `discounts.codes` is a list of strings, and always has been.
+     *
+     * This read a list of objects with a `code` member -- a shape no published schema defines
+     * -- so discount codes sent by a conformant peer were dropped and the checkout was priced
+     * as though none had been supplied. The object form is still accepted for one release
+     * because this SDK invented it and adopters may be sending it.
+     *
+     * @return list<DiscountCode>
+     */
     private function toDiscounts(mixed $payload): array
     {
         $discounts = [];
         foreach (is_array($payload) ? $payload : [] as $row) {
-            if (is_array($row) && isset($row['code'])) {
-                $discounts[] = new DiscountCode((string) $row['code']);
+            if (is_string($row) && trim($row) !== '') {
+                $discounts[] = new DiscountCode($row);
+
+                continue;
+            }
+
+            if (is_array($row) && is_string($row['code'] ?? null) && trim($row['code']) !== '') {
+                $discounts[] = new DiscountCode($row['code']);
             }
         }
 
@@ -396,14 +416,27 @@ final class HttpPayloadMapper
     }
 
     /**
-     * @param mixed $payload
+     * Consent lives at `buyer.consent`, which is where every published schema has put it.
+     *
+     * The top-level `buyer_consent` fallback is this SDK's own invention -- it was advertised in
+     * the MCP tool schemas and read here, so adopters may be sending it. It is honoured for one
+     * release and then removed; a conformant peer never sends it.
+     *
+     * @param array<string, mixed> $payload
      */
-    private function toConsent(mixed $payload): ?BuyerConsent
+    private function toConsent(array $payload): ?BuyerConsent
     {
-        if (! is_array($payload)) {
+        $buyer = $payload['buyer'] ?? null;
+        $consent = is_array($buyer) ? $buyer['consent'] ?? null : null;
+
+        if (! is_array($consent)) {
+            $consent = $payload['buyer_consent'] ?? null;
+        }
+
+        if (! is_array($consent)) {
             return null;
         }
 
-        return new BuyerConsent((bool) ($payload['granted'] ?? false), $payload['timestamp'] ?? null);
+        return BuyerConsent::fromArray($consent);
     }
 }

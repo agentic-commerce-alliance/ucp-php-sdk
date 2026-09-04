@@ -7,7 +7,7 @@ namespace MerchantSymfonyApp\Support;
 final class JsonStateStore
 {
     public function __construct(
-        private readonly string $projectDir,
+        private readonly string $stateDir,
     ) {
     }
 
@@ -120,6 +120,6 @@ final class JsonStateStore
 
     private function path(string $collection): string
     {
-        return $this->projectDir . '/var/state/' . $collection . '.json';
+        return $this->stateDir . '/state/' . $collection . '.json';
     }
 }

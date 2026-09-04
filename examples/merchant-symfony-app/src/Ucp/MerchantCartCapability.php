@@ -9,6 +9,7 @@ use MerchantSymfonyApp\Support\MerchantSettings;
 use MerchantSymfonyApp\Support\PriceCalculator;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\CartCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
@@ -32,7 +33,7 @@ final class MerchantCartCapability implements CartCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.cart',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/cart.json',
             null,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BootstrapSymfonyApp\Demo;
 
 use Ucp\Sdk\Contract\CartCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
@@ -24,7 +25,7 @@ final class DemoCartCapability implements CartCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.cart',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/cart.json',
         );

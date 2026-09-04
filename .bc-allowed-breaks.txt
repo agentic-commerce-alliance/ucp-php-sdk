@@ -35,6 +35,19 @@
 #      stale for the other.
 #
 # Adding an enum case is a break, and Roave is right about it: an exhaustive `match` over
+# UcpProtocolVersion in consumer code stops being exhaustive and throws UnhandledMatchError.
+# The alternative is not adding the version, so this is the break the release is. See
+# CHANGELOG.md, "Changed (breaking)" under Unreleased: the active protocol version.
+[BC] ADDED: Case Ucp\Sdk\Enum\UcpProtocolVersion::V20260825 was added
+
+# BuyerConsent is keyed by reverse-DNS purpose. The two removed properties never existed
+# on the wire at any published version -- 2026-04-08 defines buyer.consent as four
+# booleans -- so nothing conformant read them. See CHANGELOG.md, "Changed (breaking)"
+# under Unreleased: buyer consent purposes.
+[BC] REMOVED: Property Ucp\Sdk\Model\Checkout\BuyerConsent#$granted was removed
+[BC] REMOVED: Property Ucp\Sdk\Model\Checkout\BuyerConsent#$timestamp was removed
+[BC] CHANGED: The parameter $granted of Ucp\Sdk\Model\Checkout\BuyerConsent#__construct() changed from bool to a non-contravariant array
+
 # SignatureAlgorithm in consumer code stops being exhaustive and throws UnhandledMatchError.
 # Ed25519 is what the spec recommends and what web-bot-auth builds on, so the alternative is not
 # supporting it. See CHANGELOG.md, "Added" under Unreleased: Ed25519 signing keys.

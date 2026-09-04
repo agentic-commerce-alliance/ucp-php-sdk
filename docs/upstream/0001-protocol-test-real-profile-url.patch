@@ -1,0 +1,23 @@
+diff --git a/protocol_test.py b/protocol_test.py
+index 42769f1..87cbbfc 100644
+--- a/protocol_test.py
++++ b/protocol_test.py
+@@ -317,7 +317,8 @@ class ProtocolTest(integration_test_utils.IntegrationTestBase):
+       advertised_version, "Discovery profile must advertise a UCP version"
+     )
+     headers = integration_test_utils.get_headers()
+-    headers["UCP-Agent"] = f'profile="..."; version="{advertised_version}"'
++    agent = headers["UCP-Agent"]
++    headers["UCP-Agent"] = f'{agent}; version="{advertised_version}"'
+     response = self.client.post(
+       checkout_sessions_url,
+       json=create_payload.model_dump(
+@@ -328,7 +329,7 @@ class ProtocolTest(integration_test_utils.IntegrationTestBase):
+     self.assert_response_status(response, [200, 201])
+ 
+     # 2. Incompatible Version
+-    headers["UCP-Agent"] = 'profile="..."; version="2099-01-01"'
++    headers["UCP-Agent"] = f'{agent}; version="2099-01-01"'
+     response = self.client.post(
+       checkout_sessions_url,
+       json=create_payload.model_dump(
