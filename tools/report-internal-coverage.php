@@ -40,7 +40,11 @@ $groups = [
     ],
     'symfony_runtime' => [
         'label' => 'packages/symfony-bundle/src runtime',
-        'target' => 75.0,
+        // Raised from 75% once every controller reached 100%. The old bar was set when
+        // six controllers had no dedicated tests, and 75% against an actual 94% stopped
+        // being a gate a long time ago -- a whole controller could have been deleted from
+        // the suite without it noticing.
+        'target' => 90.0,
         'include' => ['packages/symfony-bundle/src/'],
         'exclude' => [
             'packages/symfony-bundle/src/DependencyInjection/',
