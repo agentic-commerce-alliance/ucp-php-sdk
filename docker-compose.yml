@@ -44,6 +44,10 @@ services:
       APP_DEBUG: '0'
       UCP_MERCHANT_BASE_URI: http://127.0.0.1:8081
       UCP_MERCHANT_STATE_DIR: /tmp/ucp-conformance-state
+      # The suite serves its mock agent profile over plain http on loopback and cannot serve
+      # https, while the SDK refuses plain-http profile fetching outside this mode. Set here
+      # rather than inherited from APP_ENV=dev so this one relaxation is the only one in play.
+      UCP_PROFILE_FETCHING_DEV_MODE: '1'
       SIMULATION_SECRET: ${SIMULATION_SECRET:-ucp-conformance-simulation-secret}
     # The trailing index.php is the router script. Without it PHP's built-in server answers 404
     # for every UCP path before the application is reached, because it only falls back to a
@@ -66,6 +70,49 @@ services:
   # Shares the merchant's network namespace on purpose. The suite runs its mock agent-profile
   # and webhook servers on localhost and hardcodes `http://localhost:<port>` into the UCP-Agent
   # header it sends, so the merchant has to resolve the same localhost the suite does.
+  # The same merchant with signatures enforced. Its own service rather than a flag on the one
+  # above, because the two runs answer different questions and the default suite cannot pass
+  # against strict: it sends `request-signature: test` and has nowhere to put a real key.
+  merchant-strict:
+    <<: *php-base
+    environment:
+      <<: *php-environment
+      APP_ENV: prod
+      APP_DEBUG: '0'
+      UCP_MERCHANT_BASE_URI: http://127.0.0.1:8091
+      UCP_MERCHANT_STATE_DIR: /tmp/ucp-strict-state
+      UCP_PROFILE_FETCHING_DEV_MODE: '1'
+      UCP_SIGNATURE_POLICY: strict
+    command:
+      - sh
+      - -c
+      - >-
+        rm -rf /tmp/ucp-strict-state examples/merchant-symfony-app/var/cache &&
+        mkdir -p /tmp/ucp-strict-state &&
+        php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate &&
+        php -S 127.0.0.1:8091 -t examples/merchant-symfony-app/public
+        examples/merchant-symfony-app/public/index.php
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8091/.well-known/ucp') === false ? 1 : 0);"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  strict-signature:
+    image: python:3.12
+    network_mode: "service:merchant-strict"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      SERVER_URL: http://127.0.0.1:8091
+      UCP_STRICT_SKIP_SERVER: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    depends_on:
+      merchant-strict:
+        condition: service_healthy
+    command: ["bash", "scripts/run-strict-signature-pass.sh"]
+
   conformance:
     image: python:3.12
     network_mode: "service:merchant"

@@ -101,10 +101,20 @@ if [ -z "${UCP_CONFORMANCE_SKIP_SERVER:-}" ]; then
     rm -rf "${state_dir}" "${repo}/examples/merchant-symfony-app/var/cache"
     mkdir -p "${state_dir}"
 
-    # prod on purpose: dev enables development-mode profile fetching, and an affordance that
-    # relaxes what the SDK accepts is exactly what would make a conformance run pass for the
-    # wrong reason. The trailing index.php is the router script and is not optional -- without
-    # it the built-in server 404s every UCP path before the application is reached.
+    # prod on purpose, with exactly one affordance turned on explicitly.
+    #
+    # The suite serves its mock agent profile at `http://localhost:<port>` and cannot serve
+    # https, while the SDK refuses plain-http profile fetching outside development mode --
+    # correctly, since a profile carries the keys that verify every request from that
+    # platform. So the run cannot proceed without UCP_PROFILE_FETCHING_DEV_MODE, and it is
+    # set here rather than inherited from APP_ENV=dev so that this one relaxation is the only
+    # one in play and is visible in the command that needs it.
+    #
+    # This used to be acquired by accident: index.php read APP_ENV from $_SERVER and $_ENV
+    # only, and under `php -S` an exported variable reaches neither, so `APP_ENV=prod`
+    # resolved to `dev` and the whole run got the dev container. The trailing index.php is
+    # the router script and is not optional -- without it the built-in server 404s every UCP
+    # path before the application is reached.
     # A merchant with no signing key cannot sign a webhook, and the dispatcher refuses to send
     # one unsigned -- so without this the order events simply never leave, and the suite reports
     # it as the business failing to announce the order. The state directory is wiped per run, so
@@ -112,11 +122,13 @@ if [ -z "${UCP_CONFORMANCE_SKIP_SERVER:-}" ]; then
     APP_ENV=prod APP_DEBUG=0 \
         UCP_MERCHANT_BASE_URI="${server_url}" \
         UCP_MERCHANT_STATE_DIR="${state_dir}" \
+        UCP_PROFILE_FETCHING_DEV_MODE=1 \
         php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate >> "${server_log}" 2>&1
 
     APP_ENV=prod APP_DEBUG=0 \
         UCP_MERCHANT_BASE_URI="${server_url}" \
         UCP_MERCHANT_STATE_DIR="${state_dir}" \
+        UCP_PROFILE_FETCHING_DEV_MODE=1 \
         SIMULATION_SECRET="${SIMULATION_SECRET}" \
         php -S "${server_url#http://}" \
             -t examples/merchant-symfony-app/public \

@@ -32,6 +32,26 @@ lands in `var/reports/conformance/` and is uploaded as an artifact.
 
 Requires Python 3.10+ on the host, or the `conformance` compose service.
 
+## The environment the lane runs in
+
+`prod`, with exactly one affordance turned on explicitly: `UCP_PROFILE_FETCHING_DEV_MODE=1`.
+
+The suite serves its mock agent profile at `http://localhost:<port>` and cannot serve https,
+while the SDK refuses plain-http profile fetching outside development mode -- correctly, since
+a profile carries the keys used to verify every request from that platform. So a run against a
+localhost mock cannot proceed without that mode, and it is set in the command that needs it
+rather than inherited from `APP_ENV=dev`, so the one relaxation in play is visible and nothing
+else about the dev container comes with it.
+
+This used to be acquired by accident. `index.php` read `APP_ENV` from `$_SERVER` and `$_ENV`
+only, and under PHP's built-in server an exported variable reaches neither, so `APP_ENV=prod`
+silently resolved to `dev` and the whole run got the dev container -- which the runner's own
+comment said must not happen. Every number reported from the lane before that was fixed was
+measured in dev. In genuine prod with no affordances the lane scores **1 passed / 63 failed**,
+because profile fetching is refused; with the single declared relaxation it scores the same
+**58 passed / 6 failed** as before, which is also the evidence that dev mode was buying nothing
+beyond the profile fetch.
+
 ## Two constraints worth knowing
 
 **The suite and the merchant must share a localhost.** The suite runs a mock agent-profile
@@ -185,6 +205,44 @@ remaining failures are spread across modules as missing response fields rather t
 on one refusal — most of what is left is ours, and now visible.
 
 Written up with patches in [upstream/](upstream/), including which are filed and which are not.
+
+## The strict-signature pass
+
+`sh scripts/run-strict-signature-pass.sh`, and `docker compose run --rm strict-signature` in
+CI, where it is **blocking**.
+
+The default run uses `signature_policy: log`, which means it exercises **zero** signature
+verification code. That is the same blind spot that let this SDK emit DER signatures no
+conformant peer could verify while every gate in the repository was green, so a conformance
+lane that never turns signatures on is missing the thing it was built for.
+
+The upstream suite cannot cover it. It sends `request-signature: test`, and
+`conformance_input.json` has no slot for a signing key -- its fields are `ucp_version`,
+`required_capabilities`, `currency`, `items`, `out_of_stock_item` and `non_existent_item` --
+so a strict run of the suite would refuse all 77 tests and prove only that strict refuses
+everything. Adding that slot is an upstream change and is filed as such; until it lands, this
+pass covers the policy.
+
+Four checks, in `tests/conformance/strict_signature_pass.py`:
+
+| Check | Why it is there |
+| --- | --- |
+| An unsigned request is refused with a UCP error descriptor | An agent that cannot parse the refusal cannot tell a signature problem from an outage, and retrying an unsigned request forever is what that produces |
+| A correctly signed request is accepted | Otherwise strict mode is indistinguishable from an outage |
+| A request whose covered components omit `content-digest` while carrying a body is refused | Dropping it from the covered set would otherwise be a body-swap primitive: the signature still verifies over method and target and nothing has attested to the bytes |
+| A tampered signature is refused | So the acceptance above cannot be passing for any reason other than the signature actually being checked |
+
+**The client signs, not the SDK.** It generates its own P-256 key, publishes the public half
+as a JWK Set at a profile URL the merchant fetches, and assembles the RFC 9421 signature base
+by hand. Driving the SDK's signer against the SDK's verifier would reproduce exactly the closed
+loop this lane exists to break -- the two would agree about a base nobody else computes the
+same way.
+
+What it does not claim: two implementations agreeing is weaker than a published test vector,
+and this one was written against the same RFC by the same hand as the code under test, so a
+shared misreading would go unnoticed. The primitives are pinned separately against external
+RFC 9421 fixtures. What this adds is that the *wiring* holds end to end over real HTTP --
+routing, request listener, profile fetch and verifier, in the order a real request meets them.
 
 ## Promoting a module to blocking
 
