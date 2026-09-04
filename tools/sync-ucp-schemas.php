@@ -2,16 +2,59 @@
 
 declare(strict_types=1);
 
+const USAGE = <<<'TXT'
+Usage:
+  php tools/sync-ucp-schemas.php <version> <path-to-ucp-source>   sync from an upstream checkout
+  php tools/sync-ucp-schemas.php --verify <version>               regenerate from the pinned copy and diff
+
+The version is required. It used to default to a hardcoded one, which meant omitting it
+regenerated a version the operator had not asked for.
+TXT;
+
 /**
  * @param list<string> $argv
  */
 function main(array $argv): void
 {
-    $version = $argv[1] ?? '2026-04-08';
-    $source = $argv[2] ?? getenv('UCP_SOURCE_DIR') ?: null;
+    $arguments = [];
+    $verify = false;
+    foreach (array_slice($argv, 1) as $argument) {
+        if ($argument === '--verify') {
+            $verify = true;
 
+            continue;
+        }
+
+        if (str_starts_with($argument, '--')) {
+            fail(sprintf("Unknown option \"%s\".\n\n%s", $argument, USAGE));
+        }
+
+        $arguments[] = $argument;
+    }
+
+    $repoRoot = dirname(__DIR__);
+    $schemaBase = $repoRoot . '/packages/core/resources/schema';
+    $version = $arguments[0] ?? '';
+
+    // --verify with no version checks every pinned version. Naming one in composer.json would
+    // put the protocol version back in a place that has to be remembered on a bump; discovering
+    // them means a newly pinned version is covered the moment it lands.
+    if ($verify) {
+        foreach ($version === '' ? generatedVersions($schemaBase) : [$version] as $target) {
+            assertVersionShape($target);
+            verify($target, $schemaBase . '/pinned/' . $target, $schemaBase . '/generated/' . $target);
+        }
+
+        return;
+    }
+
+    assertVersionShape($version);
+    $pinnedRoot = $schemaBase . '/pinned/' . $version;
+    $generatedRoot = $schemaBase . '/generated/' . $version;
+
+    $source = $arguments[1] ?? (getenv('UCP_SOURCE_DIR') ?: null);
     if (! is_string($source) || $source === '') {
-        fail('Usage: php tools/sync-ucp-schemas.php <version> <path-to-ucp-source>');
+        fail(USAGE);
     }
 
     $source = rtrim($source, '/');
@@ -20,24 +63,170 @@ function main(array $argv): void
         fail(sprintf('UCP schema source directory "%s" does not exist.', $schemaRoot));
     }
 
-    $repoRoot = dirname(__DIR__);
-    $pinnedRoot = $repoRoot . '/packages/core/resources/schema/pinned/' . $version;
-    $generatedRoot = $repoRoot . '/packages/core/resources/schema/generated/' . $version;
-
     mirrorDirectory($schemaRoot, $pinnedRoot . '/schemas');
     mirrorDirectory($source . '/source/discovery', $pinnedRoot . '/discovery');
     mirrorDirectory($source . '/source/services', $pinnedRoot . '/services');
     mirrorDirectory($source . '/source/handlers', $pinnedRoot . '/handlers');
     resetDirectory($generatedRoot);
 
+    [$documents, $placeholders] = generateAll($schemaRoot);
+    foreach ($documents as $filename => $json) {
+        if (file_put_contents($generatedRoot . '/' . $filename . '.json', $json) === false) {
+            fail(sprintf('Unable to write "%s".', $generatedRoot . '/' . $filename . '.json'));
+        }
+    }
+
+    assertPlaceholderBudget($repoRoot, $version, $placeholders);
+    printf("Synced %d generated schemas for %s.\n", count($documents), $version);
+}
+
+function assertVersionShape(string $version): void
+{
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $version) !== 1) {
+        fail(sprintf("Expected a version in YYYY-MM-DD form, got \"%s\".\n\n%s", $version, USAGE));
+    }
+}
+
+/**
+ * @return list<string>
+ */
+function generatedVersions(string $schemaBase): array
+{
+    $versions = [];
+    foreach ((array) glob($schemaBase . '/generated/*', GLOB_ONLYDIR) as $directory) {
+        $versions[] = basename((string) $directory);
+    }
+
+    if ($versions === []) {
+        fail(sprintf('No generated schema sets found under "%s".', $schemaBase . '/generated'));
+    }
+
+    sort($versions);
+
+    return $versions;
+}
+
+/**
+ * Regenerates from the pinned copy and diffs against what is committed.
+ *
+ * The pinned tree *is* the upstream `source/` tree, so the generated set is reproducible from
+ * it with no network access -- which is what lets this run inside `composer qa`. It catches two
+ * things nothing else did: a generated file edited by hand, and an upstream retag that changed
+ * the pinned inputs without changing their paths.
+ */
+function verify(string $version, string $pinnedRoot, string $generatedRoot): void
+{
+    $schemaRoot = $pinnedRoot . '/schemas';
+    foreach ([$schemaRoot, $generatedRoot] as $required) {
+        if (! is_dir($required)) {
+            fail(sprintf('Cannot verify %s: "%s" does not exist.', $version, $required));
+        }
+    }
+
+    [$documents, $placeholders] = generateAll($schemaRoot);
+
+    $committed = [];
+    foreach ((array) glob($generatedRoot . '/*.json') as $file) {
+        $committed[basename((string) $file, '.json')] = (string) file_get_contents((string) $file);
+    }
+
+    $problems = [];
+    foreach ($documents as $filename => $json) {
+        if (! array_key_exists($filename, $committed)) {
+            $problems[] = sprintf('%s.json is missing from %s', $filename, $generatedRoot);
+
+            continue;
+        }
+
+        if ($committed[$filename] !== $json) {
+            $problems[] = sprintf('%s.json differs from what the generator produces', $filename);
+        }
+    }
+
+    foreach (array_diff(array_keys($committed), array_keys($documents)) as $orphan) {
+        $problems[] = sprintf('%s.json is committed but no operation produces it', $orphan);
+    }
+
+    if ($problems !== []) {
+        fail(sprintf(
+            "Generated schemas for %s are not reproducible from the pinned copy:\n- %s\n\n"
+            . 'Re-run the sync against the pinned tag rather than editing generated files by hand.',
+            $version,
+            implode("\n- ", $problems),
+        ));
+    }
+
+    assertPlaceholderBudget(dirname(__DIR__), $version, $placeholders);
+    printf("Generated schemas for %s are reproducible from the pinned copy (%d files).\n", $version, count($documents));
+}
+
+/**
+ * @return array{0: array<string, string>, 1: list<string>}
+ */
+function generateAll(string $schemaRoot): array
+{
     $generator = new SchemaGenerator($schemaRoot);
+    $documents = [];
     foreach (operationSchemas($schemaRoot) as $filename => $schema) {
         $generated = $generator->generate($schema);
         if ($filename === 'checkout.create.request') {
             $generated = allowCartIdInsteadOfLineItems($generated);
         }
 
-        writeJson($generatedRoot . '/' . $filename . '.json', $generated);
+        $documents[$filename] = encodeJson($generated);
+    }
+
+    return [$documents, $generator->cyclePlaceholders()];
+}
+
+/**
+ * Fails when flattening cut more recursive $refs than the recorded budget allows.
+ *
+ * Every placeholder is a subtree that validates as any type, so the count is a direct measure
+ * of how much of the contract is unenforced. Without a recorded number, a restructured upstream
+ * tree can double it and nothing says so.
+ *
+ * @param list<string> $placeholders
+ */
+function assertPlaceholderBudget(string $repoRoot, string $version, array $placeholders): void
+{
+    $file = $repoRoot . '/tools/sync-cycle-placeholder-budget.json';
+    $budgets = is_file($file)
+        ? json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR)
+        : [];
+    if (! is_array($budgets)) {
+        fail(sprintf('"%s" must contain a JSON object of version => budget.', $file));
+    }
+
+    $count = count($placeholders);
+    if (! array_key_exists($version, $budgets)) {
+        fail(sprintf(
+            "No cycle-placeholder budget recorded for %s. Flattening cut %d recursive \$ref(s):\n- %s\n\n"
+            . 'Record it as {"%s": %d} in %s once you have looked at the list.',
+            $version,
+            $count,
+            implode("\n- ", $placeholders) ?: '(none)',
+            $version,
+            $count,
+            $file,
+        ));
+    }
+
+    $budget = $budgets[$version];
+    if (! is_int($budget)) {
+        fail(sprintf('Budget for %s in "%s" must be an integer.', $version, $file));
+    }
+
+    if ($count > $budget) {
+        fail(sprintf(
+            "Flattening cut %d recursive \$ref(s) for %s, above the recorded budget of %d:\n- %s\n\n"
+            . 'Each one is a subtree that validates as any type. Either flatten them or raise the '
+            . 'budget deliberately, with a note saying what stopped being validated.',
+            $count,
+            $version,
+            $budget,
+            implode("\n- ", $placeholders),
+        ));
     }
 }
 
@@ -189,9 +378,20 @@ final class SchemaGenerator
     /** @var array<string, true> */
     private array $resolving = [];
 
+    /** @var list<string> */
+    private array $cyclePlaceholders = [];
+
     public function __construct(
         private readonly string $schemaRoot,
     ) {
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function cyclePlaceholders(): array
+    {
+        return array_values(array_unique($this->cyclePlaceholders));
     }
 
     /**
@@ -488,6 +688,13 @@ final class SchemaGenerator
         [$referenceFile, $pointer] = $this->resolveReference($reference, $file);
         $key = $referenceFile . '#' . $pointer;
         if (isset($this->resolving[$key])) {
+            // A recursive $ref cannot be flattened, so the cycle is cut with a schema that
+            // accepts every type -- i.e. that subtree stops being validated at all. That is a
+            // deliberate trade, but it is silent, and the 2026-08-25 type graph is markedly more
+            // recursive (location, geo, policy, constraint_expression, payment_schedule). Counting
+            // them turns "validation quietly got looser" into a number a gate can compare.
+            $this->cyclePlaceholders[] = $key;
+
             return [
                 'type' => ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'],
             ];
@@ -606,9 +813,18 @@ final class SchemaGenerator
     }
 }
 
-function mirrorDirectory(string $source, string $target): void
+function mirrorDirectory(string $source, string $target, bool $required = true): void
 {
     if (! is_dir($source)) {
+        if ($required) {
+            fail(sprintf(
+                'Expected upstream directory "%s" does not exist. If the spec moved or removed it, '
+                . 'update the mirror list in main() rather than letting the previous version\'s pinned '
+                . 'copy survive untouched.',
+                $source,
+            ));
+        }
+
         return;
     }
 
@@ -657,12 +873,21 @@ function resetDirectory(string $directory): void
 }
 
 /**
+ * The one encoder, so --verify compares bytes against the same formatting the sync wrote.
+ *
+ * @param array<string, mixed> $payload
+ */
+function encodeJson(array $payload): string
+{
+    return json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+}
+
+/**
  * @param array<string, mixed> $payload
  */
 function writeJson(string $file, array $payload): void
 {
-    $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
-    if (file_put_contents($file, $json) === false) {
+    if (file_put_contents($file, encodeJson($payload)) === false) {
         fail(sprintf('Unable to write "%s".', $file));
     }
 }

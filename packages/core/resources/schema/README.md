@@ -46,6 +46,24 @@ git clone --depth 1 --branch v2026-04-08 https://github.com/Universal-Commerce-P
 docker compose run --rm php bash scripts/sync-ucp-schemas.sh 2026-04-08 var/ucp-v2026-04-08
 ```
 
+The version argument is required. It used to default, which meant omitting it regenerated
+a version nobody had asked for.
+
+## Verifying the generated set
+
+`pinned/<version>` is the upstream `source/` tree, so `generated/<version>` is reproducible
+from it with no network access:
+
+```bash
+docker compose run --rm php composer sync:verify
+```
+
+This runs as part of `composer qa` and covers every pinned version it finds. It fails when a
+generated file was edited by hand, when an operation's output is missing or orphaned, and when
+flattening cuts more recursive `$ref`s than `tools/sync-cycle-placeholder-budget.json` records
+-- each of those cuts is a subtree that stops being validated, so the count is a gate rather
+than a note.
+
 The sync command:
 
 1. copies upstream `source/discovery`, `source/schemas`, `source/services`, and

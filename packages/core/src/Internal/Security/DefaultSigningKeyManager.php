@@ -13,6 +13,11 @@ use Ucp\Sdk\Service\SigningKeyManagerInterface;
 /** @internal */
 final class DefaultSigningKeyManager implements SigningKeyManagerInterface
 {
+    public function __construct(
+        private readonly Ed25519KeyCodec $ed25519Codec = new Ed25519KeyCodec(),
+    ) {
+    }
+
     public function generate(string $kid, string $algorithm = 'ES256'): ManagedSigningKey
     {
         // Was `$algorithm === 'ES384' ? ... : ...`, so anything unrecognised silently produced a
@@ -20,10 +25,19 @@ final class DefaultSigningKeyManager implements SigningKeyManagerInterface
         // key that then failed at signing time, or worse published a JWK whose `alg` and `crv`
         // disagreed. Resolving through the enum rejects it here instead.
         $resolved = SignatureAlgorithm::fromIdentifier($algorithm);
+
+        // Ed25519 is not an openssl key type here: PHP does not define OPENSSL_KEYTYPE_ED25519,
+        // so the extension cannot generate one at all. libsodium can, and the codec puts the
+        // result into the PEM this SDK stores -- which openssl then reads back happily.
+        if ($resolved === SignatureAlgorithm::Ed25519) {
+            return $this->generateEd25519($kid, $resolved);
+        }
+
         $curve = $resolved->curve();
         $curveName = match ($resolved) {
             SignatureAlgorithm::Es256 => 'prime256v1',
-            SignatureAlgorithm::Es384 => 'secp384r1',
+            // Ed25519 returned above; openssl cannot generate it at all.
+            default => 'secp384r1',
         };
         $resource = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,
@@ -54,8 +68,40 @@ final class DefaultSigningKeyManager implements SigningKeyManagerInterface
         );
     }
 
+    private function generateEd25519(string $kid, SignatureAlgorithm $algorithm): ManagedSigningKey
+    {
+        $pair = sodium_crypto_sign_keypair();
+
+        return new ManagedSigningKey(
+            $kid,
+            $this->ed25519Codec->publicKeyToPem(sodium_crypto_sign_publickey($pair)),
+            $this->ed25519Codec->secretKeyToPem(sodium_crypto_sign_secretkey($pair)),
+            $algorithm->value,
+            $algorithm->keyType(),
+            'sig',
+            'active',
+            $algorithm->curve(),
+            gmdate('c'),
+        );
+    }
+
     public function toPublicKey(ManagedSigningKey $key): PublicSigningKey
     {
+        // OKP keys carry the public key whole in `x` and have no `y` at all (RFC 8037), so the
+        // EC coordinate path below would produce a JWK missing the only member that matters.
+        if (SignatureAlgorithm::tryFromIdentifier($key->algorithm) === SignatureAlgorithm::Ed25519) {
+            return new PublicSigningKey(
+                $key->kid,
+                $key->algorithm,
+                'OKP',
+                $key->use,
+                SignatureAlgorithm::Ed25519->curve(),
+                self::base64Url($this->ed25519Codec->publicKeyFromPem($key->publicKeyPem)),
+                null,
+                $key->publicKeyPem,
+            );
+        }
+
         $resource = openssl_pkey_get_public($key->publicKeyPem);
         $details = $resource !== false ? openssl_pkey_get_details($resource) : false;
         $x = null;
@@ -83,6 +129,11 @@ final class DefaultSigningKeyManager implements SigningKeyManagerInterface
             $y,
             $key->publicKeyPem,
         );
+    }
+
+    private static function base64Url(string $raw): string
+    {
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
     }
 
     /**

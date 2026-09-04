@@ -128,6 +128,8 @@ enum Ucp\Sdk\Enum\SignatureAlgorithm
   - curve(): string
   - static from(string|int $value): static
   - static fromIdentifier(string $identifier): self
+  - keyType(): string
+  - requiresDerConversion(): bool
   - static tryFrom(string|int $value): ?static
   - static tryFromIdentifier(string $identifier): ?self
   - wireIdentifier(): string

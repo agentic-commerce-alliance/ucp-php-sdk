@@ -1,0 +1,41 @@
+# Backward-incompatible changes this repository has accepted on purpose.
+#
+# Roave's checker is all-or-nothing: no per-symbol ignore, no baseline file. Pre-1.0
+# this SDK does break published API deliberately, and what such a break needs is a
+# CHANGELOG entry and a version bump -- not a blocked merge. Without somewhere to say
+# so, the only options were to disable the blocking check or to work around it, and
+# both give up the breaks nobody meant to make.
+#
+# scripts/bc-check.sh subtracts the findings listed here before deciding. Anything not
+# listed still fails.
+#
+# Format
+# ------
+# One Roave finding per line, copied from the check output with leading whitespace
+# removed, e.g.
+#
+#   [BC] CHANGED: The parameter $quantity of Ucp\Sdk\Model\Common\LineItem#__construct() changed from int to a non-contravariant Ucp\Sdk\Model\Common\Quantity
+#
+# Runs of whitespace are collapsed before comparison, so re-wrapping is safe; the text
+# itself must match. Only whole-line comments are supported -- Roave writes findings as
+# Class#method(), so a trailing '#' comment would truncate half of them.
+#
+# Adding an entry
+# ---------------
+# An entry is a claim that the break is intended and documented. Before adding one:
+#
+#   1. Add a CHANGELOG.md entry under a "### Changed (breaking)" heading that names the
+#      broken symbol and what replaces it.
+#   2. Reference it in the comment above the entry, so the next reader can find the
+#      reasoning without archaeology.
+#   3. Remove the entry once the release carrying it has shipped and the baseline has
+#      moved past it. Entries that match nothing are reported as a notice rather than a
+#      failure, because CI asks this question against two baselines -- the target branch
+#      and the newest release tag -- and an entry that is live for one is legitimately
+#      stale for the other.
+#
+# Adding an enum case is a break, and Roave is right about it: an exhaustive `match` over
+# SignatureAlgorithm in consumer code stops being exhaustive and throws UnhandledMatchError.
+# Ed25519 is what the spec recommends and what web-bot-auth builds on, so the alternative is not
+# supporting it. See CHANGELOG.md, "Added" under Unreleased: Ed25519 signing keys.
+[BC] ADDED: Case Ucp\Sdk\Enum\SignatureAlgorithm::Ed25519 was added
