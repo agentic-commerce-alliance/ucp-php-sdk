@@ -10,9 +10,9 @@ findings from the same failing suite.
 
 | File | Target | State |
 | --- | --- | --- |
-| [conformance-suite-defects.md](conformance-suite-defects.md) | `Universal-Commerce-Protocol/conformance` | **not filed** |
-| [spec-request-time-validation.md](spec-request-time-validation.md) | `Universal-Commerce-Protocol/ucp` | **not filed** |
-| [conformance-suite-protocol-version.md](conformance-suite-protocol-version.md) | `Universal-Commerce-Protocol/conformance` | **not filed** — superseded in substance: 0.5.0 works, see `0004` |
+| [conformance-suite-defects.md](conformance-suite-defects.md) | `Universal-Commerce-Protocol/conformance` | **filed** — [#101](https://github.com/Universal-Commerce-Protocol/conformance/issues/101), [#102](https://github.com/Universal-Commerce-Protocol/conformance/issues/102), [#103](https://github.com/Universal-Commerce-Protocol/conformance/issues/103) |
+| [spec-request-time-validation.md](spec-request-time-validation.md) | `Universal-Commerce-Protocol/ucp` | **filed** — [#805](https://github.com/Universal-Commerce-Protocol/ucp/issues/805) |
+| [conformance-suite-protocol-version.md](conformance-suite-protocol-version.md) | `Universal-Commerce-Protocol/conformance` | **filed** — [#104](https://github.com/Universal-Commerce-Protocol/conformance/issues/104); 0.5.0 works, patch `0004` |
 
 Seven `.patch` files are the proposed fixes for the conformance suite. `scripts/run-conformance.sh`
 applies all of them to the pinned checkout, so the lane measures this SDK rather than the state of
