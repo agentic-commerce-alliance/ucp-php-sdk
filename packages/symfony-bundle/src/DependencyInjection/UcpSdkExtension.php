@@ -169,6 +169,7 @@ final class UcpSdkExtension extends Extension
             $config['webhooks']['max_response_body_bytes'],
             $config['profile_fetching_development_mode'],
             $config['enabled_capabilities'],
+            $config['profile_cache_max_age'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [

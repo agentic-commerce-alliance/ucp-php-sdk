@@ -41,7 +41,18 @@ final class ProfileController
             enabledCapabilities: $runtimeConfiguration->enabledCapabilities,
         ));
 
-        return new JsonResponse($profile->toArray());
+        $response = new JsonResponse($profile->toArray());
+
+        // Symfony answers `no-cache, private` when nothing sets Cache-Control, and this
+        // endpoint set nothing -- so the SDK was telling every platform not to cache the one
+        // document they are all expected to. The profile is the same for every caller by
+        // construction: it is built from configuration and the published key set, and carries
+        // nothing about who asked. `Vary: Origin` is not set for the same reason.
+        $response->setPublic();
+        $response->setMaxAge($this->configuration->profileCacheMaxAge);
+        $response->headers->addCacheControlDirective('must-revalidate');
+
+        return $response;
     }
 
     private function toHttpRequest(Request $request): HttpRequest

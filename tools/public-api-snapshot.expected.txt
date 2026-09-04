@@ -278,7 +278,7 @@ class Ucp\Sdk\Model\IdempotencyRecord
 class Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest
   - __construct(string $clientId, string $redirectUri, string $scope, string $state, ?string $codeChallenge = null, ?string $codeChallengeMethod = null)
 class Ucp\Sdk\Model\Identity\OAuthMetadata
-  - __construct(string $issuer, string $authorizationEndpoint, string $tokenEndpoint, array $scopesSupported = [], array $grantTypesSupported = [], array $tokenEndpointAuthMethodsSupported = [])
+  - __construct(string $issuer, string $authorizationEndpoint, string $tokenEndpoint, array $scopesSupported = [], array $grantTypesSupported = [], array $tokenEndpointAuthMethodsSupported = [], array $codeChallengeMethodsSupported = [])
   - toArray(): array
 class Ucp\Sdk\Model\Identity\OAuthTokenRequest
   - __construct(string $grantType, ?string $code = null, ?string $refreshToken = null, ?string $clientId = null, ?string $clientSecret = null, ?string $codeVerifier = null, ?string $redirectUri = null)
