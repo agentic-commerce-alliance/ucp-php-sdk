@@ -130,6 +130,7 @@
         ],
         "require-check": "sh scripts/require-check.sh",
         "sync:verify": "@php tools/sync-ucp-schemas.php --verify",
+        "spec-drift": "php tools/check-spec-drift.php",
         "public-api:dump": "php tools/build-public-api-snapshot.php",
         "public-api:check": "php tools/check-public-api-snapshot.php",
         "bc-check": "sh scripts/bc-check.sh HEAD^ HEAD"
@@ -145,5 +146,8 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "scripts-descriptions": {
+        "spec-drift": "Check whether upstream published a version we do not know, or moved a tag we pinned."
+    }
 }
