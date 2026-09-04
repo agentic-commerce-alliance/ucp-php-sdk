@@ -171,6 +171,33 @@ final class SignatureAgentWebBotAuthTest extends TestCase
 
         return new HttpRequest($request->method, $request->absoluteUri, $headers);
     }
+
+    /**
+     * `sig1` is the tag on UCP's default signature shape, which every business must accept.
+     * Refusing an unrecognised tag is right, but the first version of that rule listed only
+     * `web-bot-auth` and so refused the baseline -- trading one interop break for another,
+     * and blocking every signed request rather than just the web-bot-auth ones.
+     *
+     * Found by shopware/ucp-conformance-agent: it appeared only once the `expires`
+     * requirement stopped rejecting these requests earlier in the same method.
+     */
+    #[Test]
+    public function itAcceptsTheDefaultShapeTag(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $key = $manager->generate('kid-default-tag');
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+        $request = new HttpRequest('POST', 'https://merchant.example/ucp/v1/carts', [], [], '{"ok":true}');
+
+        $headers = $service->sign($request, $key, time(), time() + 120, 'sig1');
+
+        $result = $service->verify(
+            new HttpRequest($request->method, $request->absoluteUri, $headers, $request->query, $request->body),
+            [$manager->toPublicKey($key)],
+        );
+
+        self::assertTrue($result->verified, $result->failureReason ?? '');
+    }
 }
 
 /**

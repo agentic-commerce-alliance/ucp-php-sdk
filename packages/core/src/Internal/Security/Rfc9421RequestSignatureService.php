@@ -23,8 +23,19 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     private const SIGNED_COMPONENTS = ['@method', '@target-uri'];
     private const TAG_WEB_BOT_AUTH = 'web-bot-auth';
 
+    /**
+     * The tag on UCP's default signature shape, which every business must accept.
+     *
+     * Easy to miss, and this implementation did: `web-bot-auth` looks like the only tag
+     * worth naming, so refusing everything else refused the baseline as well. `sig1` carries
+     * no extra requirements -- it identifies the default shape rather than asking for
+     * anything -- which is exactly why it needs listing here: the refusal below exists to
+     * stop a tag whose requirements went unapplied, and this one has none.
+     */
+    private const TAG_DEFAULT = 'sig1';
+
     /** Tags whose requirements this implementation actually applies. */
-    private const SUPPORTED_TAGS = [self::TAG_WEB_BOT_AUTH];
+    private const SUPPORTED_TAGS = [self::TAG_DEFAULT, self::TAG_WEB_BOT_AUTH];
     private const SIGNATURE_AGENT = 'signature-agent';
     private const CONTENT_DIGEST = 'content-digest';
 
