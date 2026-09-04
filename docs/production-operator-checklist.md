@@ -7,7 +7,7 @@ The checklist is evergreen. Version-specific caveats still belong in the GitHub 
 ## Runtime Configuration
 
 - Configure `allowed_profile_hosts` with the exact platform profile hosts the SDK may fetch.
-- Configure `allowed_agent_domains` with the exact agent or embedded origins allowed to call browser-facing surfaces.
+- Configure `allowed_agent_domains` with the agent domains allowed to publish platform profiles and to frame browser-facing surfaces. An entry is either a domain such as `agent.example`, which also covers its subdomains and admits https only, or a full origin such as `https://agent.example:8443` when a scheme and port must be pinned exactly. A bare domain does not cover a non-default port, and `localhost`, `127.0.0.1` and `::1` may additionally be framed over http for local development. An entry the SDK cannot act on fails container compilation rather than being skipped, so a typo is reported where it was made.
 - Use `signature_policy: strict` for production unless the release notes explicitly document a temporary exception.
 - Keep `profile_fetching_development_mode` disabled outside local development.
 - Enable non-REST transports only when the adopter has configured and tested them for that deployment.
