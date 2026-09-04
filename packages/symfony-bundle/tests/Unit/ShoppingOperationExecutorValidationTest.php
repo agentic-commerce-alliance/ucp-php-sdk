@@ -409,7 +409,9 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         self::assertSame('sku-1', $payload['product']['id']);
         self::assertIsArray($payload['ucp']);
         self::assertIsArray($payload['ucp']['capabilities']);
-        self::assertSame('dev.ucp.shopping.catalog.product', array_key_first($payload['ucp']['capabilities']));
+        // Lookup, not a `catalog.product` capability: both this operation's schemas come from
+        // `catalog_lookup.json`, and no published schema defines the id this used to advertise.
+        self::assertSame('dev.ucp.shopping.catalog.lookup', array_key_first($payload['ucp']['capabilities']));
     }
 
     #[Test]

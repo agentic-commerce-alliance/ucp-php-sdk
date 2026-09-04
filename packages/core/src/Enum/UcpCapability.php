@@ -8,8 +8,11 @@ enum UcpCapability: string
 {
     case CatalogSearch = 'dev.ucp.shopping.catalog.search';
     case CatalogLookup = 'dev.ucp.shopping.catalog.lookup';
-    case CatalogProduct = 'dev.ucp.shopping.catalog.product';
     case Cart = 'dev.ucp.shopping.cart';
     case Checkout = 'dev.ucp.shopping.checkout';
     case Order = 'dev.ucp.shopping.order';
+    case Discount = 'dev.ucp.shopping.discount';
+    case Fulfillment = 'dev.ucp.shopping.fulfillment';
+    case BuyerConsent = 'dev.ucp.shopping.buyer_consent';
+    case IdentityLinking = 'dev.ucp.common.identity_linking';
 }
