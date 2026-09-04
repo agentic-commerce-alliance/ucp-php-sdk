@@ -27,6 +27,17 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->booleanNode('profile_fetching_development_mode')->defaultFalse()->end()
                 ->enumNode('signature_policy')->values(['log', 'strict', 'off'])->defaultValue('log')->end()
+                ->arrayNode('response_signing')
+                    ->info('Sign UCP responses per RFC 9421, bound to the request that produced them.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        // Off by default: a business with no signing key would otherwise start
+                        // logging a warning on every response the moment it upgrades, and
+                        // response signing is something an operator opts into once its peers
+                        // are ready to verify it.
+                        ->booleanNode('enabled')->defaultFalse()->end()
+                    ->end()
+                ->end()
                 ->booleanNode('idempotency_required')->defaultFalse()->end()
                 ->integerNode('idempotency_ttl')->defaultValue(86400)->min(1)->end()
                 ->integerNode('max_request_body_bytes')->defaultValue(262144)->min(1)->end()

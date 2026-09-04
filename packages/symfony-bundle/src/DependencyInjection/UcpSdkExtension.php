@@ -41,6 +41,7 @@ use Ucp\Sdk\Internal\Security\DefaultJsonCanonicalization;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Security\RepositoryBackedSignatureReplayGuard;
 use Ucp\Sdk\Internal\Security\Rfc9421RequestSignatureService;
+use Ucp\Sdk\Internal\Security\Rfc9421ResponseSignatureService;
 use Ucp\Sdk\Internal\Security\UnsupportedMerchantAuthorizationService;
 use Ucp\Sdk\Internal\Service\DefaultHttpRequestContextFactory;
 use Ucp\Sdk\Internal\Service\DefaultIdempotencyService;
@@ -71,6 +72,7 @@ use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
+use Ucp\Sdk\Service\ResponseSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Service\SchemaValidatorInterface;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
@@ -111,6 +113,7 @@ use Ucp\Sdk\Symfony\Controller\TokenizationController;
 use Ucp\Sdk\Symfony\EventListener\ExceptionListener;
 use Ucp\Sdk\Symfony\EventListener\IdempotencyResponseListener;
 use Ucp\Sdk\Symfony\EventListener\RequestContextListener;
+use Ucp\Sdk\Symfony\EventListener\ResponseSignatureListener;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
@@ -169,6 +172,7 @@ final class UcpSdkExtension extends Extension
             $config['webhooks']['max_response_body_bytes'],
             $config['profile_fetching_development_mode'],
             $config['enabled_capabilities'],
+            $config['response_signing']['enabled'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -385,6 +389,14 @@ final class UcpSdkExtension extends Extension
             ->addTag('kernel.event_listener', ['event' => 'kernel.request', 'method' => 'onKernelRequest']);
         $container->autowire(IdempotencyResponseListener::class)
             ->addTag('kernel.event_listener', ['event' => 'kernel.response', 'method' => 'onKernelResponse']);
+        $container->autowire(Rfc9421ResponseSignatureService::class)
+            ->setArgument('$maxLifetimeSeconds', $config['signature_max_lifetime_seconds']);
+        $container->setAlias(ResponseSignatureServiceInterface::class, Rfc9421ResponseSignatureService::class);
+        $container->autowire(ResponseSignatureListener::class)
+            ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            // Negative priority so this runs after IdempotencyResponseListener: a replayed
+            // response has to be signed too, and it is produced by the idempotency layer.
+            ->addTag('kernel.event_listener', ['event' => 'kernel.response', 'method' => 'onKernelResponse', 'priority' => -64]);
         $container->autowire(ExceptionListener::class)
             ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->addTag('kernel.event_listener', ['event' => 'kernel.exception', 'method' => 'onKernelException']);
