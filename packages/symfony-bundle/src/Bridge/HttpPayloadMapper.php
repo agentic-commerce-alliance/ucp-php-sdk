@@ -21,6 +21,8 @@ use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Common\Buyer;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\Common\Signals;
+use Ucp\Sdk\Model\Common\Unit;
+use Ucp\Sdk\Model\Common\UnitPrice;
 use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
 use Ucp\Sdk\Model\Identity\OAuthTokenRequest;
 
@@ -322,6 +324,8 @@ final class HttpPayloadMapper
                 (float) ($item['price'] ?? 0.0),
                 (int) ($row['quantity'] ?? 1),
                 $item['image_url'] ?? null,
+                quantityUnit: is_array($item['quantity_unit'] ?? null) ? Unit::fromArray($item['quantity_unit']) : null,
+                unitPrice: is_array($item['unit_price'] ?? null) ? UnitPrice::fromArray($item['unit_price']) : null,
             );
         }
 
