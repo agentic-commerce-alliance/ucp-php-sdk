@@ -121,6 +121,7 @@
             "@dead-code",
             "@unused-deps",
             "@require-check",
+            "@sync:verify",
             "@test",
             "@coverage:gate",
             "@mutation:gate",
@@ -128,6 +129,7 @@
             "@metrics:pdepend"
         ],
         "require-check": "sh scripts/require-check.sh",
+        "sync:verify": "@php tools/sync-ucp-schemas.php --verify",
         "public-api:dump": "php tools/build-public-api-snapshot.php",
         "public-api:check": "php tools/check-public-api-snapshot.php",
         "bc-check": "sh scripts/bc-check.sh HEAD^ HEAD"
