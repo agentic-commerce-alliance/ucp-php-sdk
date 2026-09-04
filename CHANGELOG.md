@@ -10,6 +10,7 @@
 
 - Negotiation failures answer with the status the spec assigns them instead of `400` for all of them. `capabilities_incompatible` is now `200`: the spec's error-code table puts it there, and its error-handling section explains why — a capability mismatch is a business outcome the handler reached on the inputs it was given, not a request the server could not process, so it belongs inside a UCP response with `ucp.status: "error"`. `version_unsupported` is now `422`. A platform reading only the status could not previously tell "your profile is unusable" from "we have nothing in common"
 - The conformance lane applies the patches in `docs/upstream/` after checking out the pinned commit, and fails if one stops applying. The suite does not pass against any conformant merchant unpatched — its mock agent profile declares one capability while the tests exercise seven — so the lane previously depended on someone having applied them by hand. Nothing is enforced yet: the results are not reproducible from a clean clone, and `docs/conformance.md` records what has been ruled out ([#157](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/157))
+- `Catalog\Product` now accepts an optional `description` argument, letting adapters supply real product text instead of the title. The field is a trailing optional constructor parameter and defaults to the title, so existing call sites and serialized output are unchanged when it is omitted ([#98](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/98))
 
 ### Fixed
 
