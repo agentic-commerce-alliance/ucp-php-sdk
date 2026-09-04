@@ -18,6 +18,7 @@ use MerchantSymfonyApp\Ucp\MerchantPaymentMandateVerifier;
 use MerchantSymfonyApp\Ucp\MerchantTokenizationCapability;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
@@ -159,8 +160,17 @@ final class MerchantExampleCoverageTest extends TestCase
         $capability = $this->cartCapability();
         $context = $this->context();
 
-        $missing = $capability->getCart('missing-cart', $context);
-        self::assertSame('cart_not_found', $missing->messages[0]->code);
+        // An unknown cart is not an empty cart carrying a warning. That answer is a cart, so
+        // an agent reading the status rather than the messages adds items to something the
+        // business does not have -- and it does not validate either, because a fabricated
+        // cart has no totals, so the caller used to receive `invalid_request` about our own
+        // response instead of `not_found` about their id.
+        try {
+            $capability->getCart('missing-cart', $context);
+            self::fail('An unknown cart id must not resolve to a cart.');
+        } catch (ResourceNotFoundException $exception) {
+            self::assertStringContainsString('missing-cart', $exception->getMessage());
+        }
 
         $created = $capability->createCart(new CartCreateRequest([
             new LineItem('tent-4p', 'Placeholder', 1.0, 1),

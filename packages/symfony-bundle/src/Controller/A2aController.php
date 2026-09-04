@@ -121,7 +121,11 @@ final class A2aController
             }
 
             if (! isset(self::SUPPORTED_METHODS[$method])) {
-                throw new UnsupportedCapabilityException(sprintf('A2A method "%s" is not supported.', $method));
+                // -32601 is JSON-RPC's own "method not found", and it belongs in the body of a
+                // 200 rather than in an HTTP status. A JSON-RPC client reads the envelope; an
+                // HTTP 404 tells it the *endpoint* is missing, which is a different problem
+                // with a different remedy, and it drops the error object on the floor.
+                return $this->jsonRpcError($id, -32601, sprintf('A2A method "%s" is not supported.', $method));
             }
 
             $result = $this->operationExecutor->execute(new ShoppingOperationRequest(
@@ -221,7 +225,15 @@ final class A2aController
         return $id;
     }
 
-    private function jsonRpcError(int|string|null $id, int $code, string $message, int $statusCode): JsonResponse
+    /**
+     * 200 by default, because a JSON-RPC error is a protocol outcome carried in the body.
+     *
+     * The parse and invalid-params paths still answer 4xx deliberately: a body that cannot be
+     * decoded is a bad HTTP request -- there is no request-id to answer with, so there is no
+     * envelope to put an error in. A well-formed call naming an unknown method is the other
+     * case, and belongs in the envelope.
+     */
+    private function jsonRpcError(int|string|null $id, int $code, string $message, int $statusCode = Response::HTTP_OK): JsonResponse
     {
         return new JsonResponse([
             'jsonrpc' => '2.0',

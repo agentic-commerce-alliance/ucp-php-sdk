@@ -31,6 +31,10 @@ final class Configuration implements ConfigurationInterface
                 ->integerNode('idempotency_ttl')->defaultValue(86400)->min(1)->end()
                 ->integerNode('max_request_body_bytes')->defaultValue(262144)->min(1)->end()
                 ->integerNode('platform_profile_cache_ttl')->defaultValue(600)->min(1)->end()
+                // How long platforms may cache *our* profile, as opposed to how long we cache
+                // theirs. The floor is the spec's: below 60 the document is effectively
+                // uncacheable, which is the state this setting exists to leave behind.
+                ->integerNode('profile_cache_max_age')->defaultValue(300)->min(60)->end()
                 ->integerNode('negotiation_session_ttl')->defaultValue(604800)->min(1)->end()
                 ->integerNode('signature_max_lifetime_seconds')->defaultValue(300)->min(1)->end()
                 ->arrayNode('oauth')

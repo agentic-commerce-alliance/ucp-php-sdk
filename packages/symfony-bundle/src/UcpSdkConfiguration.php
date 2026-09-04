@@ -48,6 +48,14 @@ final class UcpSdkConfiguration
         public readonly int $webhookMaxResponseBodyBytes = DefaultOrderWebhookDispatcher::DEFAULT_MAX_RESPONSE_BODY_BYTES,
         public readonly bool $profileFetchingDevelopmentMode = false,
         public readonly array $enabledCapabilities = [],
+        /**
+         * How long a platform may cache the published profile, in seconds.
+         *
+         * The spec's floor is 60. Appended with a default rather than inserted, because this
+         * constructor is called positionally in adopter code and in this repository's own
+         * tests, so a parameter in the middle would silently shift every argument after it.
+         */
+        public readonly int $profileCacheMaxAge = 300,
     ) {
     }
 
