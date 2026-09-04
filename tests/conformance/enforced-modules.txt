@@ -1,6 +1,23 @@
 # Conformance modules that must pass. Anything listed here is blocking in CI.
 #
-# Empty on purpose. One test passes today (protocol_test.py::ProtocolTest::test_discovery), and
-# a gate over a module that is not green is not a gate. Promote a module by adding it here once
-# it has been green on main for ten consecutive runs; docs/conformance.md records the procedure
-# and what currently stands between each module and that state.
+# These are green from a clean clone, twice in a row with identical results. That reproducibility
+# is the precondition: an earlier attempt to enforce was reverted because the numbers came from a
+# working tree carrying hand-applied fixes, and CI clones fresh. `scripts/run-conformance.sh` now
+# hard-resets the checkout and applies docs/upstream/*.patch itself, so a local run and a CI run
+# see the same suite.
+#
+# A module is NOT listed while it fails for a reason outside this repository. Blocking on
+# something we cannot fix teaches people to ignore a red check; docs/conformance.md records what
+# stands between each unlisted module and this file.
+ap2_test.py
+binding_test.py
+card_credential_test.py
+checkout_lifecycle_test.py
+discount_test.py
+fulfillment_test.py
+idempotency_test.py
+protocol_test.py
+simulation_url_security_test.py
+totals_test.py
+validation_test.py
+webhook_test.py

@@ -42,9 +42,13 @@ final class IdempotencyResponseListener
         if (strlen($content) > $this->configuration->idempotencyMaxStoredResponseBytes) {
             $replayable = false;
         } else {
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $payload = $decoded;
+            // Decoded to objects, then only the top level flattened to an array. Decoding
+            // straight to associative arrays cannot tell `{}` from `[]`, and a replay that
+            // turns the envelope's empty `services` map into an empty list is not the response
+            // that was sent -- which is the one thing a replay has to be.
+            $decoded = json_decode($content, false);
+            if ($decoded instanceof \stdClass) {
+                $payload = (array) $decoded;
             } else {
                 $replayable = false;
             }

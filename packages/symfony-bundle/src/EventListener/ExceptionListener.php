@@ -73,6 +73,16 @@ final class ExceptionListener
             $descriptor->httpStatus,
             $this->messages($descriptor, $throwable, $message),
         ));
+
+        // Symfony rewrites any non-error status to 500 when a listener handles a throwable that
+        // is not an HttpException, unless the listener says the code was deliberate
+        // (HttpKernel::handleThrowable()). UCP has failures that are reported inside a
+        // successful response -- a capability mismatch is a business outcome, not a request the
+        // server could not process -- and without this the body said 200's worth of "here is
+        // what I decided" under a 500 that says "I broke".
+        if ($descriptor->httpStatus < 400) {
+            $event->allowCustomResponseCode();
+        }
     }
 
     /**

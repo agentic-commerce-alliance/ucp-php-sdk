@@ -34,6 +34,10 @@ state_dir="${UCP_MERCHANT_STATE_DIR:-${repo}/var/conformance-state}"
 report="${UCP_CONFORMANCE_REPORT:-${repo}/var/reports/conformance/junit.xml}"
 server_log="$(dirname "${report}")/merchant.log"
 python_bin="${PYTHON:-python3}"
+# Shared by both sides. The suite defaults it to a fresh uuid, which the merchant cannot know,
+# so the simulation endpoint would answer 403 to a correct-secret test.
+SIMULATION_SECRET="${SIMULATION_SECRET:-ucp-conformance-simulation-secret}"
+export SIMULATION_SECRET
 
 mkdir -p "$(dirname "${report}")"
 
@@ -45,9 +49,32 @@ fi
 # before sending it upstream -- is not silently reverted on the next run.
 if [ -z "${UCP_CONFORMANCE_NO_CHECKOUT:-}" ]; then
     git -C "${checkout}" fetch --quiet origin
-    git -C "${checkout}" checkout --quiet "${pinned}"
+    git -C "${checkout}" checkout --quiet --force "${pinned}"
+    # Hard reset, not just a checkout: `git checkout <sha>` keeps working-tree modifications, so
+    # the patches below would be applied on top of themselves on a second local run -- and, worse,
+    # a hand-edit made while debugging would silently persist into a run reported as pinned.
+    git -C "${checkout}" reset --quiet --hard "${pinned}"
+    git -C "${checkout}" clean --quiet -fd
 fi
 echo "conformance suite pinned at ${pinned}"
+
+# The suite does not pass against any conformant merchant unpatched: its mock agent profile
+# declares one capability while the tests exercise seven, so everything touching checkout is
+# refused as `capabilities_incompatible` before it starts. docs/upstream/ carries the fixes and
+# the reasoning; they are applied here so the lane is reproducible from a clean clone rather
+# than depending on someone having applied them by hand.
+#
+# A patch that stops applying means upstream has changed that code -- possibly fixed it. That is
+# a finding, so it fails loudly instead of running a suite in an unknown state.
+if [ -z "${UCP_CONFORMANCE_NO_CHECKOUT:-}" ]; then
+    for patch in "${repo}"/docs/upstream/*.patch; do
+        [ -e "${patch}" ] || continue
+        if ! git -C "${checkout}" apply "${patch}"; then
+            echo "conformance: ${patch##*/} no longer applies. Upstream moved -- re-check docs/upstream/ before deleting it." >&2
+            exit 1
+        fi
+    done
+fi
 
 if [ ! -x "${venv}/bin/python" ]; then
     "${python_bin}" -m venv "${venv}"
@@ -57,6 +84,9 @@ fi
 # The suite reads its fixtures from a path it will not let us configure; see the header.
 cp tests/conformance/conformance_input.json "${checkout}/test_data/flower_shop/conformance_input.json"
 cp tests/conformance/test_fixtures.json "${checkout}/test_data/flower_shop/test_fixtures.json"
+# Payment instruments come from a CSV rather than the JSON fixtures, and the default names a
+# handler this merchant does not implement -- which reads as 24 unrelated test failures.
+cp tests/conformance/payment_instruments.csv "${checkout}/test_data/flower_shop/payment_instruments.csv"
 
 server_pid=''
 cleanup() {
@@ -75,9 +105,19 @@ if [ -z "${UCP_CONFORMANCE_SKIP_SERVER:-}" ]; then
     # relaxes what the SDK accepts is exactly what would make a conformance run pass for the
     # wrong reason. The trailing index.php is the router script and is not optional -- without
     # it the built-in server 404s every UCP path before the application is reached.
+    # A merchant with no signing key cannot sign a webhook, and the dispatcher refuses to send
+    # one unsigned -- so without this the order events simply never leave, and the suite reports
+    # it as the business failing to announce the order. The state directory is wiped per run, so
+    # the key has to be provisioned per run too.
     APP_ENV=prod APP_DEBUG=0 \
         UCP_MERCHANT_BASE_URI="${server_url}" \
         UCP_MERCHANT_STATE_DIR="${state_dir}" \
+        php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate >> "${server_log}" 2>&1
+
+    APP_ENV=prod APP_DEBUG=0 \
+        UCP_MERCHANT_BASE_URI="${server_url}" \
+        UCP_MERCHANT_STATE_DIR="${state_dir}" \
+        SIMULATION_SECRET="${SIMULATION_SECRET}" \
         php -S "${server_url#http://}" \
             -t examples/merchant-symfony-app/public \
             examples/merchant-symfony-app/public/index.php \

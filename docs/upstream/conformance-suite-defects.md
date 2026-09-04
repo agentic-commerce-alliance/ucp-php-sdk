@@ -113,3 +113,63 @@ fields rather than concentrated on one refusal, which is the difference between 
 Running against: `agentic-commerce-alliance/ucp-php-sdk`, an independent PHP implementation of
 the merchant side, at protocol version `2026-04-08`. Happy to supply full logs or run any
 variation of these against it.
+
+---
+
+## 4. Three modules hardcode a payment handler instead of reading the fixture
+
+**Tests:** `ap2_test::test_ap2_mandate_completion`,
+`binding_test::test_token_binding_completion`,
+`card_credential_test::test_card_credential_payment`
+
+`integration_test_utils.get_valid_payment_payload()` reads the instrument — including its
+`handler_id` — from `test_data/<fixture>/payment_instruments.csv`, which is how a merchant
+under test declares the handler it implements. But `ap2_test.py:48`, `binding_test.py:51` and
+`card_credential_test.py:48` each build their own payload with a literal:
+
+```python
+"handler_id": "mock_payment_handler",
+```
+
+A business is required to reject an instrument for a handler it does not support, so any
+merchant that is not the reference server fails these three on a value it was never given a
+way to configure. Rejecting is the correct behaviour; the literal is the defect.
+
+**Fix:** read the handler from `test_data.payment_instruments` as the shared helper does.
+
+## 5. The idempotency conflict payload is a no-op for merchants trading in EUR
+
+**Test:** `idempotency_test::test_idempotency_create`
+
+The test sends a request, replays it, and then sends a "conflicting" one under the same
+idempotency key, expecting `409`:
+
+```python
+conflict_payload = create_payload.model_copy(deep=True)
+conflict_payload.currency = "EUR"
+```
+
+The original payload's currency comes from `conformance_input.json`. For a merchant that
+declares `EUR` — this one is a German business — the conflict payload is byte-identical to the
+original, so a correct implementation answers `201` by replaying, exactly as the previous
+assertion required. The test can only pass for a merchant that does not trade in EUR.
+
+**Fix:** derive the conflicting value from the configured currency rather than hardcoding one,
+e.g. `"USD" if configured == "EUR" else "EUR"`.
+
+## 6. `test_fulfillment_flow` assumes the business charges no tax
+
+**Test:** `fulfillment_test::test_fulfillment_flow`
+
+```python
+expected_total = self.fixture_ctx.get_test_price() + option_cost
+```
+
+This asserts the grand total is the item price plus shipping, which holds only where nothing
+else is added. `totals_test` names `tax` as a valid additive entry and `business_logic_test`
+verifies totals by summing every non-`total` entry — so the suite models tax correctly
+elsewhere and contradicts itself here. A merchant charging 19% VAT fails this one test while
+passing the arithmetic checks in the other two.
+
+**Fix:** sum the entries as `business_logic_test` does, rather than assuming which of them
+exist.

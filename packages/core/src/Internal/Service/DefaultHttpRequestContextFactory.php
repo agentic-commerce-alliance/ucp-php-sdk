@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Service;
 
 use Ucp\Sdk\Enum\SignaturePolicy;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Http\HttpRequest;
@@ -53,6 +54,19 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
                 'UCP-Agent header must include a non-empty profile URI.',
                 ['$.headers.ucp-agent.profile must be a non-empty URI'],
             );
+        }
+
+        // The platform may name the protocol version it is speaking. Answering a version this
+        // release does not serve, in the shapes of the one it does, is how two peers end up
+        // disagreeing about a field neither of them will mention -- so it is refused up front,
+        // where the reason is still the version rather than whatever fails first because of it.
+        $requestedVersion = $this->extractAgentParameter($agentHeader, 'version');
+        if ($requestedVersion !== null && $requestedVersion !== $configuration->version) {
+            throw NegotiationException::versionUnsupported(sprintf(
+                'This business serves UCP %s; the request asked for %s.',
+                $configuration->version,
+                $requestedVersion,
+            ));
         }
 
         $this->assertSafeProfileUri(
@@ -127,11 +141,19 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
 
     private function extractProfileUri(?string $header): ?string
     {
+        return $this->extractAgentParameter($header, 'profile');
+    }
+
+    /**
+     * A quoted parameter from the UCP-Agent header.
+     */
+    private function extractAgentParameter(?string $header, string $name): ?string
+    {
         if ($header === null) {
             return null;
         }
 
-        if (preg_match('/profile="([^"]+)"/', $header, $matches) === 1) {
+        if (preg_match('/\b' . preg_quote($name, '/') . '="([^"]+)"/', $header, $matches) === 1) {
             return $matches[1];
         }
 

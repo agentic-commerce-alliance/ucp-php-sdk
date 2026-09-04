@@ -10,11 +10,16 @@ findings from the same failing suite.
 
 | File | Target | State |
 | --- | --- | --- |
-| [conformance-suite-defects.md](conformance-suite-defects.md) | `Universal-Commerce-Protocol/conformance` | **not filed** |
-| [spec-request-time-validation.md](spec-request-time-validation.md) | `Universal-Commerce-Protocol/ucp` | **not filed** |
-| [conformance-suite-protocol-version.md](conformance-suite-protocol-version.md) | `Universal-Commerce-Protocol/conformance` | **not filed** |
+| [conformance-suite-defects.md](conformance-suite-defects.md) | `Universal-Commerce-Protocol/conformance` | **filed** — [#101](https://github.com/Universal-Commerce-Protocol/conformance/issues/101), [#102](https://github.com/Universal-Commerce-Protocol/conformance/issues/102), [#103](https://github.com/Universal-Commerce-Protocol/conformance/issues/103) |
+| [spec-request-time-validation.md](spec-request-time-validation.md) | `Universal-Commerce-Protocol/ucp` | **filed** — [#805](https://github.com/Universal-Commerce-Protocol/ucp/issues/805) |
+| [conformance-suite-protocol-version.md](conformance-suite-protocol-version.md) | `Universal-Commerce-Protocol/conformance` | **filed** — [#104](https://github.com/Universal-Commerce-Protocol/conformance/issues/104); 0.5.0 works, patch `0004` |
 
-The three `.patch` files are the proposed fixes for the conformance suite. Apply them to a
+Seven `.patch` files are the proposed fixes for the conformance suite. `scripts/run-conformance.sh`
+applies all of them to the pinned checkout, so the lane measures this SDK rather than the state of
+someone's working tree. Applied in order they take the suite from 1 passed / 63 failed to
+58 passed / 6 failed against the merchant example.
+
+The `.patch` files are the proposed fixes for the conformance suite. Apply them to a
 checkout of that repository, not to this one:
 
 ```bash

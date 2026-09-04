@@ -41,7 +41,7 @@ jobs:
       - name: Enforced modules
         id: enforced
         run: |
-          modules="$(grep -vE '^\s*(#|$)' tests/conformance/enforced-modules.txt | tr '\n' ' ')"
+          modules="$(grep -vE "^\s*(#|$)" tests/conformance/enforced-modules.txt | tr "\n" " ")"
           if [ -z "${modules}" ]; then
             echo "No modules are enforced yet; see docs/conformance.md." >> "$GITHUB_STEP_SUMMARY"
             exit 0

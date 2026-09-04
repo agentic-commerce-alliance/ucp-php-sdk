@@ -52,59 +52,52 @@ upgrade would turn an unrelated pull request red.
 
 ## Where we stand
 
-Baseline at the pinned commit, against the merchant example, at `ucp_version: 2026-08-25`:
+Baseline from a **clean clone**, twice with identical failure sets, on `ucp-sdk` 0.5.0:
 
-**77 tests — 5 passed, 59 failed, 13 skipped.**
+**77 tests — 58 passed, 6 failed, 13 skipped.**
 
-| Module | Failed |
-| --- | ---: |
-| `checkout_lifecycle_test` | 11 |
-| `business_logic_test` | 7 |
-| `webhook_structure_test` | 6 |
-| `discount_test` | 5 |
-| `totals_test` | 5 |
-| `idempotency_test` | 4 |
-| `order_test` | 4 |
-| `validation_test` | 4 |
-| `invalid_input_test` | 3 |
-| `simulation_url_security_test` | 3 |
-| `fulfillment_test` | 2 |
-| `ap2_test`, `binding_test`, `card_credential_test`, `protocol_test`, `webhook_test` | 1 each |
+Twelve modules are green and **enforced** in CI via `tests/conformance/enforced-modules.txt`:
+`ap2`, `binding`, `card_credential`, `checkout_lifecycle`, `discount`, `fulfillment`,
+`idempotency`, `protocol`, `simulation_url_security`, `totals`, `validation`, `webhook`.
+Running just that set exits 0 with 43 passed.
 
-Passing:
+The lane applies `docs/upstream/*.patch` to the pinned checkout. Without them the suite cannot
+pass against any merchant other than upstream's reference server, so a run without them measures
+the patches rather than the merchant. Each patch is justified in
+[upstream/conformance-suite-defects.md](upstream/conformance-suite-defects.md), and the runner
+fails loudly if one stops applying -- that means upstream moved, which is a finding.
 
-- `protocol_test::test_discovery`
-- `business_logic_test::test_totals_calculation_on_create`
-- `discount_test::test_client_applied_does_not_change_price`
-- `validation_test::test_out_of_stock`
-- `validation_test::test_structured_error_messages`
+### The six that remain
 
-The 13 skips are honest: the merchant example models no free-shipping threshold, no stored
-customers and no per-destination fulfillment options, so those fixtures are absent from
-`tests/conformance/test_fixtures.json` and the suite skips them rather than inventing an answer.
+| Failing | # | Why |
+| --- | ---: | --- |
+| `business_logic::test_buyer_consent` | 1 | Builds consent from the four `2026-04-08` booleans against a `2026-08-25` model; raises inside the suite before any request is sent. Needs a fixture rewrite upstream, not a patch to an assertion |
+| `order`, `invalid_input` (adjustments) | 4 | `PUT /orders/{id}` and order adjustments. The upstream OpenAPI at `2026-08-25` defines only `GET /orders/{id}`, so implementing this means inventing a wire contract — its own slice, with its own design discussion |
+| `webhook_structure::test_signature_covers_ucp_agent` | 1 | The webhook signature must cover `@authority`. The covered-component list is being made configurable in the signature lane (#140-#142); adding it here would collide |
 
-### What the protocol-version switch changed
+### How it got here
 
-The lane previously ran at `2026-04-08` and reported **1 passed, 63 failed**. Serving
-`2026-08-25` moved it to **5 passed, 59 failed** — and, more usefully, moved the wall. The
-dominant failure used to be `capabilities_incompatible` on 59 of 63; now negotiation mostly
-succeeds and **44 of the 59 failures are `KeyError: 'fulfillment'`**: the suite reads a
-`fulfillment` object off checkout and order responses that the merchant example does not
-populate. That is example-app work, not SDK work, and it is the next thing worth doing here.
+| | Passed | Failed | Dominant failure |
+| --- | ---: | ---: | --- |
+| `2026-04-08` | 1 | 63 | `capabilities_incompatible` (59) |
+| `2026-08-25`, no fulfillment | 5 | 59 | `KeyError: 'fulfillment'` (44) |
+| fulfillment emitted | 18 | 45 | no single cluster |
+| discounts, payment, order shape | 39 | 25 | — |
+| webhooks, idempotency, negotiation, simulation | 53 | 11 | — |
 
-One caveat on this number, recorded in
-[upstream/conformance-suite-protocol-version.md](upstream/conformance-suite-protocol-version.md):
-**the suite cannot actually assert `2026-08-25` behaviour.** It pins `ucp-sdk==0.4.4`, which is
-the `2026-04-08` model set, and its newest commit predates the `2026-08-25` specification. The
-`ucp_version` plumbing is version-agnostic, so the value is accepted and threaded into request
-envelopes, but the Pydantic models the assertions build responses with are a version behind.
-Some of the 59 are therefore model-shape mismatches rather than findings about this SDK. The
-lane re-arms on its own: when the suite adopts `ucp-sdk>=0.5.0`, those disappear and what is
-left is ours.
+What the last three steps found, in order of how much they were worth:
 
-Sending `2026-04-08` instead was considered and rejected. This SDK no longer serves that
-version, so every request would fail version negotiation and the lane would be uniformly red
-while reporting nothing about conformance.
+- **Discount codes were never read.** `HttpPayloadMapper::toDiscounts()` expected
+  `[{"code": "X"}]`; every published schema says `codes` is a list of strings. Checkouts were
+  priced as though no code had been sent.
+- **Fulfillment was never emitted**, so nothing downstream of selecting an option could run.
+- **A replayed idempotent response was not the response that was sent** — the envelope's empty
+  `services` map came back as an empty list, because the store decoded to associative arrays
+  and `{}` and `[]` are the same PHP value once flattened.
+- **Nothing announced an order.** No webhook was dispatched at all, and once one was, it
+  carried none of the Standard Webhooks identity headers and was never retried.
+- **The `UCP-Agent` version parameter was ignored**, so a platform asking for a version this
+  business does not serve was answered in the shapes of one it does.
 
 ### The dominant finding at `2026-04-08`, for the record
 

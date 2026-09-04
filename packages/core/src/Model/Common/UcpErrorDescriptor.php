@@ -56,7 +56,18 @@ final class UcpErrorDescriptor
             $throwable instanceof IdempotencyConflictException => new self('idempotency_conflict', 'idempotency_conflict', 'unrecoverable', 409, false),
             $throwable instanceof SignatureException => new self('signature', 'signature_invalid', 'unrecoverable', 401, false),
             $throwable instanceof OAuthException => new self('oauth', 'identity_required', 'requires_buyer_input', 400, false),
-            $throwable instanceof NegotiationException => new self('negotiation', $throwable->errorCode, 'unrecoverable', 400, false),
+            // The spec splits negotiation failures by kind, and this used to answer 400 for all
+            // of them. Discovery and version problems are transport errors -- the inputs could
+            // not be retrieved or were not usable. A capability mismatch is a business outcome:
+            // the handler ran on the inputs it was given and reported the result, so it belongs
+            // in a UCP response rather than an HTTP failure. The spec's error-code table is
+            // explicit about the statuses, and a platform that reads only the status cannot
+            // otherwise tell "your profile is unusable" from "we have nothing in common".
+            $throwable instanceof NegotiationException => match ($throwable->errorCode) {
+                'capabilities_incompatible' => new self('negotiation', $throwable->errorCode, 'unrecoverable', 200, false),
+                'version_unsupported' => new self('negotiation', $throwable->errorCode, 'unrecoverable', 422, false),
+                default => new self('negotiation', $throwable->errorCode, 'unrecoverable', 400, false),
+            },
             $throwable instanceof UnsupportedCapabilityException => new self('unsupported_capability', 'capability_unsupported', 'unrecoverable', 501, false),
             $throwable instanceof ResourceNotFoundException => new self('not_found', 'not_found', 'unrecoverable', 404, false),
             // Internal only in the sense of who has to fix it. Both transports already put
