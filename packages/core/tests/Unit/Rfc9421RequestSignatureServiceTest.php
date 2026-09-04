@@ -235,7 +235,91 @@ final class Rfc9421RequestSignatureServiceTest extends TestCase
         );
 
         self::assertFalse($result->verified);
-        self::assertSame('Signature-Input is missing required parameters.', $result->failureReason);
+        self::assertSame('Signature-Input must carry both keyid and created.', $result->failureReason);
+    }
+
+    /**
+     * The specification's default signature shape is `created` and `keyid` and nothing else;
+     * `expires` belongs to the web-bot-auth shape. This SDK required it, so it refused every
+     * peer signing the way the spec describes -- the same class of defect as emitting DER
+     * signatures, and equally invisible to a suite that only ever asked our own signer.
+     *
+     * Signed here by hand rather than through sign(), because sign() emits `expires` and a
+     * test that cannot produce the shape under discussion cannot pin it.
+     */
+    #[Test]
+    public function itAcceptsTheDefaultShapeWhichCarriesNoExpires(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-default-shape');
+        $request = new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+
+        $headers = $this->signWithoutExpires($service, $request, $managedKey, time());
+
+        $result = $service->verify(
+            new HttpRequest($request->method, $request->absoluteUri, $headers, $request->query, $request->body),
+            [$manager->toPublicKey($managedKey)],
+        );
+
+        self::assertTrue($result->verified, $result->failureReason ?? '');
+    }
+
+    /**
+     * A signature naming no expiry must still not be valid forever, or dropping `expires`
+     * would turn a captured signature into a permanent credential. The age bound is the same
+     * window an explicit `expires` is checked against.
+     */
+    #[Test]
+    public function itRefusesADefaultShapeSignatureOlderThanTheAllowedWindow(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $managedKey = $manager->generate('kid-stale-default');
+        $request = new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [], [], '{"ok":true}');
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService(), maxLifetimeSeconds: 300);
+
+        $headers = $this->signWithoutExpires($service, $request, $managedKey, time() - 3600);
+
+        $result = $service->verify(
+            new HttpRequest($request->method, $request->absoluteUri, $headers, $request->query, $request->body),
+            [$manager->toPublicKey($managedKey)],
+        );
+
+        self::assertFalse($result->verified);
+        self::assertSame('Signature is older than the allowed window.', $result->failureReason);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function signWithoutExpires(
+        Rfc9421RequestSignatureService $service,
+        HttpRequest $request,
+        ManagedSigningKey $managedKey,
+        int $created,
+    ): array {
+        // sign() always emits `expires`, so the default shape is produced by removing it from
+        // both the covered parameters and the base, then re-signing the base by hand.
+        $headers = $service->sign($request, $managedKey, $created, $created + 120);
+        $input = $headers['Signature-Input'];
+        $input = preg_replace('/;expires=\d+/', '', $input) ?? $input;
+        $headers['Signature-Input'] = $input;
+
+        $params = substr($input, (int) strpos($input, '=') + 1);
+        $digest = $headers['Content-Digest'];
+        $base = implode("\n", [
+            sprintf('"@method": %s', strtoupper($request->method)),
+            sprintf('"@target-uri": %s', $request->absoluteUri),
+            sprintf('"content-digest": %s', $digest),
+            sprintf('"@signature-params": %s', $params),
+        ]);
+
+        $raw = '';
+        openssl_sign($base, $der, $managedKey->privateKeyPem, OPENSSL_ALGO_SHA256);
+        $raw = (new EcdsaSignatureCodec())->derToRaw($der, 32);
+        $headers['Signature'] = 'sig=:' . base64_encode($raw) . ':';
+
+        return $headers;
     }
 
     #[Test]
