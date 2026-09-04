@@ -1,0 +1,14 @@
+diff --git a/integration_test_utils.py b/integration_test_utils.py
+index 826a018..0feb4f4 100644
+--- a/integration_test_utils.py
++++ b/integration_test_utils.py
+@@ -1098,6 +1098,9 @@ class IntegrationTestBase(absltest.TestCase):
+         "type": "shipping",
+         "destinations": [address],
+         "selected_destination_id": "dest_default",
++        "line_item_ids": [
++          li.id for li in (checkout_obj.line_items or []) if li.id
++        ],
+       }
+       if method_id:
+         method_payload["id"] = method_id
