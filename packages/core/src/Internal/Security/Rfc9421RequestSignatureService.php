@@ -25,6 +25,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     private readonly SignatureComponentResolver $componentResolver;
     private readonly EcdsaSignatureCodec $signatureCodec;
     private readonly Ed25519KeyCodec $ed25519Codec;
+    private readonly JwkThumbprint $jwkThumbprint;
 
     public function __construct(
         private readonly ContentDigestService $contentDigestService,
@@ -33,10 +34,12 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         ?SignatureComponentResolver $componentResolver = null,
         ?EcdsaSignatureCodec $signatureCodec = null,
         ?Ed25519KeyCodec $ed25519Codec = null,
+        ?JwkThumbprint $jwkThumbprint = null,
     ) {
         $this->componentResolver = $componentResolver ?? new SignatureComponentResolver();
         $this->signatureCodec = $signatureCodec ?? new EcdsaSignatureCodec();
         $this->ed25519Codec = $ed25519Codec ?? new Ed25519KeyCodec();
+        $this->jwkThumbprint = $jwkThumbprint ?? new JwkThumbprint();
     }
 
     public function sign(HttpRequest $request, ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
@@ -253,14 +256,49 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     /**
      * @param list<PublicSigningKey> $keys
      */
+    /**
+     * Finds the key a `keyid` names, by label or by RFC 7638 thumbprint.
+     *
+     * An operator's `kid` is a label: two businesses both calling their key `"default"` is not
+     * a collision anyone detects, and a peer that renames a key breaks every signature it ever
+     * sent. A thumbprint is derived from the key material, so it names the same key everywhere.
+     * Web-bot-auth uses thumbprints as `keyid`, so both forms have to resolve -- and the label
+     * is tried first because that is what existing peers send.
+     *
+     * @param list<PublicSigningKey> $keys
+     */
     private function resolveKey(array $keys, string $kid): PublicSigningKey
     {
         $matches = array_values(array_filter($keys, static fn (PublicSigningKey $key): bool => $key->kid === $kid));
+
+        if ($matches === []) {
+            $matches = array_values(array_filter(
+                $keys,
+                fn (PublicSigningKey $key): bool => $this->thumbprintOf($key) === $kid,
+            ));
+        }
+
         if (count($matches) !== 1) {
             throw new SignatureException(count($matches) === 0 ? 'Signing key was not found.' : 'Duplicate signing keys found for kid.');
         }
 
         return $matches[0];
+    }
+
+    /**
+     * A key whose material cannot be thumbprinted simply does not match one.
+     *
+     * The alternative -- letting the exception escape -- would turn one unusable key in a peer's
+     * key set into a failed verification for every key in it, which is the behaviour 2026-08-25
+     * explicitly forbids of a JWK Set reader.
+     */
+    private function thumbprintOf(PublicSigningKey $key): ?string
+    {
+        try {
+            return $this->jwkThumbprint->compute($key->toJwk());
+        } catch (SignatureException) {
+            return null;
+        }
     }
 
     private function extractSignatureValue(string $signatureHeader, string $label): string

@@ -11,9 +11,11 @@ use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Internal\Security\ContentDigestService;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Security\Ed25519KeyCodec;
+use Ucp\Sdk\Internal\Security\JwkThumbprint;
 use Ucp\Sdk\Internal\Security\Rfc9421RequestSignatureService;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
+use Ucp\Sdk\Model\Security\ManagedSigningKey;
 
 /**
  * Ed25519 signing, which is a different shape from ECDSA rather than a variant of it.
@@ -143,6 +145,61 @@ final class Ed25519SigningTest extends TestCase
 
         $result = (new Rfc9421RequestSignatureService(new ContentDigestService()))
             ->verify($request, [$manager->toPublicKey($key)]);
+
+        self::assertFalse($result->verified);
+    }
+
+    #[Test]
+    public function aSignatureIsVerifiedWhenKeyidIsAThumbprintRatherThanALabel(): void
+    {
+        // Web-bot-auth names keys by thumbprint. The key set here calls the key "kid-ec", and
+        // the peer refers to it by what it is rather than by what we called it.
+        $manager = new DefaultSigningKeyManager();
+        $key = $manager->generate('kid-ec');
+        $public = $manager->toPublicKey($key);
+        $thumbprint = (new JwkThumbprint())->compute($public->toJwk());
+
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+        $request = new HttpRequest('GET', 'https://merchant.example/ucp/v1/orders/o1');
+
+        // Sign under the thumbprint as keyid, which is what such a peer sends.
+        $headers = $service->sign($request, new ManagedSigningKey(
+            $thumbprint,
+            $key->publicKeyPem,
+            $key->privateKeyPem,
+            $key->algorithm,
+            $key->keyType,
+            $key->use,
+            $key->status,
+            $key->curve,
+        ));
+
+        $signed = new HttpRequest($request->method, $request->absoluteUri, $headers);
+        $result = $service->verify($signed, [$public]);
+
+        self::assertTrue($result->verified, $result->failureReason ?? '');
+    }
+
+    #[Test]
+    public function anUnknownKeyidStillFails(): void
+    {
+        // The thumbprint fallback must not become a way in for a keyid that matches nothing.
+        $manager = new DefaultSigningKeyManager();
+        $key = $manager->generate('kid-ec');
+
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+        $request = new HttpRequest('GET', 'https://merchant.example/ucp/v1/orders/o1');
+        $headers = $service->sign($request, new ManagedSigningKey(
+            'someone-elses-label',
+            $key->publicKeyPem,
+            $key->privateKeyPem,
+            $key->algorithm,
+        ));
+
+        $result = $service->verify(
+            new HttpRequest($request->method, $request->absoluteUri, $headers),
+            [$manager->toPublicKey($key)],
+        );
 
         self::assertFalse($result->verified);
     }
