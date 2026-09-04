@@ -1,0 +1,22 @@
+diff --git a/fulfillment_test.py b/fulfillment_test.py
+index 3d244d2..10ba171 100644
+--- a/fulfillment_test.py
++++ b/fulfillment_test.py
+@@ -175,9 +175,14 @@ class FulfillmentTest(integration_test_utils.IntegrationTestBase):
+     )
+     final_checkout = checkout.Checkout(**response_json)
+ 
+-    expected_total = (
+-      self.fixture_ctx.get_test_price() + option_cost
+-    )  # base price + shipping
++    # Summed from the entries rather than assumed to be price + shipping. A Business may add
++    # tax or fees -- `totals_test` names `tax` and `fee` as valid additive entries and
++    # `business_logic_test` verifies the total by summing every non-`total` entry -- so assuming
++    # which entries exist contradicts the suite's own arithmetic and fails any merchant that
++    # charges VAT.
++    expected_total = sum(
++      t.amount for t in final_checkout.totals if t.type != "total"
++    )
+     total_obj = next(
+       (t for t in final_checkout.totals if t.type == "total"), None
+     )

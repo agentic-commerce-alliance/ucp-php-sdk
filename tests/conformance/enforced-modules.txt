@@ -9,8 +9,13 @@
 # A module is NOT listed while it fails for a reason outside this repository. Blocking on
 # something we cannot fix teaches people to ignore a red check; docs/conformance.md records what
 # stands between each unlisted module and this file.
+ap2_test.py
+binding_test.py
+card_credential_test.py
 checkout_lifecycle_test.py
 discount_test.py
+fulfillment_test.py
+idempotency_test.py
 protocol_test.py
 simulation_url_security_test.py
 totals_test.py

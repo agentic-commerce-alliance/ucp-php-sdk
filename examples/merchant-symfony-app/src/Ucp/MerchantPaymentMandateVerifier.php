@@ -33,9 +33,15 @@ final class MerchantPaymentMandateVerifier implements PaymentMandateVerifierInte
         $hasToken = is_string($token) && $token !== '';
         $hasLastFour = is_string($instrument->credential['card_last4'] ?? null) && preg_match('/^\d{4}$/', $instrument->credential['card_last4']) === 1;
 
-        if (! $hasToken && ! $hasLastFour) {
+        // A card credential carrying the number itself. This merchant publishes a tokenization
+        // capability, which is the condition the spec puts on accepting one: a PAN may be sent
+        // to a handler that tokenizes or encrypts it, and not to one that would merely store it.
+        $number = $instrument->credential['number'] ?? null;
+        $hasPan = is_string($number) && preg_match('/^\d{12,19}$/', $number) === 1;
+
+        if (! $hasToken && ! $hasLastFour && ! $hasPan) {
             throw new ValidationException('Missing merchant payment credential.', [
-                'Provide either a reusable token or a four-digit card suffix in the payment credential.',
+                'Provide a reusable token, a card number, or a four-digit card suffix in the payment credential.',
             ]);
         }
     }

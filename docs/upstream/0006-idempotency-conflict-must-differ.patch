@@ -1,0 +1,18 @@
+diff --git a/idempotency_test.py b/idempotency_test.py
+index efd0bed..c8c99e8 100644
+--- a/idempotency_test.py
++++ b/idempotency_test.py
+@@ -80,7 +80,12 @@ class IdempotencyTest(integration_test_utils.IntegrationTestBase):
+ 
+     # 3. Conflict Request
+     conflict_payload = create_payload.model_copy(deep=True)
+-    conflict_payload.currency = "EUR"
++    # Derived from the configured currency rather than hardcoded: for a merchant that already
++    # trades in EUR this payload was byte-identical to the original, so a correct server replays
++    # it and the 409 can never happen. The test then only passes for non-EUR merchants.
++    conflict_payload.currency = (
++      "USD" if (create_payload.currency or "").upper() == "EUR" else "EUR"
++    )
+     response3 = self.client.post(
+       self.get_shopping_url("/checkout-sessions"),
+       json=conflict_payload.model_dump(

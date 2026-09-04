@@ -52,51 +52,28 @@ upgrade would turn an unrelated pull request red.
 
 ## Where we stand
 
-Baseline from a **clean clone**, twice in a row with identical failure sets:
+Baseline from a **clean clone**, twice with identical failure sets, on `ucp-sdk` 0.5.0:
 
-**77 tests — 53 passed, 11 failed, 13 skipped**, on `ucp-sdk` 0.5.0 (UCP `2026-08-25`).
+**77 tests — 58 passed, 6 failed, 13 skipped.**
 
-Seven modules are green and **enforced** in CI via `tests/conformance/enforced-modules.txt`:
-`checkout_lifecycle` (11), `discount` (6), `protocol` (2), `simulation_url_security` (3),
-`totals` (5), `validation` (6), `webhook` (1). Running just that set exits 0 with 34 passed.
+Twelve modules are green and **enforced** in CI via `tests/conformance/enforced-modules.txt`:
+`ap2`, `binding`, `card_credential`, `checkout_lifecycle`, `discount`, `fulfillment`,
+`idempotency`, `protocol`, `simulation_url_security`, `totals`, `validation`, `webhook`.
+Running just that set exits 0 with 43 passed.
 
-### What made it reproducible
+The lane applies `docs/upstream/*.patch` to the pinned checkout. Without them the suite cannot
+pass against any merchant other than upstream's reference server, so a run without them measures
+the patches rather than the merchant. Each patch is justified in
+[upstream/conformance-suite-defects.md](upstream/conformance-suite-defects.md), and the runner
+fails loudly if one stops applying -- that means upstream moved, which is a finding.
 
-Three things, none of which were about the tests:
-
-- **The runner hard-resets the checkout.** `git checkout <sha>` keeps working-tree
-  modifications, so hand-applied fixes survived every run and a "pinned" result was nothing of
-  the kind. This is what made an earlier 53/11 unreproducible — a clean clone gave 1 passed.
-- **The runner applies `docs/upstream/*.patch` itself.** The suite does not pass against any
-  conformant merchant unpatched: its mock agent profile declares one capability where the tests
-  exercise seven, so everything touching checkout is refused before it starts.
-- **The merchant is given a signing key before it boots.** The dispatcher refuses to send an
-  unsigned webhook, and the state directory is wiped per run, so with no key the order events
-  never left — reported by the suite as the business failing to announce the order.
-
-The third one was hidden behind a fourth defect: `Kernel` read configuration from `$_ENV` and
-`$_SERVER` only, and `$_ENV` is populated only when `variables_order` says so — which under
-`php -S` it commonly does not. The console and the HTTP server therefore resolved *different*
-state directories from the same configuration, so a key generated on the command line landed in
-a database the server never opened. All of the Kernel's environment reads now go through one
-resolver that also consults `getenv()`.
-
-`examples/merchant-symfony-app/bin/console` is new. The SDK ships its operational commands --
-signing-key rotation, storage cleanup, nonce purging -- as console commands, and the example had
-no entry point for any of them.
-
-### The eleven that remain
-
-None is fixable here, which is why none is enforced.
+### The six that remain
 
 | Failing | # | Why |
 | --- | ---: | --- |
-| `ap2`, `binding`, `card_credential` | 3 | The suite hardcodes `handler_id: "mock_payment_handler"` instead of reading `payment_instruments.csv`. A business must reject a handler it does not implement — [defect 4](upstream/conformance-suite-defects.md) |
-| `business_logic::test_buyer_consent` | 1 | Constructs consent from the four `2026-04-08` booleans against a `2026-08-25` model, which raises in the suite's own code before a request is sent |
-| `idempotency::test_idempotency_create` | 1 | The "conflict" payload sets `currency = "EUR"`, already this merchant's currency, so it is byte-identical and replaying is correct — [defect 5](upstream/conformance-suite-defects.md) |
-| `fulfillment::test_fulfillment_flow` | 1 | Asserts `total == price + shipping`, ignoring VAT, contradicting `totals_test` and `business_logic_test` — [defect 6](upstream/conformance-suite-defects.md) |
-| `order`, `invalid_input` (adjustments) | 4 | `PUT /orders/{id}`; the upstream OpenAPI at `2026-08-25` defines only `GET` |
-| `webhook_structure::test_signature_covers_ucp_agent` | 1 | Needs `@authority` in the signed component list, which the signature lane is making configurable |
+| `business_logic::test_buyer_consent` | 1 | Builds consent from the four `2026-04-08` booleans against a `2026-08-25` model; raises inside the suite before any request is sent. Needs a fixture rewrite upstream, not a patch to an assertion |
+| `order`, `invalid_input` (adjustments) | 4 | `PUT /orders/{id}` and order adjustments. The upstream OpenAPI at `2026-08-25` defines only `GET /orders/{id}`, so implementing this means inventing a wire contract — its own slice, with its own design discussion |
+| `webhook_structure::test_signature_covers_ucp_agent` | 1 | The webhook signature must cover `@authority`. The covered-component list is being made configurable in the signature lane (#140-#142); adding it here would collide |
 
 ### How it got here
 
