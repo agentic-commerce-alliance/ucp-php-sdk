@@ -32,6 +32,7 @@ use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Internal\Configuration\StaticRuntimeConfigurationResolver;
+use Ucp\Sdk\Internal\Http\HttpAgentKeyDirectoryFetcher;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
 use Ucp\Sdk\Internal\Negotiation\DefaultCapabilityNegotiator;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
@@ -41,6 +42,7 @@ use Ucp\Sdk\Internal\Security\DefaultJsonCanonicalization;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Security\RepositoryBackedSignatureReplayGuard;
 use Ucp\Sdk\Internal\Security\Rfc9421RequestSignatureService;
+use Ucp\Sdk\Internal\Security\Rfc9421ResponseSignatureService;
 use Ucp\Sdk\Internal\Security\UnsupportedMerchantAuthorizationService;
 use Ucp\Sdk\Internal\Service\DefaultHttpRequestContextFactory;
 use Ucp\Sdk\Internal\Service\DefaultIdempotencyService;
@@ -52,12 +54,14 @@ use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
 use Ucp\Sdk\Internal\Validation\SchemaDirectoryLocator;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
+use Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
 use Ucp\Sdk\Repository\OAuthStateRepositoryInterface;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Repository\SignatureNonceRepositoryInterface;
+use Ucp\Sdk\Service\AgentKeyDirectoryFetcherInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
@@ -72,6 +76,7 @@ use Ucp\Sdk\Service\PaymentHandlerRegistryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
+use Ucp\Sdk\Service\ResponseSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Service\SchemaValidatorInterface;
 use Ucp\Sdk\Service\SignatureReplayGuardInterface;
@@ -80,6 +85,7 @@ use Ucp\Sdk\Symfony\Bridge\DefaultStorage\DefaultPrivateKeyEncryptor;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\SecretEncryptorInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\StorageCleanupService;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\ConnectionFactory;
+use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalAgentKeyDirectoryCacheRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalIdempotencyRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalNegotiationSessionRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalOAuthStateRepository;
@@ -112,6 +118,7 @@ use Ucp\Sdk\Symfony\Controller\TokenizationController;
 use Ucp\Sdk\Symfony\EventListener\ExceptionListener;
 use Ucp\Sdk\Symfony\EventListener\IdempotencyResponseListener;
 use Ucp\Sdk\Symfony\EventListener\RequestContextListener;
+use Ucp\Sdk\Symfony\EventListener\ResponseSignatureListener;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
@@ -169,6 +176,7 @@ final class UcpSdkExtension extends Extension
             $config['webhooks']['max_response_body_bytes'],
             $config['profile_fetching_development_mode'],
             $config['enabled_capabilities'],
+            $config['response_signing']['enabled'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -236,6 +244,10 @@ final class UcpSdkExtension extends Extension
             new Reference('ucp_sdk.connection'),
             $config['platform_profile_cache_ttl'],
         ]));
+        $container->setDefinition(DoctrineDbalAgentKeyDirectoryCacheRepository::class, new Definition(DoctrineDbalAgentKeyDirectoryCacheRepository::class, [
+            new Reference('ucp_sdk.connection'),
+            $config['platform_profile_cache_ttl'],
+        ]));
         $container->setDefinition(DoctrineDbalNegotiationSessionRepository::class, new Definition(DoctrineDbalNegotiationSessionRepository::class, [
             new Reference('ucp_sdk.connection'),
             $config['negotiation_session_ttl'],
@@ -248,6 +260,7 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(IdempotencyRepositoryInterface::class, new Alias(DoctrineDbalIdempotencyRepository::class, true));
         $container->setAlias(OAuthStateRepositoryInterface::class, new Alias(DoctrineDbalOAuthStateRepository::class, true));
         $container->setAlias(PlatformProfileCacheRepositoryInterface::class, new Alias(DoctrineDbalPlatformProfileCacheRepository::class, true));
+        $container->setAlias(AgentKeyDirectoryCacheRepositoryInterface::class, new Alias(DoctrineDbalAgentKeyDirectoryCacheRepository::class, true));
         $container->setAlias(NegotiationSessionRepositoryInterface::class, new Alias(DoctrineDbalNegotiationSessionRepository::class, true));
         $container->setAlias(SignatureNonceRepositoryInterface::class, new Alias(DoctrineDbalSignatureNonceRepository::class, true));
 
@@ -280,7 +293,10 @@ final class UcpSdkExtension extends Extension
             new Reference(ContentDigestService::class),
             new Reference(SignatureReplayGuardInterface::class),
             $config['signature_max_lifetime_seconds'],
-        ]));
+        ]))
+            // Named rather than positional: the constructor's optional tail is where collaborators
+            // get added, and a positional list there is one insertion away from silently shifting.
+            ->setArgument('$agentKeyDirectoryFetcher', new Reference(AgentKeyDirectoryFetcherInterface::class));
         $container->setAlias(RequestSignatureServiceInterface::class, new Alias(Rfc9421RequestSignatureService::class, true));
         $container->setDefinition(UnsupportedMerchantAuthorizationService::class, new Definition(UnsupportedMerchantAuthorizationService::class));
         $container->setAlias(MerchantAuthorizationServiceInterface::class, new Alias(UnsupportedMerchantAuthorizationService::class, true));
@@ -290,6 +306,12 @@ final class UcpSdkExtension extends Extension
             new Reference(UrlSafetyValidator::class),
         ]));
         $container->setAlias(AgentProfileFetcherInterface::class, new Alias(HttpAgentProfileFetcher::class, true));
+        $container->setDefinition(HttpAgentKeyDirectoryFetcher::class, new Definition(HttpAgentKeyDirectoryFetcher::class, [
+            new Reference(HttpClientInterface::class),
+            new Reference(AgentKeyDirectoryCacheRepositoryInterface::class),
+            new Reference(UrlSafetyValidator::class),
+        ]));
+        $container->setAlias(AgentKeyDirectoryFetcherInterface::class, new Alias(HttpAgentKeyDirectoryFetcher::class, true));
 
         $container->setDefinition(CapabilityRegistry::class, new Definition(CapabilityRegistry::class, [
             new TaggedIteratorArgument('ucp_sdk.capability'),
@@ -385,6 +407,14 @@ final class UcpSdkExtension extends Extension
             ->addTag('kernel.event_listener', ['event' => 'kernel.request', 'method' => 'onKernelRequest']);
         $container->autowire(IdempotencyResponseListener::class)
             ->addTag('kernel.event_listener', ['event' => 'kernel.response', 'method' => 'onKernelResponse']);
+        $container->autowire(Rfc9421ResponseSignatureService::class)
+            ->setArgument('$maxLifetimeSeconds', $config['signature_max_lifetime_seconds']);
+        $container->setAlias(ResponseSignatureServiceInterface::class, Rfc9421ResponseSignatureService::class);
+        $container->autowire(ResponseSignatureListener::class)
+            ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+            // Negative priority so this runs after IdempotencyResponseListener: a replayed
+            // response has to be signed too, and it is produced by the idempotency layer.
+            ->addTag('kernel.event_listener', ['event' => 'kernel.response', 'method' => 'onKernelResponse', 'priority' => -64]);
         $container->autowire(ExceptionListener::class)
             ->setArgument('$logger', new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE))
             ->addTag('kernel.event_listener', ['event' => 'kernel.exception', 'method' => 'onKernelException']);

@@ -48,6 +48,7 @@ final class UcpSdkConfiguration
         public readonly int $webhookMaxResponseBodyBytes = DefaultOrderWebhookDispatcher::DEFAULT_MAX_RESPONSE_BODY_BYTES,
         public readonly bool $profileFetchingDevelopmentMode = false,
         public readonly array $enabledCapabilities = [],
+        public readonly bool $responseSigningEnabled = false,
     ) {
     }
 

@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 
@@ -101,5 +102,29 @@ final class DefaultSigningKeyManagerTest extends TestCase
     private static function base64UrlDecode(string $value): string
     {
         return (string) base64_decode(strtr($value, '-_', '+/'), true);
+    }
+
+    /**
+     * Used to fall through to P-256 for anything it did not recognise, so an unsupported
+     * algorithm produced a real key labelled with a name nothing could sign with.
+     */
+    #[Test]
+    public function itRefusesAnAlgorithmItCannotGenerateAKeyFor(): void
+    {
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Unsupported signature algorithm "HS256".');
+
+        (new DefaultSigningKeyManager())->generate('kid-unsupported', 'HS256');
+    }
+
+    #[Test]
+    public function itAcceptsTheRegistryIdentifierAndStoresTheJwaName(): void
+    {
+        $key = (new DefaultSigningKeyManager())->generate('kid-registry-name', 'ecdsa-p384-sha384');
+
+        // Storage stays on the JWA name, which is what existing rows hold and what a JWK's
+        // `alg` member carries.
+        self::assertSame('ES384', $key->algorithm);
+        self::assertSame('P-384', $key->curve);
     }
 }

@@ -158,8 +158,29 @@ final class Kernel extends BaseKernel
         return self::env('UCP_SIGNATURE_POLICY') ?? 'log';
     }
 
+    /**
+     * On in dev, and settable in prod for one specific reason.
+     *
+     * Fetching a platform profile over plain http is refused outside this mode, which is
+     * correct for production: a profile carries the keys used to verify every request from
+     * that platform, so fetching it over a channel anyone can rewrite is worthless. The
+     * upstream conformance suite serves its mock agent profile at
+     * `http://localhost:<port>`, and cannot serve https, so a conformance run has no way
+     * to proceed without this. That run is local development by definition.
+     *
+     * It is deliberately its own switch rather than a consequence of `APP_ENV`. The
+     * conformance lane needs this one relaxation and nothing else that `dev` brings, and
+     * a run that quietly got the whole dev container would be one that passes for reasons
+     * nobody chose -- which is exactly what happened while `APP_ENV` was being read from
+     * `$_SERVER` alone and silently resolving to `dev` under the built-in server.
+     */
     private function profileFetchingDevelopmentMode(): bool
     {
+        $explicit = self::env('UCP_PROFILE_FETCHING_DEV_MODE');
+        if ($explicit !== null) {
+            return filter_var($explicit, FILTER_VALIDATE_BOOL);
+        }
+
         return $this->environment === 'dev';
     }
 

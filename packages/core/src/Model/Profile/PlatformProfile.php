@@ -183,6 +183,15 @@ final class PlatformProfile
     private static function entrySection(array $root, array $payload, string $name): array
     {
         $section = $root[$name] ?? $payload[$name] ?? [];
+
+        // `toArray()` emits an empty section as `stdClass` so it encodes as `{}` rather than
+        // `[]`, which is what the schema says it is. Accepting only arrays here meant a profile
+        // this class produced could not be read back by this class -- the round trip the
+        // discovery cache and the profile builder both depend on.
+        if ($section instanceof \stdClass) {
+            $section = (array) $section;
+        }
+
         if (! is_array($section)) {
             throw new ValidationException(sprintf('Platform profile section "%s" must be an object.', $name));
         }
@@ -263,6 +272,15 @@ final class PlatformProfile
     private static function section(array $root, array $payload, string $name): array
     {
         $section = $root[$name] ?? $payload[$name] ?? [];
+
+        // `toArray()` emits an empty section as `stdClass` so it encodes as `{}` rather than
+        // `[]`, which is what the schema says it is. Accepting only arrays here meant a profile
+        // this class produced could not be read back by this class -- the round trip the
+        // discovery cache and the profile builder both depend on.
+        if ($section instanceof \stdClass) {
+            $section = (array) $section;
+        }
+
         if (! is_array($section)) {
             throw new ValidationException(sprintf('Platform profile section "%s" must be an object.', $name));
         }

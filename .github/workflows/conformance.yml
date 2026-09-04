@@ -49,6 +49,19 @@ jobs:
           UCP_CONFORMANCE_MODULES="${modules}" docker compose run --rm \
             -e UCP_CONFORMANCE_MODULES="${modules}" conformance
 
+      # Blocking, and small enough to be. The default suite runs with `signature_policy: log`,
+      # which exercises zero signature verification code -- the blind spot that let this SDK
+      # ship DER signatures no conformant peer could verify while every check was green. The
+      # upstream suite cannot cover this: it sends `request-signature: test` and
+      # conformance_input.json has no slot for a signing key, so a strict run of it would
+      # refuse all 77 tests. This client signs with its own key and its own signature base.
+      - name: Strict signature pass
+        run: docker compose run --rm strict-signature
+
+      - name: Stop the strict merchant
+        if: always()
+        run: docker compose stop merchant-strict
+
       # Advisory, exactly like the PHP 8.5 lane and the BC-since-release comment in ci.yml. The
       # point is to publish where we actually stand against a suite we did not write, not to
       # block on a number that is not yet close to green.
