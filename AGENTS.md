@@ -255,6 +255,32 @@ empty catalogue because *it* declared `dev.ucp.shopping.catalog`, an umbrella id
 ([issue #5](https://github.com/shopware/ucp-conformance-agent/issues/5)). The pinned tree is the
 primary source and this repository carries it for exactly that reason.
 
+## How The SDK Actually Reaches A Merchant
+
+Worth stating because it is easy to assume the opposite from the version constraint alone, and
+that assumption has been repeated in planning documents in this repository.
+
+`SwagAgenticCommerce` requires `ucp-php-sdk/symfony-bundle: >=0.0.5 <0.1.0`, but a merchant never
+resolves that constraint. The plugin ships as an extension ZIP built by
+`shopware-cli extension zip . --release`, which resolves and vendors dependencies at **build**
+time, and both the packaging and store-release workflows are `workflow_dispatch` only. So the SDK
+version in a merchant's installation is the one frozen into that ZIP by whoever deliberately cut
+the release.
+
+**A new SDK tag therefore cannot reach a merchant on its own.** There is no auto-update path: it
+takes a tag, a ZIP build and a release. Anyone who instead requires the package directly from the
+public repository is running an unsupported shape and is responsible for their own constraint.
+
+What the constraint *does* decide is which SDK version gets vendored into the **next** ZIP. That is
+still worth pinning deliberately, so a release build is reproducible and the SDK version inside it
+is a decision rather than whatever resolved that afternoon -- but the risk is to the release build,
+not to installed shops.
+
+For local work the SDK is not resolved at all: `sw-dev agentic bootstrap <lane>` runs a
+host-authoritative one-way Mutagen replica from the SDK checkout into
+`/var/www/html/custom/ucp-php-sdk` and consumes it as a Composer path repository. Whatever branch is
+checked out on the host is what the lane runs, and the SDK is never edited inside the container.
+
 ## Traps That Have Cost Real Time
 
 - **`$_ENV` and `$_SERVER` are not the environment under `php -S`.** An exported variable reaches
