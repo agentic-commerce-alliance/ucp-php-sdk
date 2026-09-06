@@ -91,9 +91,23 @@ docker compose run --rm php composer validate --strict -d packages/symfony-bundl
 docker compose run --rm php composer public-api:check
 ```
 
-4. Update `CHANGELOG.md` with a short summary entry for the version being tagged.
+   `composer qa` already runs `sync:verify`, which regenerates every pinned schema set and
+   fails if the committed output differs. If that is red, the generated schemas no longer
+   follow from the pinned upstream copy and the release would ship validators nobody can
+   reproduce.
 
-5. Confirm the release posture is accurate in the main docs:
+4. Check where the release stands against the upstream conformance suite:
+
+```bash
+./scripts/run-conformance.sh
+```
+
+   Not a gate — see [conformance.md](conformance.md) for which modules are enforced — but the
+   release note should not claim conformance the suite does not show.
+
+5. Update `CHANGELOG.md` with a short summary entry for the version being tagged.
+
+6. Confirm the release posture is accurate in the main docs:
    - install commands in [README.md](../README.md)
    - current scope and boundaries in [docs/extension-contract.md](extension-contract.md), [docs/security-model.md](security-model.md), and [docs/platform-adapters.md](platform-adapters.md)
    - production readiness items in [docs/production-operator-checklist.md](production-operator-checklist.md)
