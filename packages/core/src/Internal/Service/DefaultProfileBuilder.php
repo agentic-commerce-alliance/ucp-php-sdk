@@ -49,7 +49,15 @@ final class DefaultProfileBuilder implements ProfileBuilderInterface
         $context = new \Ucp\Sdk\Model\RequestContext($input->baseUri);
         foreach ($this->paymentHandlerRegistry->all() as $handler) {
             $descriptor = $handler->describe($context);
-            $paymentHandlers[$descriptor->name] = [$descriptor];
+
+            // Append rather than assign. PlatformProfile types this as
+            // array<string, list<PaymentHandlerDescriptor>> and upstream's payment_handlers
+            // registry is a name keyed to an array of entries, but this collapsed it to one:
+            // two handlers sharing a name and differing in id silently overwrote each other, so
+            // the published profile advertised whichever the registry happened to yield last.
+            // DefaultCapabilityNegotiator intersects on id and already groups its result as
+            // name => list, so the two disagreed about what a profile even looks like.
+            $paymentHandlers[$descriptor->name][] = $descriptor;
         }
 
         $services = [
