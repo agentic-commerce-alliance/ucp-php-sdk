@@ -389,6 +389,9 @@ final class HttpAgentProfileFetcherTest extends TestCase
      * and this fetcher was ignoring it: every platform got the same 600 seconds. A platform that
      * rotates keys and says so with a short max-age was being answered from a stale cache.
      */
+    /**
+     * @param array<string, list<string>> $headers
+     */
     #[Test]
     #[DataProvider('cacheControlProvider')]
     public function itCachesForAsLongAsThePlatformAsksWithinTheConfiguredBounds(array $headers, int $expectedTtl): void

@@ -10,6 +10,7 @@ use Ucp\Sdk\Model\Profile\CachedPlatformProfile;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\RevalidatingPlatformProfileCacheRepositoryInterface;
 
+/** @internal */
 final class DoctrineDbalPlatformProfileCacheRepository implements RevalidatingPlatformProfileCacheRepositoryInterface
 {
     public function __construct(
