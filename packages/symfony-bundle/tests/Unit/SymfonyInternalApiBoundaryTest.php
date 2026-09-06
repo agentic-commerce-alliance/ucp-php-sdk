@@ -71,6 +71,14 @@ final class SymfonyInternalApiBoundaryTest extends TestCase
     {
         $publicApiSuffixes = [
             'Bridge/EmbeddedPageRendererInterface.php',
+            // The transport-agnostic operation seam: adopters serving UCP over a transport
+            // this bundle does not ship call the executor rather than reimplementing
+            // negotiation, mapping and validation per transport.
+            'Operation/ShoppingOperationExecutor.php',
+            'Operation/ShoppingOperationRequest.php',
+            // Called from platform installers, outside the request lifecycle and before the
+            // container exists.
+            'Bridge/DoctrineDbal/SchemaBootstrapper.php',
             // Signing-key commands are an extension point: integrators subclass
             // them (and the shared trait) to add tenant resolution.
             'Command/GenerateSigningKeyCommand.php',
