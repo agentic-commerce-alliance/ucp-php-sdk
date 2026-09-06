@@ -6,11 +6,11 @@ namespace Ucp\Sdk\Symfony\Bridge\DoctrineDbal;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Ucp\Sdk\Model\Profile\CachedPlatformProfile;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
-use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
+use Ucp\Sdk\Repository\RevalidatingPlatformProfileCacheRepositoryInterface;
 
-/** @internal */
-final class DoctrineDbalPlatformProfileCacheRepository implements PlatformProfileCacheRepositoryInterface
+final class DoctrineDbalPlatformProfileCacheRepository implements RevalidatingPlatformProfileCacheRepositoryInterface
 {
     public function __construct(
         private readonly Connection $connection,
@@ -20,10 +20,16 @@ final class DoctrineDbalPlatformProfileCacheRepository implements PlatformProfil
 
     public function save(string $uri, PlatformProfile $profile): void
     {
+        $this->saveEntry($uri, $profile, time() + $this->ttlSeconds);
+    }
+
+    public function saveEntry(string $uri, PlatformProfile $profile, int $expiresAt, ?string $etag = null): void
+    {
         $data = [
             'uri' => $uri,
             'payload' => json_encode($profile->toArray(), JSON_THROW_ON_ERROR),
-            'expires_at' => time() + $this->ttlSeconds,
+            'expires_at' => $expiresAt,
+            'etag' => $etag,
         ];
 
         $updated = $this->connection->update('ucp_platform_profile_cache', $data, ['uri' => $uri]);
@@ -40,21 +46,35 @@ final class DoctrineDbalPlatformProfileCacheRepository implements PlatformProfil
 
     public function find(string $uri, bool $allowExpired = false): ?PlatformProfile
     {
-        $row = $this->connection->fetchAssociative('SELECT payload, expires_at FROM ucp_platform_profile_cache WHERE uri = :uri', ['uri' => $uri]);
+        $entry = $this->findEntry($uri);
+        if ($entry === null) {
+            return null;
+        }
 
+        if (! $allowExpired && ! $entry->isFresh()) {
+            return null;
+        }
+
+        return $entry->profile;
+    }
+
+    public function findEntry(string $uri): ?CachedPlatformProfile
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT payload, expires_at, etag FROM ucp_platform_profile_cache WHERE uri = :uri',
+            ['uri' => $uri],
+        );
         if ($row === false) {
             return null;
         }
 
-        if (
-            ! $allowExpired
-            && isset($row['expires_at'])
-            && (int) $row['expires_at'] < time()
-        ) {
-            return null;
-        }
-
-        return PlatformProfile::fromArray(json_decode((string) $row['payload'], true, 512, JSON_THROW_ON_ERROR));
+        return new CachedPlatformProfile(
+            PlatformProfile::fromArray(json_decode((string) $row['payload'], true, 512, JSON_THROW_ON_ERROR)),
+            // A row without an expiry predates expiries being recorded; it never goes stale on
+            // its own, which is what find() has always done with it.
+            isset($row['expires_at']) ? (int) $row['expires_at'] : PHP_INT_MAX,
+            isset($row['etag']) && $row['etag'] !== '' ? (string) $row['etag'] : null,
+        );
     }
 
     public function all(bool $allowExpired = false): array

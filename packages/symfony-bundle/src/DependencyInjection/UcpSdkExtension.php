@@ -288,7 +288,10 @@ final class UcpSdkExtension extends Extension
             new Reference(HttpClientInterface::class),
             new Reference(PlatformProfileCacheRepositoryInterface::class),
             new Reference(UrlSafetyValidator::class),
-        ]));
+        ]))
+            // The platform's Cache-Control decides freshness; this is the ceiling it cannot
+            // exceed and the value used when it says nothing.
+            ->setArgument('$maxTtlSeconds', $config['platform_profile_cache_ttl']);
         $container->setAlias(AgentProfileFetcherInterface::class, new Alias(HttpAgentProfileFetcher::class, true));
 
         $container->setDefinition(CapabilityRegistry::class, new Definition(CapabilityRegistry::class, [

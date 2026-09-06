@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- The platform-profile cache now honours the platform's own `Cache-Control`. `max-age` (or `s-maxage`, which wins for a shared cache) decides how long a fetched profile stays fresh, floored at the specification's 60 seconds and capped by `platform_profile_cache_ttl`; a profile that sends no directive is cached for the configured TTL, exactly as before. When an entry goes stale and the platform sent an `ETag`, the refetch carries `If-None-Match` and a `304` renews the entry without a body. New `RevalidatingPlatformProfileCacheRepositoryInterface` (extending the existing cache interface, so existing implementations keep working with the fixed TTL) and `CachedPlatformProfile`; `DoctrineDbalPlatformProfileCacheRepository` implements it and `ucp_platform_profile_cache` gains a nullable `etag` column, which `SchemaBootstrapper::ensureSchema()` adds on the next run. `platform_profile_cache_ttl` now has a floor of 60.
+
 ### Fixed
 
 - Public signing key JWKs now carry `x` and `y` at the full width of the curve, as RFC 7518 section 6.2.1.2 requires. openssl returns EC coordinates as minimal-form integers and `DefaultSigningKeyManager::toPublicKey()` published whatever it was handed, so roughly one coordinate in 256 went out a byte short — 29 of 4000 generated keys — and a strict JWK reader is entitled to reject the `signing_keys` the discovery profile advertises. Readers see the same key either way; a consumer comparing coordinate strings will see the short ones become padded ([#134](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/134))
