@@ -1,8 +1,13 @@
 # Full UCP Parity Plan
 
-## Summary
-
-The SDK provides the shared transport/profile contract for `SwagAgenticCommerce`. It must describe REST, MCP, A2A, and embedded endpoints without hard-coding Shopware-specific routing into generic profile generation.
+> **Superseded for the parity question.** The authoritative gap statement between
+> this SDK and the UCP specification now lives in
+> [ucp-2026-08-25-upgrade.md](ucp-2026-08-25-upgrade.md), which covers the
+> protocol-version gap, the interop deviations, the conformance strategy and the
+> sliced backlog.
+>
+> This document is kept for the one thing it still owns: the transport model and
+> the decision that the SDK does **not** ship an MCP runtime.
 
 ## Transport Model
 
@@ -17,13 +22,23 @@ The SDK provides the shared transport/profile contract for `SwagAgenticCommerce`
   the core Store API MCP endpoint exists, then delegates internally to
   `/store-api/_mcp` with the sales-channel access key kept server-side.
 
-## Shopware 6.7 MCP Dependency
+## Shopware MCP Dependency
 
 The plugin does not ship a standalone MCP server. Its `/ucp/mcp` endpoint is a
-proxy to the Shopware 6.7 core Store API MCP endpoint. MCP support depends on
-that core endpoint existing with sales-channel context authentication. The SDK
-should only provide reusable transport metadata and tool-registration
-abstractions needed by the plugin.
+proxy to the Shopware core Store API MCP endpoint. MCP support depends on that
+core endpoint existing with sales-channel context authentication. The SDK should
+only provide reusable transport metadata and tool-registration abstractions
+needed by the plugin.
+
+This decision still holds, and `SwagAgenticCommerce` has since implemented that
+proxy (`src/Ucp/Mcp/Api/UcpMcpProxyController.php`) plus its own MCP tools — so
+the runtime already exists one layer up. Building an MCP runtime here would
+contradict this decision, require owning MCP session lifecycle and
+streamable-HTTP transport inside a framework-free zero-dependency package, and
+expose a second surface over the same operations REST already serves. The
+reusable part is a tool-descriptor generator off the operation registry, not a
+transport. See the "Explicitly out of scope" section of
+[ucp-2026-08-25-upgrade.md](ucp-2026-08-25-upgrade.md).
 
 ## Validation
 
