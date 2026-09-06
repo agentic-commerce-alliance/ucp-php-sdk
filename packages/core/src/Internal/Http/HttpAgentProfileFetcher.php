@@ -52,7 +52,7 @@ final class HttpAgentProfileFetcher implements AgentProfileFetcherInterface
             return $entry->profile;
         }
 
-        $stale = $entry?->profile ?? $this->staleProfile($uri);
+        $stale = $entry !== null ? $entry->profile : $this->staleProfile($uri);
 
         try {
             $requestHeaders = ['Accept' => 'application/json'];
