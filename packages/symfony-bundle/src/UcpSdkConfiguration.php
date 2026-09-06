@@ -49,6 +49,14 @@ final class UcpSdkConfiguration
         public readonly bool $profileFetchingDevelopmentMode = false,
         public readonly array $enabledCapabilities = [],
         public readonly bool $responseSigningEnabled = false,
+        /**
+         * How long a platform may cache the published profile, in seconds.
+         *
+         * The spec's floor is 60. Appended with a default rather than inserted, because this
+         * constructor is called positionally in adopter code and in this repository's own
+         * tests, so a parameter in the middle would silently shift every argument after it.
+         */
+        public readonly int $profileCacheMaxAge = 300,
     ) {
     }
 

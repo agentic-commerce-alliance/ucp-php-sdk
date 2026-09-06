@@ -179,6 +179,7 @@ final class UcpSdkExtension extends Extension
             $config['profile_fetching_development_mode'],
             $config['enabled_capabilities'],
             $config['response_signing']['enabled'],
+            $config['profile_cache_max_age'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
