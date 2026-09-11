@@ -18,31 +18,21 @@
 - MCP is metadata-only in the shared SDK and requires an explicit `mcp` transport endpoint supplied by the adopter.
 - REST remains the default enabled transport. A2A and embedded routes must return not found unless the transport is explicitly enabled in bundle config.
 - Embedded responses must only allow configured agent origins.
-- The Shopware plugin advertises client-facing MCP at `/ucp/mcp` on 6.7 once
-  the core Store API MCP endpoint exists, then delegates internally to
-  `/store-api/_mcp` with the sales-channel access key kept server-side.
 
-## Shopware MCP Dependency
+## MCP Runtime Boundary
 
-The plugin does not ship a standalone MCP server. Its `/ucp/mcp` endpoint is a
-proxy to the Shopware core Store API MCP endpoint. MCP support depends on that
-core endpoint existing with sales-channel context authentication. The SDK should
-only provide reusable transport metadata and tool-registration abstractions
-needed by the plugin.
+The shared SDK publishes MCP profile metadata but does not implement an MCP server.
+Adopters provide the runtime, authentication, session lifecycle and streamable-HTTP
+transport, and configure its public endpoint through `transportEndpoints`.
 
-This decision still holds, and `SwagAgenticCommerce` has since implemented that
-proxy (`src/Ucp/Mcp/Api/UcpMcpProxyController.php`) plus its own MCP tools — so
-the runtime already exists one layer up. Building an MCP runtime here would
-contradict this decision, require owning MCP session lifecycle and
-streamable-HTTP transport inside a framework-free zero-dependency package, and
-expose a second surface over the same operations REST already serves. The
-reusable part is a tool-descriptor generator off the operation registry, not a
-transport. See the "Explicitly out of scope" section of
+Operations should continue through the shared capability layer so additional
+transports reuse negotiation, payload mapping and validation. A reusable tool-descriptor
+generator can derive metadata from the operation registry without adding a transport.
+See the "Explicitly out of scope" section of
 [ucp-2026-08-25-upgrade.md](ucp-2026-08-25-upgrade.md).
 
 ## Validation
 
 - Unit-test profile generation for all four transports.
-- Verify endpoint overrides, especially Shopware's public MCP endpoint pointing
-  to `/ucp/mcp` while internal proxying targets `/store-api/_mcp`.
+- Verify that adopter-supplied MCP endpoint overrides appear in the public profile.
 - Keep REST behavior unchanged for existing users.
