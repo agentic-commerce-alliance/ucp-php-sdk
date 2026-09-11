@@ -69,7 +69,7 @@ final class Ed25519SigningTest extends TestCase
     }
 
     #[Test]
-    public function theSignatureIsSixtyFourBytesAndNotDer(): void
+    public function theSignatureIsSixtyFourBytes(): void
     {
         // RFC 8032 signatures are already the width the wire wants. Running one through the
         // ECDSA codec would corrupt it rather than reformat it, so it must not go there.
@@ -81,7 +81,7 @@ final class Ed25519SigningTest extends TestCase
 
         self::assertIsString($raw);
         self::assertSame(64, strlen($raw));
-        self::assertNotSame("\x30", $raw[0] ?? '', 'a DER sequence would start with 0x30');
+        // Raw Ed25519 signatures may begin with any byte, including DER's 0x30 marker.
     }
 
     #[Test]
