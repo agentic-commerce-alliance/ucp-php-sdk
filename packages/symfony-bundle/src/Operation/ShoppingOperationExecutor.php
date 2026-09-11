@@ -44,15 +44,8 @@ use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
  * response envelope, once, for all fourteen operations. The REST controllers and the A2A
  * JSON-RPC endpoint are both thin wrappers over it.
  *
- * It is public because an adopter serving UCP over a transport this bundle does not ship has
- * no other way to get those guarantees. Reimplementing them per transport is how a business
- * ends up validating on one path and not another -- `SwagAgenticCommerce`'s thirteen Store API
- * MCP tools call this for exactly that reason.
- *
- * Marked `@internal` until 0.0.6, which did not describe how it was used and, more to the
- * point, excluded it from the backward-compatibility check: Roave skips internal symbols, so a
- * signature change here was invisible to the gate while thirteen files downstream depended on
- * it.
+ * Public so adopters can expose additional transports through the same validation and
+ * execution path. Its signatures are covered by the public API compatibility checks.
  */
 final class ShoppingOperationExecutor
 {
