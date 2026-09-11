@@ -4,6 +4,7 @@
     "minCoveredMsi": 79,
     "source": {
         "directories": [
+            "packages/core/src/Adapter",
             "packages/core/src/Internal/Security",
             "packages/core/src/Internal/Service",
             "packages/symfony-bundle/src/Bridge/DefaultStorage"

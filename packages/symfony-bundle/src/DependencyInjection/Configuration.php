@@ -6,6 +6,8 @@ namespace Ucp\Sdk\Symfony\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
+use Ucp\Sdk\Internal\Security\AgentDomainAllowList;
 use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
 
 final class Configuration implements ConfigurationInterface
@@ -17,20 +19,67 @@ final class Configuration implements ConfigurationInterface
 
         $rootNode
             ->children()
-                ->scalarNode('version')->defaultValue('2026-04-08')->end()
+                ->scalarNode('version')
+                    ->defaultValue(UcpProtocolVersion::current()->value)
+                    ->validate()
+                        ->ifTrue(static fn (mixed $version): bool => ! is_string($version) || ! UcpProtocolVersion::isSupported($version))
+                        ->thenInvalid(sprintf(
+                            'Unsupported UCP protocol version %%s. This SDK release serves %s.',
+                            implode(', ', UcpProtocolVersion::supportedVersions()),
+                        ))
+                    ->end()
+                ->end()
                 ->scalarNode('base_uri')->defaultNull()->end()
+                ->arrayNode('legacy_routes')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        // On by default for one minor: the route is non-conformant, so no
+                        // conformant peer can depend on it, but adopters shipped against it.
+                        ->booleanNode('catalog_product_get')->defaultTrue()->end()
+                    ->end()
+                ->end()
                 ->arrayNode('allowed_profile_hosts')
                     ->scalarPrototype()->end()
                 ->end()
+                // Refused at container build rather than skipped at request time. An
+                // unusable entry used to be dropped silently, which left an operator with
+                // an allow-list that refused every agent and no indication why.
                 ->arrayNode('allowed_agent_domains')
-                    ->scalarPrototype()->end()
+                    ->scalarPrototype()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $entry): bool => ! is_string($entry) || ! AgentDomainAllowList::isUsableEntry($entry))
+                            ->thenInvalid(
+                                'Invalid ucp_sdk.allowed_agent_domains entry %s. Write a domain such as '
+                                . '"agent.example", which also covers its subdomains, or a full origin such as '
+                                . '"https://agent.example" to pin the scheme and port.',
+                            )
+                        ->end()
+                    ->end()
                 ->end()
                 ->booleanNode('profile_fetching_development_mode')->defaultFalse()->end()
                 ->enumNode('signature_policy')->values(['log', 'strict', 'off'])->defaultValue('log')->end()
+                ->arrayNode('response_signing')
+                    ->info('Sign UCP responses per RFC 9421, bound to the request that produced them.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        // Off by default: a business with no signing key would otherwise start
+                        // logging a warning on every response the moment it upgrades, and
+                        // response signing is something an operator opts into once its peers
+                        // are ready to verify it.
+                        ->booleanNode('enabled')->defaultFalse()->end()
+                    ->end()
+                ->end()
                 ->booleanNode('idempotency_required')->defaultFalse()->end()
                 ->integerNode('idempotency_ttl')->defaultValue(86400)->min(1)->end()
                 ->integerNode('max_request_body_bytes')->defaultValue(262144)->min(1)->end()
-                ->integerNode('platform_profile_cache_ttl')->defaultValue(600)->min(1)->end()
+                // How long we cache *their* profile at most. The platform's own Cache-Control
+                // decides the actual freshness, floored at the spec's 60 seconds and capped here;
+                // a profile that sends no directive is cached for exactly this long.
+                ->integerNode('platform_profile_cache_ttl')->defaultValue(600)->min(60)->end()
+                // How long platforms may cache *our* profile, as opposed to how long we cache
+                // theirs. The floor is the spec's: below 60 the document is effectively
+                // uncacheable, which is the state this setting exists to leave behind.
+                ->integerNode('profile_cache_max_age')->defaultValue(300)->min(60)->end()
                 ->integerNode('negotiation_session_ttl')->defaultValue(604800)->min(1)->end()
                 ->integerNode('signature_max_lifetime_seconds')->defaultValue(300)->min(1)->end()
                 ->arrayNode('oauth')

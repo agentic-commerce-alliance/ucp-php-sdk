@@ -1,0 +1,61 @@
+diff --git a/shopping-agent-test.json b/shopping-agent-test.json
+index bc7d5ed..2a3c1ff 100644
+--- a/shopping-agent-test.json
++++ b/shopping-agent-test.json
+@@ -2,6 +2,56 @@
+   "ucp": {
+     "version": "{ucp_version}",
+     "capabilities": {
++      "dev.ucp.shopping.catalog.search": [
++        {
++          "name": "dev.ucp.shopping.catalog.search",
++          "version": "{ucp_version}",
++          "spec": "https://ucp.dev/{ucp_version}/specification/catalog/search/",
++          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/catalog_search.json"
++        }
++      ],
++      "dev.ucp.shopping.catalog.lookup": [
++        {
++          "name": "dev.ucp.shopping.catalog.lookup",
++          "version": "{ucp_version}",
++          "spec": "https://ucp.dev/{ucp_version}/specification/catalog/lookup/",
++          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/catalog_lookup.json"
++        }
++      ],
++      "dev.ucp.shopping.cart": [
++        {
++          "name": "dev.ucp.shopping.cart",
++          "version": "{ucp_version}",
++          "spec": "https://ucp.dev/{ucp_version}/specification/cart/",
++          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/cart.json"
++        }
++      ],
++      "dev.ucp.shopping.checkout": [
++        {
++          "name": "dev.ucp.shopping.checkout",
++          "version": "{ucp_version}",
++          "spec": "https://ucp.dev/{ucp_version}/specification/checkout/",
++          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/checkout.json"
++        }
++      ],
++      "dev.ucp.shopping.discount": [
++        {
++          "name": "dev.ucp.shopping.discount",
++          "version": "{ucp_version}",
++          "spec": "https://ucp.dev/{ucp_version}/specification/extensions/discount/",
++          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/discount.json",
++          "extends": "dev.ucp.shopping.cart"
++        }
++      ],
++      "dev.ucp.shopping.fulfillment": [
++        {
++          "name": "dev.ucp.shopping.fulfillment",
++          "version": "{ucp_version}",
++          "spec": "https://ucp.dev/{ucp_version}/specification/extensions/fulfillment/",
++          "schema": "https://ucp.dev/{ucp_version}/schemas/shopping/fulfillment.json",
++          "extends": "dev.ucp.shopping.checkout"
++        }
++      ],
+       "dev.ucp.shopping.order": [
+         {
+           "name": "dev.ucp.shopping.order",

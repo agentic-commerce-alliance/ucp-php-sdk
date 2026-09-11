@@ -11,6 +11,7 @@ use MerchantSymfonyApp\Support\ProductCatalog;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use MerchantSymfonyApp\Ucp\MerchantCartCapability;
 use MerchantSymfonyApp\Ucp\MerchantCatalogCapability;
+use MerchantSymfonyApp\Ucp\MerchantCheckoutCapability;
 use MerchantSymfonyApp\Ucp\MerchantOrderCapability;
 use MerchantSymfonyApp\Ucp\MerchantOrderWebhookEnricher;
 use MerchantSymfonyApp\Ucp\MerchantPaymentHandler;
@@ -18,12 +19,14 @@ use MerchantSymfonyApp\Ucp\MerchantPaymentMandateVerifier;
 use MerchantSymfonyApp\Ucp\MerchantTokenizationCapability;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
 use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
+use Ucp\Sdk\Model\Checkout\CheckoutCreateRequest;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Common\LineItem;
 use Ucp\Sdk\Model\RequestContext;
@@ -159,8 +162,17 @@ final class MerchantExampleCoverageTest extends TestCase
         $capability = $this->cartCapability();
         $context = $this->context();
 
-        $missing = $capability->getCart('missing-cart', $context);
-        self::assertSame('cart_not_found', $missing->messages[0]->code);
+        // An unknown cart is not an empty cart carrying a warning. That answer is a cart, so
+        // an agent reading the status rather than the messages adds items to something the
+        // business does not have -- and it does not validate either, because a fabricated
+        // cart has no totals, so the caller used to receive `invalid_request` about our own
+        // response instead of `not_found` about their id.
+        try {
+            $capability->getCart('missing-cart', $context);
+            self::fail('An unknown cart id must not resolve to a cart.');
+        } catch (ResourceNotFoundException $exception) {
+            self::assertStringContainsString('missing-cart', $exception->getMessage());
+        }
 
         $created = $capability->createCart(new CartCreateRequest([
             new LineItem('tent-4p', 'Placeholder', 1.0, 1),
@@ -206,6 +218,16 @@ final class MerchantExampleCoverageTest extends TestCase
         );
     }
 
+    private function checkoutCapability(): MerchantCheckoutCapability
+    {
+        return new MerchantCheckoutCapability(
+            $this->stateStore(),
+            new PriceCalculator(new ProductCatalog(), $this->settings()),
+            new UcpModelFactory(),
+            $this->settings(),
+        );
+    }
+
     private function stateStore(): JsonStateStore
     {
         return new JsonStateStore($this->projectDir);
@@ -241,5 +263,35 @@ final class MerchantExampleCoverageTest extends TestCase
         }
 
         rmdir($path);
+    }
+
+    #[Test]
+    public function aCanceledCheckoutCannotBeCompleted(): void
+    {
+        // Completing one would mint an order against a session that was already withdrawn,
+        // and it would answer the caller with a success.
+        $capability = $this->checkoutCapability();
+        $checkout = $capability->createCheckout(
+            new CheckoutCreateRequest([new LineItem('tent-4p', 'Summit 4P Tent', 249.0)]),
+            $this->context(),
+        );
+        $capability->cancelCheckout($checkout->id, $this->context());
+
+        $this->expectException(ValidationException::class);
+
+        $capability->completeCheckout($checkout->id, $this->context());
+    }
+
+    #[Test]
+    public function theReservedFailureTokenIsDeclined(): void
+    {
+        // A demo merchant that only ever succeeds cannot show a caller what a declined
+        // payment looks like, and that is the path worth copying correctly.
+        $this->expectException(ValidationException::class);
+
+        (new MerchantPaymentMandateVerifier())->verify(
+            new PaymentInstrument('card', 'merchant.card', ['token' => 'fail_token']),
+            $this->context(),
+        );
     }
 }

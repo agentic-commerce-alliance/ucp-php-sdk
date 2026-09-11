@@ -1,0 +1,113 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Ucp\Sdk\Internal\Http;
+
+use Ucp\Sdk\Exception\AgentProfileException;
+use Ucp\Sdk\Exception\UcpException;
+use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
+use Ucp\Sdk\Model\Security\AgentKeyDirectory;
+use Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface;
+use Ucp\Sdk\Service\AgentKeyDirectoryFetcherInterface;
+use Ucp\Sdk\Service\HttpClientInterface;
+
+/**
+ * Fetches the JWK Set an agent publishes at its `Signature-Agent` URL.
+ *
+ * The URL arrives in a request header, which makes this an outbound request a caller chose the
+ * destination of. Every guard here exists for that reason rather than for tidiness: the host is
+ * checked against the configured allow-list before anything is sent, the resolved address is
+ * pinned so a name cannot resolve differently between check and fetch, redirects are refused so
+ * an allowed host cannot forward to a disallowed one, and the body is capped while streaming so
+ * a hostile endpoint cannot answer with an unbounded one.
+ *
+ * @internal
+ */
+final class HttpAgentKeyDirectoryFetcher implements AgentKeyDirectoryFetcherInterface
+{
+    public function __construct(
+        private readonly HttpClientInterface $httpClient,
+        private readonly AgentKeyDirectoryCacheRepositoryInterface $cacheRepository,
+        private readonly UrlSafetyValidator $urlSafetyValidator,
+        private readonly int $timeoutSeconds = 5,
+        private readonly int $maxResponseBytes = 1048576,
+    ) {
+    }
+
+    public function fetch(string $uri): AgentKeyDirectory
+    {
+        $validatedUri = $this->urlSafetyValidator->validateAndResolve($uri);
+
+        $cached = $this->cacheRepository->find($uri);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        // A stale entry is better than no keys at all when the agent's directory is briefly
+        // unreachable: the alternative is refusing every signed request from that agent because
+        // its key server had a bad minute.
+        $stale = $this->cacheRepository->find($uri, true);
+
+        try {
+            $response = $this->httpClient->request('GET', $uri, [
+                'headers' => ['Accept' => 'application/json'],
+                'timeout' => $this->timeoutSeconds,
+                'max_redirects' => 0,
+                'buffer' => false,
+                'resolve' => $validatedUri->resolveMap(),
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                throw AgentProfileException::unavailable($uri, $response->getStatusCode());
+            }
+
+            $headers = $response->getHeaders(false);
+            $contentLength = isset($headers['content-length'][0]) ? (int) $headers['content-length'][0] : null;
+            if ($contentLength !== null && $contentLength > $this->maxResponseBytes) {
+                throw AgentProfileException::tooLarge($uri, $this->maxResponseBytes);
+            }
+
+            $content = '';
+            foreach ($this->httpClient->stream($response, $this->timeoutSeconds) as $chunk) {
+                if ($chunk->isTimeout() || $chunk->isFirst()) {
+                    continue;
+                }
+
+                $content .= $chunk->getContent();
+
+                // Checked while streaming rather than after: a declared Content-Length is the
+                // sender's claim, and this is the part that holds when the claim is a lie.
+                if (strlen($content) > $this->maxResponseBytes) {
+                    $response->cancel();
+
+                    throw AgentProfileException::tooLarge($uri, $this->maxResponseBytes);
+                }
+            }
+
+            $payload = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+            if (! is_array($payload)) {
+                throw AgentProfileException::invalid($uri, 'the response body does not decode to a JSON object.');
+            }
+
+            $directory = AgentKeyDirectory::fromArray($uri, $payload);
+            $this->cacheRepository->save($uri, $directory);
+
+            return $directory;
+        } catch (\Throwable $exception) {
+            if ($stale !== null) {
+                return $stale;
+            }
+
+            if ($exception instanceof UcpException) {
+                throw $exception;
+            }
+
+            if ($exception instanceof \JsonException) {
+                throw AgentProfileException::invalid($uri, $exception->getMessage(), $exception);
+            }
+
+            throw AgentProfileException::unreachable($uri, $exception);
+        }
+    }
+}

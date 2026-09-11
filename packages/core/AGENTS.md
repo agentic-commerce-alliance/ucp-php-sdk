@@ -55,7 +55,7 @@ Example:
 
 ```php
 $catalogCapability = new AdapterBackedCatalogCapability(
-    new CapabilityDescriptor('dev.ucp.shopping.catalog', '2026-04-08', '...', '...'),
+    new CapabilityDescriptor('dev.ucp.shopping.catalog', UcpProtocolVersion::current()->value, '...', '...'),
     $catalogAdapter,
 );
 ```

@@ -1,0 +1,24 @@
+{
+  "ucp_version": "2026-08-25",
+  "required_capabilities": [
+    "dev.ucp.shopping.checkout",
+    "dev.ucp.shopping.order",
+    "dev.ucp.shopping.discount"
+  ],
+  "currency": "EUR",
+  "items": [
+    {
+      "id": "tent-4p",
+      "title": "Summit 4P Tent",
+      "price": 24900
+    }
+  ],
+  "out_of_stock_item": {
+    "id": "map-alpine",
+    "title": "Alpine Trail Map"
+  },
+  "non_existent_item": {
+    "id": "pink-wumpus",
+    "title": "Pink Wumpus"
+  }
+}

@@ -7,13 +7,16 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\PaymentHandlerInterface;
+use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Event\ProfileBuiltEvent;
 use Ucp\Sdk\Exception\ConfigurationException;
 use Ucp\Sdk\Internal\Registry\CapabilityRegistry;
 use Ucp\Sdk\Internal\Registry\PaymentHandlerRegistry;
 use Ucp\Sdk\Internal\Service\DefaultProfileBuilder;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PaymentHandlerDescriptor;
+use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 
@@ -150,12 +153,229 @@ final class DefaultProfileBuilderTest extends TestCase
             ],
         ));
     }
+
+    /**
+     * Both extension points can rewrite the published profile, and they are not
+     * equivalent: a contributor returns a profile and the builder takes the return value,
+     * while a listener is handed a mutable event and has to call replaceProfile() for its
+     * work to survive. Nothing exercised the second one, so the builder could have
+     * discarded the event and every existing assertion would still have passed.
+     *
+     * The listener runs last, after every contributor, which is the part worth pinning
+     * rather than merely observing -- a host that needs the final word on what it
+     * publishes cannot get it from a contributor, because another contributor registered
+     * later would overwrite it.
+     */
+    public function testAListenerHasTheFinalSayOverEveryContributor(): void
+    {
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [new VersionRewritingContributor('rewritten-by-contributor')],
+            [],
+            new ProfileReplacingEventDispatcher('rewritten-by-listener'),
+        );
+
+        $profile = $builder->build(new ProfileBuildInput('2026-04-08', 'https://shop.example'));
+
+        self::assertSame('rewritten-by-listener', $profile->version);
+    }
+
+    /**
+     * The input is on the event because a listener deciding what to publish needs to know
+     * what was asked for -- which base URI, which enabled capabilities. It was never read.
+     * The contributor here is what proves the listener sees the contributed profile rather
+     * than the one the builder assembled.
+     */
+    public function testTheProfileBuiltEventCarriesTheBuildInputAndTheContributedProfile(): void
+    {
+        $dispatcher = new ProfileReplacingEventDispatcher(null);
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([]),
+            [new VersionRewritingContributor('rewritten-by-contributor')],
+            [],
+            $dispatcher,
+        );
+        $input = new ProfileBuildInput('2026-04-08', 'https://shop.example');
+
+        $profile = $builder->build($input);
+
+        self::assertSame($input, $dispatcher->seenInput);
+        self::assertSame('rewritten-by-contributor', $dispatcher->seenProfile?->version);
+        self::assertSame('rewritten-by-contributor', $profile->version, 'A listener that replaces nothing must not undo the contributor.');
+    }
+
+    /**
+     * Two handlers can legitimately share a name and differ by id -- a tokenizer offering PAN
+     * and network-token variants, say. This assigned rather than appended, so the second
+     * silently replaced the first and the profile advertised whichever the registry yielded
+     * last, while DefaultCapabilityNegotiator intersects on id and would have kept both.
+     */
+    public function testItPublishesEveryHandlerSharingAName(): void
+    {
+        $pan = $this->createMock(PaymentHandlerInterface::class);
+        $pan->method('id')->willReturn('acme-pan');
+        $pan->method('describe')->willReturn(new PaymentHandlerDescriptor(
+            'acme-pan',
+            'com.acme.tokenizer',
+            '2026-04-08',
+            'https://ucp.dev/specification/payment-handler-guide/',
+            'https://acme.example/schemas/pan.json',
+            ['https://acme.example/schemas/pan-instrument.json'],
+        ));
+
+        $networkToken = $this->createMock(PaymentHandlerInterface::class);
+        $networkToken->method('id')->willReturn('acme-network-token');
+        $networkToken->method('describe')->willReturn(new PaymentHandlerDescriptor(
+            'acme-network-token',
+            'com.acme.tokenizer',
+            '2026-04-08',
+            'https://ucp.dev/specification/payment-handler-guide/',
+            'https://acme.example/schemas/network-token.json',
+            ['https://acme.example/schemas/network-token-instrument.json'],
+        ));
+
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([$pan, $networkToken]),
+            [],
+            [],
+            new NullEventDispatcher(),
+        );
+
+        $profile = $builder->build(new ProfileBuildInput('2026-04-08', 'https://shop.example'));
+
+        self::assertArrayHasKey('com.acme.tokenizer', $profile->paymentHandlers);
+        self::assertCount(2, $profile->paymentHandlers['com.acme.tokenizer']);
+        self::assertSame(
+            ['acme-pan', 'acme-network-token'],
+            array_map(
+                static fn (PaymentHandlerDescriptor $descriptor): string => $descriptor->id,
+                $profile->paymentHandlers['com.acme.tokenizer'],
+            ),
+        );
+    }
+
+    /**
+     * What a peer reads back out of the published profile has to be what went in, or the
+     * handler set the SDK matches against is not the one it advertised.
+     */
+    public function testAPublishedProfileRoundTripsItsHandlerSet(): void
+    {
+        $first = $this->createMock(PaymentHandlerInterface::class);
+        $first->method('id')->willReturn('acme-pan');
+        $first->method('describe')->willReturn(new PaymentHandlerDescriptor(
+            'acme-pan',
+            'com.acme.tokenizer',
+            '2026-04-08',
+            'https://ucp.dev/specification/payment-handler-guide/',
+            'https://acme.example/schemas/pan.json',
+            ['https://acme.example/schemas/pan-instrument.json'],
+        ));
+        $second = $this->createMock(PaymentHandlerInterface::class);
+        $second->method('id')->willReturn('acme-network-token');
+        $second->method('describe')->willReturn(new PaymentHandlerDescriptor(
+            'acme-network-token',
+            'com.acme.tokenizer',
+            '2026-04-08',
+            'https://ucp.dev/specification/payment-handler-guide/',
+            'https://acme.example/schemas/network-token.json',
+            ['https://acme.example/schemas/network-token-instrument.json'],
+        ));
+
+        $builder = new DefaultProfileBuilder(
+            new CapabilityRegistry([]),
+            new PaymentHandlerRegistry([$first, $second]),
+            [],
+            [],
+            new NullEventDispatcher(),
+        );
+
+        $published = $builder->build(new ProfileBuildInput('2026-04-08', 'https://shop.example'));
+
+        // Through JSON, because that is the only way fromArray() is ever reached: it parses a
+        // profile fetched over HTTP. Handing it toArray() directly does not round-trip -- an
+        // empty registry section is emitted as a stdClass so it serialises as `{}` rather than
+        // `[]`, and the parser wants arrays. Harmless on the wire, worth knowing when testing.
+        $encoded = json_decode(json_encode($published->toArray(), JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($encoded);
+        $reread = PlatformProfile::fromArray($encoded);
+
+        self::assertSame(
+            array_keys($published->paymentHandlers),
+            array_keys($reread->paymentHandlers),
+        );
+        self::assertSame(
+            ['acme-pan', 'acme-network-token'],
+            array_map(
+                static fn (PaymentHandlerDescriptor $descriptor): string => $descriptor->id,
+                $reread->paymentHandlers['com.acme.tokenizer'],
+            ),
+        );
+    }
 }
 
 final class NullEventDispatcher implements EventDispatcherInterface
 {
     public function dispatch(object $event): object
     {
+        return $event;
+    }
+
+}
+
+final class VersionRewritingContributor implements ProfileContributorInterface
+{
+    public function __construct(private readonly string $version)
+    {
+    }
+
+    public function contribute(PlatformProfile $profile, ProfileBuildInput $input): PlatformProfile
+    {
+        return new PlatformProfile(
+            $this->version,
+            $profile->services,
+            $profile->capabilities,
+            $profile->paymentHandlers,
+            $profile->signingKeys,
+            $profile->supportedVersions,
+        );
+    }
+}
+
+final class ProfileReplacingEventDispatcher implements EventDispatcherInterface
+{
+    public ?ProfileBuildInput $seenInput = null;
+
+    public ?PlatformProfile $seenProfile = null;
+
+    public function __construct(private readonly ?string $replacementVersion)
+    {
+    }
+
+    public function dispatch(object $event): object
+    {
+        if (! $event instanceof ProfileBuiltEvent) {
+            return $event;
+        }
+
+        $this->seenInput = $event->getInput();
+        $this->seenProfile = $event->getProfile();
+
+        if ($this->replacementVersion === null) {
+            return $event;
+        }
+
+        $event->replaceProfile(new PlatformProfile(
+            $this->replacementVersion,
+            $this->seenProfile->services,
+            $this->seenProfile->capabilities,
+            $this->seenProfile->paymentHandlers,
+            $this->seenProfile->signingKeys,
+            $this->seenProfile->supportedVersions,
+        ));
+
         return $event;
     }
 }

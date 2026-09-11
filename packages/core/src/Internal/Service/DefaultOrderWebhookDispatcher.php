@@ -26,6 +26,16 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
     public const DEFAULT_MAX_RESPONSE_BODY_BYTES = 256 * 1024;
 
     /**
+     * How many times a delivery is attempted before the business gives up on it.
+     *
+     * order.md requires failed deliveries to be retried. Three attempts is the whole retry
+     * policy: this is a synchronous dispatcher, so anything longer holds the request that
+     * triggered it. A business that needs real backoff queues the delivery and drives this
+     * from a worker, which is why the result carries `retryable` rather than swallowing it.
+     */
+    public const DEFAULT_MAX_ATTEMPTS = 3;
+
+    /**
      * @param iterable<OrderWebhookEnricherInterface> $enrichers
      */
     public function __construct(
@@ -37,6 +47,7 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         private readonly int $timeoutSeconds = 10,
         ?UrlSafetyValidator $urlSafetyValidator = null,
         private readonly int $maxResponseBodyBytes = self::DEFAULT_MAX_RESPONSE_BODY_BYTES,
+        private readonly int $maxAttempts = self::DEFAULT_MAX_ATTEMPTS,
     ) {
         $this->urlSafetyValidator = $urlSafetyValidator ?? new UrlSafetyValidator();
     }
@@ -61,28 +72,75 @@ final class DefaultOrderWebhookDispatcher implements OrderWebhookPublisherInterf
         }
 
         $body = json_encode($payload->toArray(), JSON_THROW_ON_ERROR);
-        $request = new HttpRequest('POST', $targetUrl, ['Content-Type' => 'application/json'], [], $body);
-        $headers = $this->requestSignatureService->sign($request, $key);
-        $headers['Content-Type'] = 'application/json';
 
-        try {
-            $response = $this->httpClient->request('POST', $targetUrl, [
-                'headers' => $headers,
-                'body' => $body,
-                'timeout' => $this->timeoutSeconds,
-                'max_redirects' => 0,
-                'buffer' => false,
-                'resolve' => $validatedUrl->resolveMap(),
-            ]);
-        } catch (\Throwable) {
-            return new WebhookDispatchResult($targetUrl, 0, false, true);
+        // Standard Webhooks identity, established once for the event rather than per attempt.
+        // A retry is the same event delivered again, and a receiver deduplicating on
+        // `Webhook-Id` has to see the same value or it will process the order twice.
+        $deliveryHeaders = [
+            'Content-Type' => 'application/json',
+            'Webhook-Id' => $this->deliveryId($payload),
+            'Webhook-Timestamp' => (string) time(),
+        ];
+
+        $businessProfile = $this->businessProfileUri($context);
+        if ($businessProfile !== null) {
+            $deliveryHeaders['UCP-Agent'] = sprintf('profile="%s"', $businessProfile);
         }
 
-        try {
-            return $this->toResult($targetUrl, $response);
-        } catch (\Throwable) {
-            return new WebhookDispatchResult($targetUrl, 0, false, true);
+        $request = new HttpRequest('POST', $targetUrl, $deliveryHeaders, [], $body);
+        $headers = [...$deliveryHeaders, ...$this->requestSignatureService->sign($request, $key)];
+
+        $result = new WebhookDispatchResult($targetUrl, 0, false, true);
+
+        for ($attempt = 1; $attempt <= max(1, $this->maxAttempts); $attempt++) {
+            try {
+                $response = $this->httpClient->request('POST', $targetUrl, [
+                    'headers' => $headers,
+                    'body' => $body,
+                    'timeout' => $this->timeoutSeconds,
+                    'max_redirects' => 0,
+                    'buffer' => false,
+                    'resolve' => $validatedUrl->resolveMap(),
+                ]);
+
+                $result = $this->toResult($targetUrl, $response);
+            } catch (\Throwable) {
+                $result = new WebhookDispatchResult($targetUrl, 0, false, true);
+            }
+
+            // Retrying a delivery the receiver rejected outright -- a 4xx -- just repeats a
+            // request it has already refused, so only retryable failures are attempted again.
+            if ($result->successful || ! $result->retryable) {
+                return $result;
+            }
         }
+
+        return $result;
+    }
+
+    /**
+     * A stable identifier for this event.
+     *
+     * Derived from the order and the event name rather than random, so a business that
+     * re-publishes the same event -- a retry after a crash, a replayed queue entry -- produces
+     * the identifier the receiver already deduplicated on.
+     */
+    private function deliveryId(OrderWebhookPayload $payload): string
+    {
+        return 'msg_' . substr(hash('sha256', $payload->event . '|' . $payload->orderId), 0, 32);
+    }
+
+    /**
+     * The business's own profile URL, which tells the receiver whose keys to verify with.
+     */
+    private function businessProfileUri(RequestContext $context): ?string
+    {
+        $baseUri = $context->runtimeConfiguration?->baseUri;
+        if (! is_string($baseUri) || $baseUri === '') {
+            return null;
+        }
+
+        return rtrim($baseUri, '/') . '/.well-known/ucp';
     }
 
     private function toResult(string $targetUrl, HttpResponseInterface $response): WebhookDispatchResult

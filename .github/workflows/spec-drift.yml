@@ -1,0 +1,83 @@
+name: spec-drift
+
+# The only check here whose question is about the outside world. Everything else asks whether
+# this repository is self-consistent, and the answer stayed yes for the weeks that 2026-08-25 sat
+# published and unnoticed: pinned schemas matched generated ones, tests passed, and the protocol
+# had moved on without us.
+on:
+  schedule:
+    # Weekly. A protocol release is not an emergency, and a daily run that finds nothing 51 times
+    # is a notification people learn to dismiss.
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: spec-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: upstream release and pin drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Check for drift
+        id: drift
+        env:
+          # Raises the API rate limit from 60/hour to 5000; the check works without it.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          php tools/check-spec-drift.php > drift-report.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat drift-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # One issue, updated in place, rather than a new one each week. A weekly duplicate is how a
+      # real finding ends up buried under notifications about itself.
+      - name: Open or update the tracking issue
+        if: steps.drift.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: Upstream spec drift
+        run: |
+          existing="$(gh issue list --state open --search "$TITLE in:title" \
+            --json number,title --jq ".[] | select(.title == \"$TITLE\") | .number" | head -1)"
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file drift-report.md
+            echo "Updated issue #$existing" >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh issue create --title "$TITLE" --body-file drift-report.md
+          fi
+
+      # Closed automatically once the drift is gone, so the issue's existence is the signal
+      # rather than something someone has to remember to tidy up.
+      - name: Close the tracking issue when clean
+        if: steps.drift.outputs.status == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: Upstream spec drift
+        run: |
+          existing="$(gh issue list --state open --search "$TITLE in:title" \
+            --json number,title --jq ".[] | select(.title == \"$TITLE\") | .number" | head -1)"
+
+          if [ -n "$existing" ]; then
+            gh issue close "$existing" --comment 'Pins match upstream again; closed by the spec-drift workflow.'
+          fi
+
+      # Deliberately not a failing job. Drift is a fact about upstream rather than a defect in a
+      # commit, and a red cross on a scheduled run teaches people to ignore red crosses.
+      - name: Report
+        if: steps.drift.outputs.status != '0'
+        run: cat drift-report.md

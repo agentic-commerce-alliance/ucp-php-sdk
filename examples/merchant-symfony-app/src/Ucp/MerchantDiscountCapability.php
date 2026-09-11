@@ -9,6 +9,8 @@ use MerchantSymfonyApp\Support\MerchantSettings;
 use MerchantSymfonyApp\Support\PriceCalculator;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\DiscountCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
 use Ucp\Sdk\Model\Common\Message;
@@ -31,12 +33,12 @@ final class MerchantDiscountCapability implements DiscountCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.discount',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/discount.json',
             ['dev.ucp.shopping.cart'],
             [
-                'codes' => ['SAVE10'],
+                'codes' => array_keys(PriceCalculator::DISCOUNT_CODES),
                 'currency' => $this->settings->currency,
             ],
         );
@@ -44,6 +46,15 @@ final class MerchantDiscountCapability implements DiscountCapabilityInterface
 
     public function applyCartDiscount(string $cartId, DiscountCode $discount, RequestContext $context): Cart
     {
+        // Any code used to "apply" and then quietly reduce the total by nothing, so an agent
+        // could not tell a typo from a code this merchant does not run.
+        if (! PriceCalculator::knowsDiscountCode($discount->code)) {
+            throw new ValidationException(
+                sprintf('Discount code "%s" is not valid.', $discount->code),
+                ['$.code is not a discount code this business honours'],
+            );
+        }
+
         $record = $this->stateStore->find(self::COLLECTION, $cartId);
         if ($record === null) {
             return new Cart($cartId, [], $this->settings->currency, [], [

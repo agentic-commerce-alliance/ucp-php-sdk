@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BootstrapSymfonyApp\Demo;
 
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Common\Link;
 use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Common\Money;
@@ -23,7 +24,7 @@ final class DemoOrderCapability implements OrderCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.order',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/order/',
             'https://ucp.dev/schemas/shopping/order.json',
         );

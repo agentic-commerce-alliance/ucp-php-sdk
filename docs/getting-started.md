@@ -11,7 +11,7 @@ checkout, tokenization, identity linking, and order read — over a standard con
 instead of every integration being bespoke. This SDK implements the merchant side of
 that protocol in PHP.
 
-- Protocol target in this repo: **`2026-04-08`**
+- Protocol target in this repo: **`2026-08-25`**
 - Specification: <https://ucp.dev/specification/overview/>
 
 You expose your commerce backend by implementing **capability contracts** (e.g.
@@ -73,6 +73,14 @@ Defaults you should know (full list in the [README "Runtime Defaults"](../README
 
 - `transports` defaults to `rest`. `a2a`/`embedded` routes return 404 until explicitly enabled.
 - `enabled_capabilities` empty = every registered capability is enabled.
+- `version` defaults to the protocol version this release serves, and is validated against it.
+  Setting one this release ships no schemas for fails when the container is built, rather than
+  on the first validated request. It also selects the schema set requests are validated
+  against, so the two cannot drift apart.
+- `legacy_routes.catalog_product_get` defaults to on and keeps the pre-0.0.6
+  `GET /ucp/v1/catalog/product/{id}` alive. New integrations should use
+  `POST /ucp/v1/catalog/product`, which is the shape the spec defines and the only one that can
+  carry the full request body.
 
 ### 4. Bootstrap the storage schema (do not skip this)
 
@@ -120,7 +128,7 @@ final class CatalogCapability implements CatalogCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.catalog.search',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/catalog-search.json',
         );

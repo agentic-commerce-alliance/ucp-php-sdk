@@ -36,7 +36,17 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
-/** @internal */
+/**
+ * Runs a UCP shopping operation, whatever transport asked for it.
+ *
+ * This is the seam between a transport and the capability layer: negotiation enforcement,
+ * payload mapping, request and response schema validation, the capability call, and the
+ * response envelope, once, for all fourteen operations. The REST controllers and the A2A
+ * JSON-RPC endpoint are both thin wrappers over it.
+ *
+ * Public so adopters can expose additional transports through the same validation and
+ * execution path. Its signatures are covered by the public API compatibility checks.
+ */
 final class ShoppingOperationExecutor
 {
     /**
@@ -130,7 +140,10 @@ final class ShoppingOperationExecutor
         return $this->response(
             'catalog.product',
             new CatalogProductResponse($this->catalog($request->context)->getProduct($productRequest, $request->context)),
-            UcpCapability::CatalogProduct,
+            // Product detail is part of the lookup capability, not a capability of its own: both
+            // its request and response schemas come from `catalog_lookup.json`, and no published
+            // schema defines a `catalog.product` capability id.
+            UcpCapability::CatalogLookup,
             $request->context,
         );
     }
@@ -386,9 +399,14 @@ final class ShoppingOperationExecutor
      */
     private function response(string $operation, UcpOperationPayload $payload, UcpCapability $capability, RequestContext $context): UcpOperationResponse
     {
+        $configuration = $context->runtimeConfiguration;
         $response = new UcpOperationResponse(
             $payload,
-            UcpEnvelope::response(UcpProtocolVersion::V20260408->value, UcpResponseStatus::Success, $capability),
+            UcpEnvelope::response(
+                $configuration === null ? UcpProtocolVersion::current()->value : $configuration->version,
+                UcpResponseStatus::Success,
+                $capability,
+            ),
         );
 
         $this->protocolValidator->validateResponse($operation, $response->toArray(), $context);

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Service;
 
 use Ucp\Sdk\Enum\SignaturePolicy;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Internal\Security\AgentDomainAllowList;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Model\RequestContext;
@@ -15,6 +17,7 @@ use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
+use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
@@ -55,6 +58,19 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             );
         }
 
+        // The platform may name the protocol version it is speaking. Answering a version this
+        // release does not serve, in the shapes of the one it does, is how two peers end up
+        // disagreeing about a field neither of them will mention -- so it is refused up front,
+        // where the reason is still the version rather than whatever fails first because of it.
+        $requestedVersion = $this->extractAgentParameter($agentHeader, 'version');
+        if ($requestedVersion !== null && $requestedVersion !== $configuration->version) {
+            throw NegotiationException::versionUnsupported(sprintf(
+                'This business serves UCP %s; the request asked for %s.',
+                $configuration->version,
+                $requestedVersion,
+            ));
+        }
+
         $this->assertSafeProfileUri(
             $profileUri,
             $configuration->allowedProfileHosts,
@@ -62,7 +78,9 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             $configuration->profileFetchingDevelopmentMode,
         );
 
-        $platformProfile = $this->agentProfileFetcher->fetch($profileUri);
+        $platformProfile = $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface
+            ? $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts)
+            : $this->agentProfileFetcher->fetch($profileUri);
         $publicKeys = $platformProfile->signingKeys;
         $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);
 
@@ -127,11 +145,19 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
 
     private function extractProfileUri(?string $header): ?string
     {
+        return $this->extractAgentParameter($header, 'profile');
+    }
+
+    /**
+     * A quoted parameter from the UCP-Agent header.
+     */
+    private function extractAgentParameter(?string $header, string $name): ?string
+    {
         if ($header === null) {
             return null;
         }
 
-        if (preg_match('/profile="([^"]+)"/', $header, $matches) === 1) {
+        if (preg_match('/\b' . preg_quote($name, '/') . '="([^"]+)"/', $header, $matches) === 1) {
             return $matches[1];
         }
 
@@ -181,19 +207,11 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
         }
 
-        if ($allowedAgentDomains !== []) {
-            $allowed = false;
-            foreach ($allowedAgentDomains as $allowedDomain) {
-                $allowedDomain = strtolower($allowedDomain);
-                if ($host === $allowedDomain || str_ends_with($host, '.' . $allowedDomain)) {
-                    $allowed = true;
-                    break;
-                }
-            }
-
-            if (! $allowed) {
-                throw new SignatureException('Platform agent domain is not allowed for the current runtime configuration.');
-            }
+        // Shared with the embedded transport's CORS check rather than reimplemented. This
+        // list used to be matched here as bare domains and there as full origins, so an
+        // entry that satisfied one gate was refused by the other.
+        if ($allowedAgentDomains !== [] && ! AgentDomainAllowList::matchesHost($host, $allowedAgentDomains)) {
+            throw new SignatureException('Platform agent domain is not allowed for the current runtime configuration.');
         }
     }
 

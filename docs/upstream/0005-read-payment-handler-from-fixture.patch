@@ -1,0 +1,64 @@
+diff --git a/ap2_test.py b/ap2_test.py
+index 1b21259..2ab5c03 100644
+--- a/ap2_test.py
++++ b/ap2_test.py
+@@ -45,7 +45,7 @@ class Ap2MandateTest(integration_test_utils.IntegrationTestBase):
+ 
+     payment_instrument = {
+       "id": "instr_1",
+-      "handler_id": "mock_payment_handler",
++      "handler_id": integration_test_utils.get_handler_id(),
+       "type": "card",
+       "display": {
+         "brand": "visa",
+diff --git a/binding_test.py b/binding_test.py
+index d785238..4784876 100644
+--- a/binding_test.py
++++ b/binding_test.py
+@@ -48,7 +48,7 @@ class TokenBindingTest(integration_test_utils.IntegrationTestBase):
+         "instruments": [
+           {
+             "id": "instr_1",
+-            "handler_id": "mock_payment_handler",
++            "handler_id": integration_test_utils.get_handler_id(),
+             "type": "card",
+             "display": {
+               "brand": "visa",
+diff --git a/card_credential_test.py b/card_credential_test.py
+index aa52745..d91326a 100644
+--- a/card_credential_test.py
++++ b/card_credential_test.py
+@@ -45,7 +45,7 @@ class CardCredentialTest(integration_test_utils.IntegrationTestBase):
+ 
+     payment_instrument = {
+       "id": "instr_card",
+-      "handler_id": "mock_payment_handler",
++      "handler_id": integration_test_utils.get_handler_id(),
+       "type": "card",
+       "display": {
+         "brand": "Visa",
+diff --git a/integration_test_utils.py b/integration_test_utils.py
+index af7bcd2..a19fd2e 100644
+--- a/integration_test_utils.py
++++ b/integration_test_utils.py
+@@ -150,6 +150,20 @@ def get_headers(
+   }
+ 
+ 
++def get_handler_id(instrument_id: str = "instr_1") -> str:
++  """Return the payment handler the merchant under test declared for an instrument.
++
++  Read from ``payment_instruments.csv`` like ``get_valid_payment_payload`` does. A Business
++  MUST reject an instrument for a handler it does not implement, so a literal here fails every
++  merchant except the reference server -- on a value it was never given a way to configure.
++  """
++  instr_data = next(
++    (pi for pi in test_data.payment_instruments if pi["id"] == instrument_id),
++    None,
++  )
++  return (instr_data or {}).get("handler_id", "mock_payment_handler")
++
++
+ def get_valid_payment_payload(
+   instrument_id: str = "instr_1", address_id: str = "addr_1"
+ ) -> dict[str, Any]:

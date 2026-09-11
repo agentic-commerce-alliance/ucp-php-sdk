@@ -46,7 +46,8 @@ final class PlatformProfileTest extends TestCase
 
         $payload = $profile->toArray();
 
-        self::assertSame(['ucp', 'signing_keys'], array_keys($payload));
+        // `keys` since 2026-08-25, which removed `signing_keys` from profile.json.
+        self::assertSame(['ucp', 'keys'], array_keys($payload));
         self::assertArrayNotHasKey('version', $payload);
         self::assertArrayNotHasKey('services', $payload);
         self::assertArrayNotHasKey('capabilities', $payload);
@@ -66,7 +67,7 @@ final class PlatformProfileTest extends TestCase
         self::assertInstanceOf(\stdClass::class, $payload['ucp']['capabilities']);
         self::assertInstanceOf(\stdClass::class, $payload['ucp']['payment_handlers']);
         self::assertSame(
-            '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}',
+            '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"keys":[]}',
             json_encode($payload, \JSON_THROW_ON_ERROR),
         );
     }

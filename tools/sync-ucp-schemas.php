@@ -2,16 +2,59 @@
 
 declare(strict_types=1);
 
+const USAGE = <<<'TXT'
+Usage:
+  php tools/sync-ucp-schemas.php <version> <path-to-ucp-source>   sync from an upstream checkout
+  php tools/sync-ucp-schemas.php --verify <version>               regenerate from the pinned copy and diff
+
+The version is required. It used to default to a hardcoded one, which meant omitting it
+regenerated a version the operator had not asked for.
+TXT;
+
 /**
  * @param list<string> $argv
  */
 function main(array $argv): void
 {
-    $version = $argv[1] ?? '2026-04-08';
-    $source = $argv[2] ?? getenv('UCP_SOURCE_DIR') ?: null;
+    $arguments = [];
+    $verify = false;
+    foreach (array_slice($argv, 1) as $argument) {
+        if ($argument === '--verify') {
+            $verify = true;
 
+            continue;
+        }
+
+        if (str_starts_with($argument, '--')) {
+            fail(sprintf("Unknown option \"%s\".\n\n%s", $argument, USAGE));
+        }
+
+        $arguments[] = $argument;
+    }
+
+    $repoRoot = dirname(__DIR__);
+    $schemaBase = $repoRoot . '/packages/core/resources/schema';
+    $version = $arguments[0] ?? '';
+
+    // --verify with no version checks every pinned version. Naming one in composer.json would
+    // put the protocol version back in a place that has to be remembered on a bump; discovering
+    // them means a newly pinned version is covered the moment it lands.
+    if ($verify) {
+        foreach ($version === '' ? generatedVersions($schemaBase) : [$version] as $target) {
+            assertVersionShape($target);
+            verify($target, $schemaBase . '/pinned/' . $target, $schemaBase . '/generated/' . $target);
+        }
+
+        return;
+    }
+
+    assertVersionShape($version);
+    $pinnedRoot = $schemaBase . '/pinned/' . $version;
+    $generatedRoot = $schemaBase . '/generated/' . $version;
+
+    $source = $arguments[1] ?? (getenv('UCP_SOURCE_DIR') ?: null);
     if (! is_string($source) || $source === '') {
-        fail('Usage: php tools/sync-ucp-schemas.php <version> <path-to-ucp-source>');
+        fail(USAGE);
     }
 
     $source = rtrim($source, '/');
@@ -20,24 +63,173 @@ function main(array $argv): void
         fail(sprintf('UCP schema source directory "%s" does not exist.', $schemaRoot));
     }
 
-    $repoRoot = dirname(__DIR__);
-    $pinnedRoot = $repoRoot . '/packages/core/resources/schema/pinned/' . $version;
-    $generatedRoot = $repoRoot . '/packages/core/resources/schema/generated/' . $version;
-
     mirrorDirectory($schemaRoot, $pinnedRoot . '/schemas');
-    mirrorDirectory($source . '/source/discovery', $pinnedRoot . '/discovery');
+    // `source/discovery` existed up to 2026-04-08 and holds the profile schema. At 2026-08-25 it
+    // is gone and the profile schema moved to `source/schemas/profile.json`, which arrives with
+    // the mirror above. Removed rather than made optional: a directory that silently stops being
+    // copied is how a pinned tree keeps a stale file from the version before it.
     mirrorDirectory($source . '/source/services', $pinnedRoot . '/services');
     mirrorDirectory($source . '/source/handlers', $pinnedRoot . '/handlers');
     resetDirectory($generatedRoot);
 
+    [$documents, $placeholders] = generateAll($schemaRoot);
+    foreach ($documents as $filename => $json) {
+        if (file_put_contents($generatedRoot . '/' . $filename . '.json', $json) === false) {
+            fail(sprintf('Unable to write "%s".', $generatedRoot . '/' . $filename . '.json'));
+        }
+    }
+
+    assertPlaceholderBudget($repoRoot, $version, $placeholders);
+    printf("Synced %d generated schemas for %s.\n", count($documents), $version);
+}
+
+function assertVersionShape(string $version): void
+{
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $version) !== 1) {
+        fail(sprintf("Expected a version in YYYY-MM-DD form, got \"%s\".\n\n%s", $version, USAGE));
+    }
+}
+
+/**
+ * @return list<string>
+ */
+function generatedVersions(string $schemaBase): array
+{
+    $versions = [];
+    foreach ((array) glob($schemaBase . '/generated/*', GLOB_ONLYDIR) as $directory) {
+        $versions[] = basename((string) $directory);
+    }
+
+    if ($versions === []) {
+        fail(sprintf('No generated schema sets found under "%s".', $schemaBase . '/generated'));
+    }
+
+    sort($versions);
+
+    return $versions;
+}
+
+/**
+ * Regenerates from the pinned copy and diffs against what is committed.
+ *
+ * The pinned tree *is* the upstream `source/` tree, so the generated set is reproducible from
+ * it with no network access -- which is what lets this run inside `composer qa`. It catches two
+ * things nothing else did: a generated file edited by hand, and an upstream retag that changed
+ * the pinned inputs without changing their paths.
+ */
+function verify(string $version, string $pinnedRoot, string $generatedRoot): void
+{
+    $schemaRoot = $pinnedRoot . '/schemas';
+    foreach ([$schemaRoot, $generatedRoot] as $required) {
+        if (! is_dir($required)) {
+            fail(sprintf('Cannot verify %s: "%s" does not exist.', $version, $required));
+        }
+    }
+
+    [$documents, $placeholders] = generateAll($schemaRoot);
+
+    $committed = [];
+    foreach ((array) glob($generatedRoot . '/*.json') as $file) {
+        $committed[basename((string) $file, '.json')] = (string) file_get_contents((string) $file);
+    }
+
+    $problems = [];
+    foreach ($documents as $filename => $json) {
+        if (! array_key_exists($filename, $committed)) {
+            $problems[] = sprintf('%s.json is missing from %s', $filename, $generatedRoot);
+
+            continue;
+        }
+
+        if ($committed[$filename] !== $json) {
+            $problems[] = sprintf('%s.json differs from what the generator produces', $filename);
+        }
+    }
+
+    foreach (array_diff(array_keys($committed), array_keys($documents)) as $orphan) {
+        $problems[] = sprintf('%s.json is committed but no operation produces it', $orphan);
+    }
+
+    if ($problems !== []) {
+        fail(sprintf(
+            "Generated schemas for %s are not reproducible from the pinned copy:\n- %s\n\n"
+            . 'Re-run the sync against the pinned tag rather than editing generated files by hand.',
+            $version,
+            implode("\n- ", $problems),
+        ));
+    }
+
+    assertPlaceholderBudget(dirname(__DIR__), $version, $placeholders);
+    printf("Generated schemas for %s are reproducible from the pinned copy (%d files).\n", $version, count($documents));
+}
+
+/**
+ * @return array{0: array<string, string>, 1: list<string>}
+ */
+function generateAll(string $schemaRoot): array
+{
     $generator = new SchemaGenerator($schemaRoot);
+    $documents = [];
     foreach (operationSchemas($schemaRoot) as $filename => $schema) {
         $generated = $generator->generate($schema);
         if ($filename === 'checkout.create.request') {
             $generated = allowCartIdInsteadOfLineItems($generated);
         }
 
-        writeJson($generatedRoot . '/' . $filename . '.json', $generated);
+        $documents[$filename] = encodeJson($generated);
+    }
+
+    return [$documents, $generator->cyclePlaceholders()];
+}
+
+/**
+ * Fails when flattening cut more recursive $refs than the recorded budget allows.
+ *
+ * Every placeholder is a subtree that validates as any type, so the count is a direct measure
+ * of how much of the contract is unenforced. Without a recorded number, a restructured upstream
+ * tree can double it and nothing says so.
+ *
+ * @param list<string> $placeholders
+ */
+function assertPlaceholderBudget(string $repoRoot, string $version, array $placeholders): void
+{
+    $file = $repoRoot . '/tools/sync-cycle-placeholder-budget.json';
+    $budgets = is_file($file)
+        ? json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR)
+        : [];
+    if (! is_array($budgets)) {
+        fail(sprintf('"%s" must contain a JSON object of version => budget.', $file));
+    }
+
+    $count = count($placeholders);
+    if (! array_key_exists($version, $budgets)) {
+        fail(sprintf(
+            "No cycle-placeholder budget recorded for %s. Flattening cut %d recursive \$ref(s):\n- %s\n\n"
+            . 'Record it as {"%s": %d} in %s once you have looked at the list.',
+            $version,
+            $count,
+            implode("\n- ", $placeholders) ?: '(none)',
+            $version,
+            $count,
+            $file,
+        ));
+    }
+
+    $budget = $budgets[$version];
+    if (! is_int($budget)) {
+        fail(sprintf('Budget for %s in "%s" must be an integer.', $version, $file));
+    }
+
+    if ($count > $budget) {
+        fail(sprintf(
+            "Flattening cut %d recursive \$ref(s) for %s, above the recorded budget of %d:\n- %s\n\n"
+            . 'Each one is a subtree that validates as any type. Either flatten them or raise the '
+            . 'budget deliberately, with a note saying what stopped being validated.',
+            $count,
+            $version,
+            $budget,
+            implode("\n- ", $placeholders),
+        ));
     }
 }
 
@@ -81,6 +273,8 @@ function allowCartIdInsteadOfLineItems(array $schema): array
  */
 function operationSchemas(string $schemaRoot): array
 {
+    $errorResponse = errorResponseFile($schemaRoot);
+
     return [
         'catalog.search.request' => ['file' => 'shopping/catalog_search.json', 'pointer' => '/$defs/search_request'],
         'catalog.search.response' => ['file' => 'shopping/catalog_search.json', 'pointer' => '/$defs/search_response'],
@@ -89,16 +283,16 @@ function operationSchemas(string $schemaRoot): array
         'catalog.product.request' => ['file' => 'shopping/catalog_lookup.json', 'pointer' => '/$defs/get_product_request'],
         'catalog.product.response' => ['oneOf' => [
             ['file' => 'shopping/catalog_lookup.json', 'pointer' => '/$defs/get_product_response'],
-            ['file' => 'shopping/types/error_response.json'],
+            ['file' => $errorResponse],
         ]],
         'cart.create.request' => ['file' => 'shopping/cart.json', 'request' => 'create'],
-        'cart.create.response' => responseWithError('shopping/cart.json'),
+        'cart.create.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.get.request' => idRequest(),
-        'cart.get.response' => responseWithError('shopping/cart.json'),
+        'cart.get.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.update.request' => ['file' => 'shopping/cart.json', 'request' => 'update'],
-        'cart.update.response' => responseWithError('shopping/cart.json'),
+        'cart.update.response' => responseWithError('shopping/cart.json', $errorResponse),
         'cart.cancel.request' => idRequest(),
-        'cart.cancel.response' => responseWithError('shopping/cart.json'),
+        'cart.cancel.response' => responseWithError('shopping/cart.json', $errorResponse),
         'discount.apply.request' => [
             'type' => 'object',
             'required' => ['cart_id', 'code'],
@@ -107,7 +301,7 @@ function operationSchemas(string $schemaRoot): array
                 'code' => ['type' => 'string'],
             ],
         ],
-        'discount.apply.response' => responseWithError('shopping/cart.json'),
+        'discount.apply.response' => responseWithError('shopping/cart.json', $errorResponse),
         'checkout.create.request' => [
             'file' => 'shopping/checkout.json',
             'request' => 'create',
@@ -115,21 +309,21 @@ function operationSchemas(string $schemaRoot): array
             // checkout, and there is nothing to convert on update or complete.
             'extensions' => [...checkoutExtensions(), ['file' => 'shopping/cart.json', 'pointer' => '/$defs/checkout']],
         ],
-        'checkout.create.response' => responseWithError('shopping/checkout.json'),
+        'checkout.create.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.get.request' => idRequest(),
-        'checkout.get.response' => responseWithError('shopping/checkout.json'),
+        'checkout.get.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.update.request' => [
             'file' => 'shopping/checkout.json',
             'request' => 'update',
             'extensions' => checkoutExtensions(),
         ],
-        'checkout.update.response' => responseWithError('shopping/checkout.json'),
+        'checkout.update.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.complete.request' => ['file' => 'shopping/checkout.json', 'request' => 'complete'],
-        'checkout.complete.response' => responseWithError('shopping/checkout.json'),
+        'checkout.complete.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'checkout.cancel.request' => idRequest(),
-        'checkout.cancel.response' => responseWithError('shopping/checkout.json'),
+        'checkout.cancel.response' => responseWithError('shopping/checkout.json', $errorResponse),
         'order.get.request' => idRequest(),
-        'order.get.response' => responseWithError('shopping/order.json'),
+        'order.get.response' => responseWithError('shopping/order.json', $errorResponse),
         'tokenization.request' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/requestBody/content/application~1json/schema'],
         'tokenization.response' => ['file' => '../handlers/tokenization/openapi.json', 'pointer' => '/paths/~1tokenize/post/responses/200/content/application~1json/schema'],
     ];
@@ -140,7 +334,7 @@ function operationSchemas(string $schemaRoot): array
  *
  * Only the ones HttpPayloadMapper actually consumes, so the published contract
  * describes what the SDK acts on rather than everything the spec could compose.
- * `ap2_mandate.json` is deliberately absent: mandates travel through
+ * `common/payment_ap2_mandate.json` is deliberately absent: mandates travel through
  * PaymentMandateVerifierInterface, not through the checkout request payload.
  *
  * @return list<array{file: string, pointer: string}>
@@ -156,13 +350,32 @@ function checkoutExtensions(): array
 }
 
 /**
+ * Locates error_response.json, which is not in the same place in every version.
+ *
+ * It moved from `shopping/types` to `common/types` at 2026-08-25, along with the rest of the
+ * shared primitives. Both versions stay pinned and `--verify` regenerates each from its own
+ * copy, so the tool has to handle either layout rather than only the newest one -- hardcoding
+ * the new path made 2026-04-08 unreproducible, which is what `sync:verify` is for.
+ */
+function errorResponseFile(string $schemaRoot): string
+{
+    foreach (['common/types/error_response.json', 'shopping/types/error_response.json'] as $candidate) {
+        if (is_file($schemaRoot . '/' . $candidate)) {
+            return $candidate;
+        }
+    }
+
+    fail(sprintf('Unable to find error_response.json under "%s".', $schemaRoot));
+}
+
+/**
  * @return array{oneOf: list<array{file: string}>}
  */
-function responseWithError(string $file): array
+function responseWithError(string $file, string $errorResponse): array
 {
     return ['oneOf' => [
         ['file' => $file],
-        ['file' => 'shopping/types/error_response.json'],
+        ['file' => $errorResponse],
     ]];
 }
 
@@ -189,9 +402,20 @@ final class SchemaGenerator
     /** @var array<string, true> */
     private array $resolving = [];
 
+    /** @var list<string> */
+    private array $cyclePlaceholders = [];
+
     public function __construct(
         private readonly string $schemaRoot,
     ) {
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function cyclePlaceholders(): array
+    {
+        return array_values(array_unique($this->cyclePlaceholders));
     }
 
     /**
@@ -352,19 +576,47 @@ final class SchemaGenerator
         $schema = $this->resolveReferenceSchema($schema, $file);
 
         if (isset($schema['allOf']) && is_array($schema['allOf'])) {
-            $merged = ['type' => 'object', 'properties' => [], 'required' => []];
+            // The node's own members come first. A schema may carry `properties` *and* compose
+            // more through `allOf` -- `shopping/types/fulfillment_method.json` does from
+            // 2026-08-25 -- and seeding the merge with an empty map silently discarded every
+            // one of them. Nothing at 2026-04-08 had both, so this read as correct until the
+            // shape it could not express actually arrived.
+            $own = $schema;
+            unset($own['allOf']);
+            $merged = $this->projectRequestSchema($own, $file, $operation);
+            $merged['type'] = 'object';
+            $merged['properties'] = is_array($merged['properties'] ?? null) ? $merged['properties'] : [];
+            $merged['required'] = is_array($merged['required'] ?? null) ? $merged['required'] : [];
+
             foreach ($schema['allOf'] as $subSchema) {
                 if (! is_array($subSchema)) {
                     continue;
                 }
 
+                // A conditional branch contributes through `then`, not through itself, and only
+                // when its `if` holds. GeneratedSchemaValidator evaluates neither, so the
+                // branch's properties are folded in as optional and its `required` is dropped:
+                // making a conditional requirement unconditional would reject payloads the
+                // spec allows.
+                foreach ($this->conditionalBranches($subSchema) as $branch) {
+                    $projected = $this->projectRequestSchema($branch, $file, $operation);
+                    $merged['properties'] = $this->mergeConditionalProperties(
+                        $merged['properties'],
+                        is_array($projected['properties'] ?? null) ? $projected['properties'] : [],
+                    );
+                }
+
+                if (isset($subSchema['if'])) {
+                    continue;
+                }
+
                 $projected = $this->projectRequestSchema($subSchema, $file, $operation);
                 $merged['properties'] = [
-                    ...($merged['properties'] ?? []),
+                    ...$merged['properties'],
                     ...($projected['properties'] ?? []),
                 ];
                 $merged['required'] = array_values(array_unique([
-                    ...($merged['required'] ?? []),
+                    ...$merged['required'],
                     ...($projected['required'] ?? []),
                 ]));
             }
@@ -420,6 +672,58 @@ final class SchemaGenerator
         }
 
         return $projected;
+    }
+
+    /**
+     * The `then` (and `else`) schemas of a conditional `allOf` branch.
+     *
+     * @param array<string, mixed> $subSchema
+     * @return list<array<string, mixed>>
+     */
+    private function conditionalBranches(array $subSchema): array
+    {
+        if (! isset($subSchema['if'])) {
+            return [];
+        }
+
+        $branches = [];
+        foreach (['then', 'else'] as $keyword) {
+            if (is_array($subSchema[$keyword] ?? null)) {
+                $branches[] = $subSchema[$keyword];
+            }
+        }
+
+        return $branches;
+    }
+
+    /**
+     * Fold a conditional branch's properties into the merged map.
+     *
+     * `GeneratedSchemaValidator` cannot evaluate `if`, so a conditional narrowing cannot be
+     * enforced. What it can do is not be wrong in the direction that matters. Under `allOf`
+     * semantics a valid payload satisfies the unconditional half regardless of which condition
+     * holds, so keeping that half and dropping the narrowing accepts every valid payload and
+     * merely fails to reject some invalid ones. Preferring the branch instead would reject
+     * payloads the spec allows: `common/types/unit.json` says `scale` is 0-15, and only when
+     * `unit` is `C62` must it be 0 -- take the branch and every other unit loses 1-15.
+     *
+     * A property the branch introduces that the node does not define at all is a different
+     * case: there the branch is the only information there is, and it is added as optional.
+     * `fulfillment_method`'s `destinations` arrives that way.
+     *
+     * @param array<string, mixed> $merged
+     * @param array<string, mixed> $branch
+     * @return array<string, mixed>
+     */
+    private function mergeConditionalProperties(array $merged, array $branch): array
+    {
+        foreach ($branch as $property => $schema) {
+            if (! array_key_exists($property, $merged)) {
+                $merged[$property] = $schema;
+            }
+        }
+
+        return $merged;
     }
 
     /**
@@ -488,6 +792,13 @@ final class SchemaGenerator
         [$referenceFile, $pointer] = $this->resolveReference($reference, $file);
         $key = $referenceFile . '#' . $pointer;
         if (isset($this->resolving[$key])) {
+            // A recursive $ref cannot be flattened, so the cycle is cut with a schema that
+            // accepts every type -- i.e. that subtree stops being validated at all. That is a
+            // deliberate trade, but it is silent, and the 2026-08-25 type graph is markedly more
+            // recursive (location, geo, policy, constraint_expression, payment_schedule). Counting
+            // them turns "validation quietly got looser" into a number a gate can compare.
+            $this->cyclePlaceholders[] = $key;
+
             return [
                 'type' => ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'],
             ];
@@ -606,9 +917,18 @@ final class SchemaGenerator
     }
 }
 
-function mirrorDirectory(string $source, string $target): void
+function mirrorDirectory(string $source, string $target, bool $required = true): void
 {
     if (! is_dir($source)) {
+        if ($required) {
+            fail(sprintf(
+                'Expected upstream directory "%s" does not exist. If the spec moved or removed it, '
+                . 'update the mirror list in main() rather than letting the previous version\'s pinned '
+                . 'copy survive untouched.',
+                $source,
+            ));
+        }
+
         return;
     }
 
@@ -657,12 +977,21 @@ function resetDirectory(string $directory): void
 }
 
 /**
+ * The one encoder, so --verify compares bytes against the same formatting the sync wrote.
+ *
+ * @param array<string, mixed> $payload
+ */
+function encodeJson(array $payload): string
+{
+    return json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
+}
+
+/**
  * @param array<string, mixed> $payload
  */
 function writeJson(string $file, array $payload): void
 {
-    $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
-    if (file_put_contents($file, $json) === false) {
+    if (file_put_contents($file, encodeJson($payload)) === false) {
         fail(sprintf('Unable to write "%s".', $file));
     }
 }

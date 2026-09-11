@@ -11,7 +11,15 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\SchemaConfig;
 use Doctrine\DBAL\Schema\Table;
 
-/** @internal */
+/**
+ * Creates or updates the tables the SDK's Doctrine DBAL storage adapters need.
+ *
+ * Public so host applications can prepare SDK storage during installation or upgrades,
+ * before their request container is available.
+ *
+ * This lifecycle is part of the contract: schema updates must remain idempotent and
+ * additive when run against populated SDK tables. Host application tables are untouched.
+ */
 final class SchemaBootstrapper
 {
     private StorageSchemaDefinition $schemaDefinition;

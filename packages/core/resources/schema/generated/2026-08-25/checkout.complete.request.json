@@ -1,0 +1,204 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "signals": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/common/types/signals.json",
+            "title": "Signals",
+            "description": "Environment data provided by the platform to support authorization and abuse prevention. Values MUST NOT be buyer-asserted claims \u2014 platforms provide signals based on direct observation or independently verifiable third-party attestations. All signal keys MUST use reverse-domain naming to ensure provenance and prevent collisions when multiple extensions contribute to the shared namespace.",
+            "type": "object",
+            "propertyNames": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "https://ucp.dev/schemas/common/types/reverse_domain_name.json",
+                "title": "Reverse Domain Name",
+                "description": "Reverse-domain identifier (e.g., dev.ucp.buyer_ip, com.example.device_id).",
+                "type": "string",
+                "pattern": "^[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9_-]*[a-z0-9_])?)+$",
+                "examples": [
+                    "dev.ucp.shopping.checkout",
+                    "dev.ucp.common.identity_linking",
+                    "com.example.loyalty_gold",
+                    "com.example-shop.checkout",
+                    "com.2example.cart",
+                    "uk.co.example-shop.checkout",
+                    "xn--p1ai.example.checkout"
+                ]
+            },
+            "properties": {
+                "dev.ucp.buyer_ip": {
+                    "type": "string",
+                    "description": "Client's IP address (IPv4 or IPv6)."
+                },
+                "dev.ucp.user_agent": {
+                    "type": "string",
+                    "description": "Client's HTTP User-Agent header or equivalent."
+                }
+            },
+            "additionalProperties": true
+        },
+        "attribution": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/shopping/types/attribution.json",
+            "title": "Attribution",
+            "description": "Platform-emitted referral and conversion-event context \u2014 campaign identifiers, click IDs, source/medium markers, etc. The same parameters platforms communicate via URL query parameters in browser-based flows.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "string",
+                "description": "URL-style parameter value, encoded as a string. Numeric or boolean values MUST be string-encoded as they would be in a URL query string."
+            }
+        },
+        "payment": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://ucp.dev/schemas/common/types/payment.json",
+            "title": "Payment",
+            "description": "Payment configuration containing handlers.",
+            "type": "object",
+            "properties": {
+                "instruments": {
+                    "type": "array",
+                    "items": {
+                        "title": "Selected Payment Instrument",
+                        "description": "A payment instrument with selection state.",
+                        "allOf": [
+                            {
+                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                "$id": "https://ucp.dev/schemas/common/types/payment_instrument.json",
+                                "title": "Payment Instrument",
+                                "description": "The base definition for any payment instrument. It links the instrument to a specific payment handler.",
+                                "type": "object",
+                                "required": [
+                                    "id",
+                                    "handler_id",
+                                    "type"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "string",
+                                        "description": "A unique identifier for this instrument instance. Typically assigned by the platform for instruments it collects. For a business-owned saved instrument returned on an identity-linked response, this identifier is assigned by the business; the platform MUST treat it as an opaque, business-scoped reference, and the business resolves it server-side when the buyer selects it."
+                                    },
+                                    "handler_id": {
+                                        "type": "string",
+                                        "description": "The unique identifier for the handler instance that produced this instrument. This corresponds to the 'id' field in the Payment Handler definition."
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "description": "The broad category of the instrument (e.g., 'card', 'tokenized_card'). Specific schemas will constrain this to a constant value."
+                                    },
+                                    "billing_address": {
+                                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                        "$id": "https://ucp.dev/schemas/common/types/postal_address.json",
+                                        "title": "Postal Address",
+                                        "type": "object",
+                                        "properties": {
+                                            "extended_address": {
+                                                "type": "string",
+                                                "description": "An address extension such as an apartment number, C/O or alternative name."
+                                            },
+                                            "street_address": {
+                                                "type": "string",
+                                                "description": "The street address."
+                                            },
+                                            "address_locality": {
+                                                "type": "string",
+                                                "description": "The locality in which the street address is, and which is in the region. For example, Mountain View."
+                                            },
+                                            "address_region": {
+                                                "type": "string",
+                                                "description": "The region in which the locality is, and which is in the country. Required for applicable countries (i.e. state in US, province in CA). For example, California or another appropriate first-level Administrative division."
+                                            },
+                                            "address_country": {
+                                                "type": "string",
+                                                "description": "The country. Recommended to be in 2-letter ISO 3166-1 alpha-2 format, for example \"US\". For backward compatibility, a 3-letter ISO 3166-1 alpha-3 country code such as \"SGP\" or a full country name such as \"Singapore\" can also be used."
+                                            },
+                                            "postal_code": {
+                                                "type": "string",
+                                                "description": "The postal code. For example, 94043."
+                                            },
+                                            "first_name": {
+                                                "type": "string",
+                                                "description": "Optional. First name of the contact associated with the address."
+                                            },
+                                            "last_name": {
+                                                "type": "string",
+                                                "description": "Optional. Last name of the contact associated with the address."
+                                            },
+                                            "phone_number": {
+                                                "type": "string",
+                                                "description": "Optional. Phone number of the contact associated with the address."
+                                            }
+                                        },
+                                        "description": "The billing address associated with this payment method."
+                                    },
+                                    "credential": {
+                                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                        "$id": "https://ucp.dev/schemas/common/types/payment_credential.json",
+                                        "title": "Payment Credential",
+                                        "description": "The base definition for any payment credential. Handlers define specific credential types.",
+                                        "type": "object",
+                                        "required": [
+                                            "type"
+                                        ],
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "description": "The credential type discriminator. Specific schemas will constrain this to a constant value."
+                                            }
+                                        },
+                                        "additionalProperties": true
+                                    },
+                                    "display": {
+                                        "type": "object",
+                                        "description": "Display information for this payment instrument. Each payment instrument schema defines its specific display properties, as outlined by the payment handler."
+                                    }
+                                },
+                                "additionalProperties": true,
+                                "$defs": {
+                                    "selected_payment_instrument": {
+                                        "title": "Selected Payment Instrument",
+                                        "description": "A payment instrument with selection state.",
+                                        "allOf": [
+                                            {
+                                                "type": [
+                                                    "object",
+                                                    "array",
+                                                    "string",
+                                                    "number",
+                                                    "integer",
+                                                    "boolean",
+                                                    "null"
+                                                ]
+                                            },
+                                            {
+                                                "type": "object",
+                                                "properties": {
+                                                    "selected": {
+                                                        "type": "boolean",
+                                                        "description": "Whether this instrument is selected by the user."
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "selected": {
+                                        "type": "boolean",
+                                        "description": "Whether this instrument is selected by the user."
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "description": "The payment instruments available for this payment. Each instrument is associated with a specific handler via the handler_id field. Handlers can extend the base payment_instrument schema to add handler-specific fields."
+                }
+            }
+        }
+    },
+    "required": [
+        "payment"
+    ]
+}

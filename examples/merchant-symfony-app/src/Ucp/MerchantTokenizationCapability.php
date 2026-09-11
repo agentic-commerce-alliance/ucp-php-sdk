@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MerchantSymfonyApp\Ucp;
 
 use Ucp\Sdk\Contract\TokenizationCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Checkout\PaymentInstrument;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\RequestContext;
@@ -15,7 +16,7 @@ final class MerchantTokenizationCapability implements TokenizationCapabilityInte
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.payment_tokenization',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/payment-token-exchange/',
             'https://ucp.dev/schemas/shopping/payment-tokenization.json',
             null,

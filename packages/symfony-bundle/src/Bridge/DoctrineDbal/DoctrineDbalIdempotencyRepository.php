@@ -137,8 +137,11 @@ final class DoctrineDbalIdempotencyRepository implements IdempotencyRepositoryIn
             return null;
         }
 
-        $decoded = json_decode($this->secretEncryptor->decrypt($stored, 'idempotency:' . $key), true, 512, JSON_THROW_ON_ERROR);
+        // Objects, not associative arrays: an empty JSON object and an empty JSON array are
+        // the same PHP value once flattened, and a replayed response has to be the one that
+        // was sent rather than one that merely means the same thing.
+        $decoded = json_decode($this->secretEncryptor->decrypt($stored, 'idempotency:' . $key), false, 512, JSON_THROW_ON_ERROR);
 
-        return is_array($decoded) ? $decoded : null;
+        return $decoded instanceof \stdClass ? (array) $decoded : null;
     }
 }

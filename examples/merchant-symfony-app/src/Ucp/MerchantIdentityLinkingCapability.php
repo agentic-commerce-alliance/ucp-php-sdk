@@ -6,6 +6,7 @@ namespace MerchantSymfonyApp\Ucp;
 
 use MerchantSymfonyApp\Support\MerchantSettings;
 use Ucp\Sdk\Contract\IdentityLinkingCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Exception\OAuthException;
 use Ucp\Sdk\Model\Identity\OAuthAuthorizationRequest;
 use Ucp\Sdk\Model\Identity\OAuthMetadata;
@@ -28,7 +29,7 @@ final class MerchantIdentityLinkingCapability implements IdentityLinkingCapabili
     {
         return new CapabilityDescriptor(
             'dev.ucp.common.identity_linking',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/identity-linking/',
             'https://ucp.dev/schemas/identity/oauth.json',
             null,

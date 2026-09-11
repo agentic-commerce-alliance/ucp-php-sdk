@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Ucp\Sdk\Model\Checkout\BuyerConsent;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 
 final class HttpPayloadMapperTest extends TestCase
@@ -186,5 +187,106 @@ final class HttpPayloadMapperTest extends TestCase
         $this->expectExceptionMessage('JSON request body must be an object.');
 
         $mapper->decode($request);
+    }
+
+    #[Test]
+    public function itReadsConsentFromTheBuyerObjectWhereTheSchemaPutsIt(): void
+    {
+        // Every published schema locates consent at buyer.consent. This mapper used to read a
+        // top-level buyer_consent key that no schema defines, so a conformant request arrived
+        // with its consent silently discarded.
+        $request = (new HttpPayloadMapper())->toCheckoutCreateRequest([
+            'line_items' => [],
+            'buyer' => [
+                'email' => 'buyer@example.com',
+                'consent' => [
+                    BuyerConsent::PURPOSE_MARKETING => [
+                        'granted' => true,
+                        'source' => 'business',
+                        'description' => 'Promotional email',
+                    ],
+                ],
+            ],
+        ]);
+
+        self::assertNotNull($request->consent);
+        self::assertTrue($request->consent->granted(BuyerConsent::PURPOSE_MARKETING));
+    }
+
+    #[Test]
+    public function itStillAcceptsTheTopLevelBuyerConsentKeyForOneRelease(): void
+    {
+        // Not conformant, but this SDK advertised it in its own MCP tool schemas, so adopters
+        // may be sending it. Removed at the 2026-08-25 flip.
+        $request = (new HttpPayloadMapper())->toCheckoutUpdateRequest('checkout_1', [
+            'buyer_consent' => ['marketing' => true],
+        ]);
+
+        self::assertNotNull($request->consent);
+        self::assertTrue($request->consent->granted(BuyerConsent::PURPOSE_MARKETING));
+    }
+
+    #[Test]
+    public function theBuyerObjectWinsOverTheLegacyTopLevelKey(): void
+    {
+        $request = (new HttpPayloadMapper())->toCheckoutCreateRequest([
+            'buyer' => ['consent' => ['marketing' => false]],
+            'buyer_consent' => ['marketing' => true],
+        ]);
+
+        self::assertNotNull($request->consent);
+        self::assertFalse($request->consent->granted(BuyerConsent::PURPOSE_MARKETING));
+    }
+
+    #[Test]
+    public function aRequestWithoutConsentCarriesNone(): void
+    {
+        $request = (new HttpPayloadMapper())->toCheckoutCreateRequest([
+            'buyer' => ['email' => 'buyer@example.com'],
+        ]);
+
+        self::assertNull($request->consent);
+    }
+
+    /**
+     * Signals are an agent's hints about the shopping context, and no SDK code reads them
+     * back -- they exist to be handed to a capability implementation, which is why nothing
+     * exercised Signals::toArray(). That makes the pass-through the whole contract: what
+     * the agent sent has to arrive intact and readable, on every request that accepts it.
+     */
+    #[Test]
+    public function itCarriesSignalsThroughToEveryRequestThatAcceptsThem(): void
+    {
+        $mapper = new HttpPayloadMapper();
+        $signals = ['referrer' => 'https://agent.example', 'session_count' => 3, 'returning' => true];
+        $lineItems = [[
+            'item' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
+            'quantity' => 1,
+        ]];
+
+        $cart = $mapper->toCartCreateRequest(['line_items' => $lineItems, 'signals' => $signals]);
+        $checkout = $mapper->toCheckoutCreateRequest(['line_items' => $lineItems, 'signals' => $signals]);
+
+        self::assertSame($signals, $cart->signals?->toArray());
+        self::assertSame($signals, $checkout->signals?->toArray());
+    }
+
+    /**
+     * A payload with no signals must produce null rather than an empty Signals object, so
+     * a capability can tell "the agent sent no hints" from "the agent sent an empty set".
+     * A scalar where an object belongs is the same answer -- it is not signals.
+     */
+    #[Test]
+    public function itReportsAbsentSignalsAsNullRatherThanAsAnEmptySet(): void
+    {
+        $mapper = new HttpPayloadMapper();
+        $lineItems = [[
+            'item' => ['id' => 'sku-1', 'title' => 'Tent', 'price' => 10.0],
+            'quantity' => 1,
+        ]];
+
+        self::assertNull($mapper->toCartCreateRequest(['line_items' => $lineItems])->signals);
+        self::assertNull($mapper->toCartCreateRequest(['line_items' => $lineItems, 'signals' => 'nonsense'])->signals);
+        self::assertSame([], $mapper->toCartCreateRequest(['line_items' => $lineItems, 'signals' => []])->signals?->toArray());
     }
 }

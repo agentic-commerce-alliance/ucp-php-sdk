@@ -163,7 +163,10 @@ final class A2aControllerTest extends TestCase
         ]));
         $payload = $this->decode($response);
 
-        self::assertSame(404, $response->getStatusCode());
+        // 200, not 404. A JSON-RPC client reads the envelope; an HTTP 404 says the endpoint
+        // is missing, which is a different problem with a different remedy, and it discards
+        // the error object that names the real one.
+        self::assertSame(200, $response->getStatusCode());
         self::assertSame(7, $payload['id']);
         self::assertSame(-32601, $payload['error']['code']);
         self::assertSame('A2A method "unknown.method" is not supported.', $payload['error']['message']);

@@ -9,6 +9,8 @@ use MerchantSymfonyApp\Support\MerchantSettings;
 use MerchantSymfonyApp\Support\PriceCalculator;
 use MerchantSymfonyApp\Support\UcpModelFactory;
 use Ucp\Sdk\Contract\CartCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
+use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
@@ -32,7 +34,7 @@ final class MerchantCartCapability implements CartCapabilityInterface
     {
         return new CapabilityDescriptor(
             'dev.ucp.shopping.cart',
-            '2026-04-08',
+            UcpProtocolVersion::current()->value,
             'https://ucp.dev/specification/overview/',
             'https://ucp.dev/schemas/shopping/cart.json',
             null,
@@ -64,9 +66,12 @@ final class MerchantCartCapability implements CartCapabilityInterface
     {
         $record = $this->stateStore->find(self::COLLECTION, $id);
         if ($record === null) {
-            return new Cart($id, [], $this->settings->currency, [], [
-                new Message('error', 'Cart not found.', 'warning', 'cart_not_found'),
-            ]);
+            // Not an empty cart carrying a warning. That answer is a cart -- an agent that
+            // reads the status and not the messages adds items to a cart the business does
+            // not have -- and it does not even validate, because a fabricated cart has no
+            // totals, so the caller received `invalid_request` about our own response rather
+            // than `not_found` about their id.
+            throw new ResourceNotFoundException(sprintf('Cart "%s" was not found.', $id));
         }
 
         return $this->modelFactory->cartFromArray($record);

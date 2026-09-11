@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
+use Ucp\Sdk\Internal\Validation\SchemaDirectoryLocator;
 use Ucp\Sdk\Model\Checkout\OrderConfirmation;
 
 final class GeneratedSchemaValidatorTest extends TestCase
@@ -25,7 +26,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItValidatesRequiredFields(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
         $validator->validate('catalog.search.request', ['query' => 'shoes']);
 
         $this->expectNotToPerformAssertions();
@@ -33,7 +34,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItRejectsInvalidRequiredFields(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('catalog.lookup.request', []);
@@ -41,7 +42,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testCheckoutCreateAcceptsLineItemsOrCartId(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         // line_items alone (plain checkout create).
         $validator->validate('checkout.create.request', ['line_items' => []]);
@@ -56,7 +57,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testCheckoutCreateRejectsWhenNeitherLineItemsNorCartIdPresent(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('checkout.create.request', ['buyer' => ['email' => 'buyer@example.com']]);
@@ -64,7 +65,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItProvidesSchemasForEveryShoppingOperation(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         foreach ($this->shoppingOperationPayloads() as $schemaName => $payload) {
             $validator->validate($schemaName, $payload);
@@ -75,7 +76,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testCatalogProductRequestSchemaContainsSpecBodyFields(): void
     {
-        $schema = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08/catalog.product.request.json'), true, 512, JSON_THROW_ON_ERROR);
+        $schema = json_decode((string) file_get_contents(SchemaDirectoryLocator::generated() . '/catalog.product.request.json'), true, 512, JSON_THROW_ON_ERROR);
 
         self::assertSame(['id'], $schema['required'] ?? null);
         self::assertSame([
@@ -209,7 +210,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItRejectsCatalogProductResponsesWithoutProtocolEnvelope(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('catalog.product.response', [
@@ -221,7 +222,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItRejectsCartResponsesWithoutProtocolEnvelope(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('cart.create.response', [
@@ -234,7 +235,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItRejectsCheckoutResponsesWithUnknownStatus(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('checkout.create.response', [
@@ -245,7 +246,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItRejectsCartResponsesWithoutSubtotalAndTotalRows(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('cart.create.response', [
@@ -258,7 +259,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItRejectsResponseCapabilityNamesThatAreNotReverseDomains(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('catalog.product.response', [
@@ -269,7 +270,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testItRejectsEmptyProductDescriptions(): void
     {
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         $this->expectException(ValidationException::class);
         $validator->validate('catalog.product.response', [
@@ -287,7 +288,7 @@ final class GeneratedSchemaValidatorTest extends TestCase
         // missing the required `permalink_url`. The response reported only that the
         // root "must match exactly one allowed schema", and finding the one absent
         // field inside one branch took hours.
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
 
         try {
             // Built through the model, so the payload is what a consumer actually
@@ -314,30 +315,27 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testAnAmbiguousOneOfSaysWhichSchemasMatched(): void
     {
-        // The opposite failure, and it reads identically without this: a destination
-        // carrying both `id` and `name` satisfies shipping_destination AND
-        // retail_location. The message used to be the same "exactly one" line, and it
-        // was read as the schema being unsatisfiable — the fix is to remove a field,
-        // not to add one.
-        $validator = new GeneratedSchemaValidator(dirname(__DIR__, 2) . '/resources/schema/generated/2026-04-08');
+        // The opposite failure, and it reads identically without this: the message used to be
+        // the same "exactly one" line whether a payload matched no branch or several, and the
+        // two need opposite fixes -- add the field the intended branch wants, or remove the one
+        // that makes a second branch match.
+        //
+        // Deliberately a hand-written fixture rather than a generated schema. This was tested
+        // through `checkout.update.request`, whose destinations were an untagged oneOf at
+        // 2026-04-08; the tagged union that replaced them removed the ambiguity, so the test
+        // broke on upstream getting *better*. Nothing in the 2026-08-25 generated set is
+        // reachably ambiguous, and the behaviour under test is the validator's, not the spec's.
+        $validator = new GeneratedSchemaValidator(\dirname(__DIR__) . '/Fixtures/ambiguous-schema');
 
         try {
-            $validator->validate('checkout.update.request', [
-                'id' => 'checkout-1',
-                'fulfillment' => [
-                    'methods' => [[
-                        'type' => 'shipping',
-                        'line_item_ids' => ['line-1'],
-                        'destinations' => [['id' => 'destination-1', 'name' => 'Berlin Store']],
-                    ]],
-                ],
-            ]);
-            self::fail('A destination matching two branches must not validate.');
+            $validator->validate('demo.response', ['id' => 'shipment-1']);
+            self::fail('A payload matching two branches must not validate.');
         } catch (ValidationException $exception) {
             $violations = implode("\n", $exception->getViolations());
 
             self::assertStringContainsString('matches 2 allowed schemas', $violations);
-            self::assertStringContainsString('Retail Location', $violations);
+            self::assertStringContainsString('"Parcel"', $violations);
+            self::assertStringContainsString('"Envelope"', $violations);
         }
     }
 

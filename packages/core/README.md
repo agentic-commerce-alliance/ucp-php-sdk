@@ -11,7 +11,7 @@ It contains:
 - request context, security, negotiation, validation, and webhook service interfaces
 - repository interfaces for SDK infrastructure state
 - optional adapter-backed capability implementations for platform integrations
-- committed schema artifacts for UCP `2026-04-08`
+- committed schema artifacts for UCP `2026-08-25`
 
 ## How To Use It
 
@@ -34,7 +34,7 @@ Example:
 
 ```php
 $capability = new AdapterBackedOrderCapability(
-    new CapabilityDescriptor('dev.ucp.shopping.order', '2026-04-08', 'https://ucp.dev/specification/order/', 'https://ucp.dev/schemas/shopping/order.json'),
+    new CapabilityDescriptor('dev.ucp.shopping.order', UcpProtocolVersion::current()->value, 'https://ucp.dev/specification/order/', 'https://ucp.dev/schemas/shopping/order.json'),
     $orderAdapter,
 );
 ```

@@ -1,0 +1,15 @@
+{
+  "test_fixtures": {
+    "valid_item": {
+      "sku": "tent-4p",
+      "expected_price": 249.0,
+      "quantity": 1
+    },
+    "valid_discount_code": "SAVE10",
+    "expected_discount_percentage": 10.0,
+    "valid_discount_code_2": "SAVE20",
+    "expected_discount_percentage_2": 20.0,
+    "valid_fixed_discount_code": "FIVEOFF",
+    "expected_fixed_discount_reduction": 5.0
+  }
+}

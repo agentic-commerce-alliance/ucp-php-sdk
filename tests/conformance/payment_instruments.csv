@@ -1,0 +1,4 @@
+id,type,brand,last_digits,token,handler_id
+instr_1,card,Visa,1234,success_token,merchant.card
+instr_2,card,Mastercard,5678,success_token,merchant.card
+instr_fail,card,Visa,0000,fail_token,merchant.card

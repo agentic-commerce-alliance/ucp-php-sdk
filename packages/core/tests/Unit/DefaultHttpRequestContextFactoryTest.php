@@ -356,4 +356,73 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
             'UCP-Agent' => 'platform; profile="https://bad.example/.well-known/ucp"',
         ]));
     }
+
+    /**
+     * An `allowed_agent_domains` entry written as a full origin used to match no host
+     * that could exist: this gate compared entries as bare domains, so `https://x` was
+     * tested against a host of `x` and never matched. A merchant who wrote origins --
+     * which was the only form the embedded transport honoured -- had every platform
+     * profile refused.
+     */
+    #[Test]
+    public function itAcceptsAnAgentDomainWrittenAsAFullOrigin(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['trusted.example'],
+            ['https://trusted.example'],
+        );
+
+        $context = $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://trusted.example/.well-known/ucp"',
+        ]));
+
+        self::assertSame('https://trusted.example/.well-known/ucp', $context->platformProfileUri);
+    }
+
+    /**
+     * And a bare domain still covers its subdomains, which is the behaviour this gate
+     * always had and the reason the shared list settled on domains rather than origins.
+     */
+    #[Test]
+    public function itAcceptsASubdomainOfAnAllowedAgentDomain(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['trusted.example'],
+            ['trusted.example'],
+        );
+
+        $context = $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://profiles.trusted.example/.well-known/ucp"',
+        ]));
+
+        self::assertSame('https://profiles.trusted.example/.well-known/ucp', $context->platformProfileUri);
+    }
+
+    #[Test]
+    public function itRejectsAProfileHostOutsideTheAllowedAgentDomains(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['trusted.example'],
+            ['https://other-agent.example'],
+        );
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform agent domain is not allowed for the current runtime configuration.');
+
+        $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://trusted.example/.well-known/ucp"',
+        ]));
+    }
 }

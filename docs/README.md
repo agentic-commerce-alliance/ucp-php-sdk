@@ -5,7 +5,9 @@ This folder holds cross-cutting notes for the SDK and future platform integratio
 Current documents:
 
 - [concepts-and-flows.md](concepts-and-flows.md)
-- [full-ucp-parity-plan.md](full-ucp-parity-plan.md)
+- [conformance.md](conformance.md) — running the upstream conformance suite, and where this SDK stands against it
+- [ucp-2026-08-25-upgrade.md](ucp-2026-08-25-upgrade.md) — the authoritative spec-gap statement and sliced upgrade backlog
+- [full-ucp-parity-plan.md](full-ucp-parity-plan.md) — transport model and the MCP-proxy decision
 - [extension-contract.md](extension-contract.md)
 - [platform-adapters.md](platform-adapters.md)
 - [mapping-flow.md](mapping-flow.md)

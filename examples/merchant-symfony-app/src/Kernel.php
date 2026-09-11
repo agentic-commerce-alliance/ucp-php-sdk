@@ -52,9 +52,15 @@ final class Kernel extends BaseKernel
             'allowed_agent_domains' => $this->allowedProfileHosts($baseUri),
             'profile_fetching_development_mode' => $this->profileFetchingDevelopmentMode(),
             'signature_policy' => $this->signaturePolicy(),
+            // The example provisions its own key on first use, so it boots into a state
+            // where it can actually sign what it publishes. A real merchant should leave
+            // this off and run `ucp:signing-keys:generate`, because a key that appears by
+            // itself is a key nobody decided to trust -- which is why the SDK warns rather
+            // than doing this for everyone.
+            'signing_keys' => ['auto_generate' => true],
             'transports' => ['rest', 'a2a', 'embedded'],
             'storage' => [
-                'dsn' => 'sqlite:///' . dirname(__DIR__) . '/var/ucp_sdk.sqlite',
+                'dsn' => 'sqlite:///' . $this->stateDir() . '/ucp_sdk.sqlite',
             ],
         ]);
 
@@ -68,14 +74,14 @@ final class Kernel extends BaseKernel
         $services->set(MerchantSettings::class)
             ->args([
                 $baseUri,
-                $_ENV['MERCHANT_BRAND_NAME'] ?? $_SERVER['MERCHANT_BRAND_NAME'] ?? 'Acme Outdoor',
+                self::env('MERCHANT_BRAND_NAME') ?? 'Acme Outdoor',
                 'EUR',
                 'DE',
-                $_ENV['MERCHANT_WEBHOOK_TARGET'] ?? $_SERVER['MERCHANT_WEBHOOK_TARGET'] ?? $baseUri . '/merchant/demo/webhook-inbox',
+                self::env('MERCHANT_WEBHOOK_TARGET') ?? $baseUri . '/merchant/demo/webhook-inbox',
             ]);
 
         $services->set(JsonStateStore::class)
-            ->arg('$projectDir', dirname(__DIR__));
+            ->arg('$stateDir', $this->stateDir());
     }
 
     protected function configureRoutes(RoutingConfigurator $routes): void
@@ -101,28 +107,86 @@ final class Kernel extends BaseKernel
 
     private function ensureVarDirectory(): void
     {
-        $varDirectory = $this->getProjectDir() . '/var';
-        if (is_dir($varDirectory)) {
-            return;
-        }
+        foreach ([$this->getProjectDir() . '/var', $this->stateDir()] as $directory) {
+            if (is_dir($directory)) {
+                continue;
+            }
 
-        if (! mkdir($varDirectory, 0777, true) && ! is_dir($varDirectory)) {
-            throw new \RuntimeException(sprintf('Unable to create "%s".', $varDirectory));
+            if (! mkdir($directory, 0777, true) && ! is_dir($directory)) {
+                throw new \RuntimeException(sprintf('Unable to create "%s".', $directory));
+            }
         }
+    }
+
+    /**
+     * Where this app keeps the state it serves: the SDK's sqlite file and the JSON collections
+     * behind carts, checkouts and orders.
+     *
+     * Overridable so a run can be given an empty directory and therefore a known starting
+     * point. A conformance suite asserts on stock levels and order ids, so leftovers from a
+     * previous run are the difference between a reproducible result and a confusing one.
+     */
+    private function stateDir(): string
+    {
+        $configured = self::env('UCP_MERCHANT_STATE_DIR');
+
+        return $configured !== null
+            ? rtrim($configured, '/')
+            : $this->getProjectDir() . '/var';
+    }
+
+    /**
+     * One reader for the environment, because there are three places to look and they disagree.
+     *
+     * `$_ENV` is only populated when `variables_order` says so, and under `php -S` it commonly
+     * is not. Reading it alone made the console and the HTTP server resolve different state
+     * directories from the same configuration -- so a signing key generated on the command line
+     * landed in a database the server never opened, and the server then declined to sign
+     * anything while reporting no configuration problem at all.
+     */
+    private static function env(string $name): ?string
+    {
+        $value = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name);
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     private function baseUri(): string
     {
-        return $_ENV['UCP_MERCHANT_BASE_URI'] ?? $_SERVER['UCP_MERCHANT_BASE_URI'] ?? 'http://localhost:8081';
+        // getenv() too: whether the environment reaches `$_ENV` depends on `variables_order`,
+        // and under `php -S` it commonly does not. Falling back silently to a different host
+        // than the one the operator asked for changes which agents this app will talk to.
+        return self::env('UCP_MERCHANT_BASE_URI') ?? 'http://localhost:8081';
     }
 
     private function signaturePolicy(): string
     {
-        return $_ENV['UCP_SIGNATURE_POLICY'] ?? $_SERVER['UCP_SIGNATURE_POLICY'] ?? 'log';
+        return self::env('UCP_SIGNATURE_POLICY') ?? 'log';
     }
 
+    /**
+     * On in dev, and settable in prod for one specific reason.
+     *
+     * Fetching a platform profile over plain http is refused outside this mode, which is
+     * correct for production: a profile carries the keys used to verify every request from
+     * that platform, so fetching it over a channel anyone can rewrite is worthless. The
+     * upstream conformance suite serves its mock agent profile at
+     * `http://localhost:<port>`, and cannot serve https, so a conformance run has no way
+     * to proceed without this. That run is local development by definition.
+     *
+     * It is deliberately its own switch rather than a consequence of `APP_ENV`. The
+     * conformance lane needs this one relaxation and nothing else that `dev` brings, and
+     * a run that quietly got the whole dev container would be one that passes for reasons
+     * nobody chose -- which is exactly what happened while `APP_ENV` was being read from
+     * `$_SERVER` alone and silently resolving to `dev` under the built-in server.
+     */
     private function profileFetchingDevelopmentMode(): bool
     {
+        $explicit = self::env('UCP_PROFILE_FETCHING_DEV_MODE');
+        if ($explicit !== null) {
+            return filter_var($explicit, FILTER_VALIDATE_BOOL);
+        }
+
         return $this->environment === 'dev';
     }
 
@@ -132,7 +196,15 @@ final class Kernel extends BaseKernel
     private function allowedProfileHosts(string $baseUri): array
     {
         $host = parse_url($baseUri, PHP_URL_HOST);
+        $host = is_string($host) && $host !== '' ? $host : 'localhost';
 
-        return is_string($host) ? [$host] : ['localhost'];
+        // `localhost` and `127.0.0.1` are one host, and which of them appears here depends on
+        // how this app was started rather than on who it should trust. Treating them as
+        // different made the set of reachable agents an accident of configuration -- an agent
+        // profile served on the other spelling was refused, and every operation after it failed
+        // as an empty capability intersection.
+        $loopback = ['localhost', '127.0.0.1', '::1', '[::1]'];
+
+        return in_array($host, $loopback, true) ? $loopback : [$host];
     }
 }

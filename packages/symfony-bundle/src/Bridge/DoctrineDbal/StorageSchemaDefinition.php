@@ -57,6 +57,13 @@ final class StorageSchemaDefinition
         $table->addColumn('uri', 'string', ['length' => 500]);
         $table->addColumn('payload', 'text');
         $table->addColumn('expires_at', 'integer', ['notnull' => false]);
+        $table->addColumn('etag', 'string', ['length' => 255, 'notnull' => false]);
+        $table->setPrimaryKey(['uri']);
+
+        $table = $schema->createTable('ucp_agent_key_directory_cache');
+        $table->addColumn('uri', 'string', ['length' => 500]);
+        $table->addColumn('payload', 'text');
+        $table->addColumn('expires_at', 'integer', ['notnull' => false]);
         $table->setPrimaryKey(['uri']);
 
         $table = $schema->createTable('ucp_negotiation_sessions');
