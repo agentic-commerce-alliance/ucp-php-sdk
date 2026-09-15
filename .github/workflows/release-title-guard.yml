@@ -1,0 +1,42 @@
+name: release-title-guard
+
+# The release title must name the UCP version the tag serves: `<tag> — UCP <date>`.
+#
+# release.yml writes that title when the tag is pushed, but a title is one edit away from
+# losing it, and the release list is where an adopter learns which protocol version an SDK
+# version speaks (docs/ucp-version-support-policy.md: one UCP version per release, switched
+# outright). This runs on publish and on every later edit and fails loudly if the title
+# drifted. It does not rewrite the title: a red run on the release is the signal, and
+# silently fighting a human edit would hide whatever they were trying to do.
+
+on:
+  release:
+    types:
+      - published
+      - edited
+
+permissions:
+  contents: read
+
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Title carries the served UCP version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          TITLE: ${{ github.event.release.name }}
+        run: |
+          # The runner's PHP is enough: the script loads one dependency-free enum file.
+          ucp_version="$(php tools/print-ucp-version.php)"
+          expected="$TAG — UCP $ucp_version"
+
+          if [ "$TITLE" != "$expected" ]; then
+            echo "::error::Release title is '$TITLE'; expected '$expected'. The title must name the UCP version this tag serves. See docs/release-process.md."
+            exit 1
+          fi
+
+          echo "Release title '$TITLE' names the served UCP version."

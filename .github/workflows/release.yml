@@ -41,6 +41,11 @@ jobs:
       - name: Collect release artifacts
         run: |
           mkdir -p release-artifacts
+          # The UCP version this tag serves, read from the source being released. The
+          # release title is derived from it below, so a reader of the release list sees
+          # the protocol version next to the SDK version without opening the notes.
+          docker compose run --rm php php tools/print-ucp-version.php > release-artifacts/ucp-version.txt
+          test -s release-artifacts/ucp-version.txt
           cp var/reports/infection/summary.log release-artifacts/infection-summary.log
           cp var/reports/infection-full/summary.log release-artifacts/infection-full-summary.log
           cp var/reports/coverage/internal-summary.json release-artifacts/coverage-internal-summary.json
@@ -69,13 +74,23 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
+          # Title format is `<tag> — UCP <date>`, e.g. `0.0.6 — UCP 2026-08-25`. The SDK
+          # serves exactly one UCP version per release (docs/ucp-version-support-policy.md),
+          # so the release list is where an adopter finds out which; it must not depend on
+          # someone remembering to type it. release-title-guard.yml refuses a published
+          # release whose title drifted from this.
+          ucp_version="$(tr -d '[:space:]' < release-artifacts/ucp-version.txt)"
+          title="$TAG — UCP $ucp_version"
+          echo "Release title: $title"
+
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --draft --title "$TAG"
+            gh release edit "$TAG" --draft --title "$title"
           else
             gh release create "$TAG" \
               --draft \
               --generate-notes \
-              --title "$TAG"
+              --title "$title" \
+              --notes "Serves UCP \`$ucp_version\`. Packages: \`ucp-php-sdk/core:$TAG\`, \`ucp-php-sdk/symfony-bundle:$TAG\`."
           fi
 
           gh release upload "$TAG" release-artifacts/* --clobber

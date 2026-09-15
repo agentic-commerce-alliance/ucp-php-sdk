@@ -127,9 +127,16 @@ git tag 0.0.1
 git push origin 0.0.1
 ```
 
-3. Create a GitHub Release from that tag.
+3. The `release` workflow runs the QA suite against the tag and creates or updates a **draft**
+   GitHub Release for it. It sets the title to `<tag> — UCP <date>`, for example
+   `0.0.6 — UCP 2026-08-25`, reading the date from the tagged source
+   (`tools/print-ucp-version.php`). Leave the title as the workflow wrote it: the SDK serves
+   one UCP version per release, and the release list is where adopters find out which one.
+   The `release-title-guard` workflow fails on a published or edited release whose title does
+   not carry the served version.
 
-4. Start from the existing Release Drafter draft or GitHub's generated notes, then edit them into a short curated note set.
+4. Start from that draft (or the Release Drafter draft it updated), then edit the notes into a
+   short curated set and publish.
 
 ## What A GitHub Release Note Should Contain
 
@@ -141,7 +148,8 @@ Each GitHub Release should include:
   - `ucp-php-sdk/core`
   - `ucp-php-sdk/symfony-bundle`
 - protocol target:
-  - currently UCP `2026-08-25`
+  - in the title, as `<tag> — UCP <date>`, set by the `release` workflow; repeat it in the
+    notes if the release changes it
 - main included scope:
   - discovery
   - catalog
