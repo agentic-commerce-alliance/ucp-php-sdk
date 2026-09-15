@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "558bb664de9a07bf72d7353211863b3f",
+    "content-hash": "7148dd3a0776c6bf7e221fb9e241c44f",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -2732,17 +2732,18 @@
         },
         {
             "name": "ucp-php-sdk/core",
-            "version": "0.0.6",
+            "version": "0.0.7",
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "e1b2e250a7f5c7e646ecabf33f4ba00b98bbd201"
+                "reference": "0b45c67497dc547ea6ffdf4ee80bd1df0d7a225f"
             },
             "require": {
                 "ext-filter": "*",
                 "ext-iconv": "*",
                 "ext-mbstring": "*",
                 "ext-openssl": "*",
+                "ext-sodium": "*",
                 "php": "^8.1"
             },
             "type": "library",
@@ -2762,11 +2763,11 @@
         },
         {
             "name": "ucp-php-sdk/symfony-bundle",
-            "version": "0.0.6",
+            "version": "0.0.7",
             "dist": {
                 "type": "path",
                 "url": "packages/symfony-bundle",
-                "reference": "d0fe92117ca97e08626216bd3807b4e78b7f0862"
+                "reference": "a56f5df2ce76a4c9224baf5d73c1ef2bf888bf0b"
             },
             "require": {
                 "doctrine/dbal": "^3.7 || ^4.0",
@@ -2776,6 +2777,7 @@
                 "symfony/config": "^6.4 || ^7.0",
                 "symfony/console": "^6.4 || ^7.0",
                 "symfony/dependency-injection": "^6.4 || ^7.0",
+                "symfony/deprecation-contracts": "^3.0",
                 "symfony/event-dispatcher-contracts": "^3.0",
                 "symfony/framework-bundle": "^6.4 || ^7.0",
                 "symfony/http-client": "^6.4 || ^7.0",
@@ -2783,7 +2785,7 @@
                 "symfony/http-foundation": "^6.4 || ^7.0",
                 "symfony/http-kernel": "^6.4 || ^7.0",
                 "symfony/routing": "^6.4 || ^7.0",
-                "ucp-php-sdk/core": ">=0.0.6 <0.1.0"
+                "ucp-php-sdk/core": ">=0.0.7 <0.1.0"
             },
             "type": "library",
             "autoload": {

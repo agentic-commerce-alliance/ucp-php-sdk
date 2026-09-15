@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.7 - 2026-09-15
 
 ### Changed
 
@@ -18,6 +18,16 @@
 ### Fixed
 
 - A configured `ucp_sdk.version` that this release knows but no longer serves is corrected to the served version with a deprecation, instead of failing the container build. A deployment that had pinned `2026-04-08` and then took the `0.0.6` upgrade got an `InvalidConfigurationException` during `assets:install`, which exits `255` and stops a Shopware core upgrade part-way through: one stale line in one bundle's config, surfaced as an asset-installation failure with nothing naming the line. A version the SDK cannot name at all is still refused at configuration time, because nothing downstream could act on it. Setting `version` is discouraged -- a release serves exactly one protocol version and defaults to it.
+
+### Upgrade notes
+
+- Install both packages at `0.0.7`. The bundle now requires core `>=0.0.7 <0.1.0`: it calls
+  `UcpProtocolVersion::isKnown()` and dispatches `VersionNegotiationObservedEvent`, neither of which
+  exists in `0.0.6`.
+- No protocol change. This release still serves UCP `2026-08-25`; nothing an adopter advertises moves.
+- `ucp_sdk.version` no longer needs to be set, and setting a superseded version is now a deprecation
+  rather than a failed container build. The recommendation is to remove the key: a release serves one
+  protocol version and defaults to it.
 
 ## 0.0.6 - 2026-09-11
 
