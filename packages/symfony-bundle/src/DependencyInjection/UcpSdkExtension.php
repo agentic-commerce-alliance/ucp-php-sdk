@@ -31,6 +31,7 @@ use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Event\ProfileBuiltEvent;
 use Ucp\Sdk\Internal\Configuration\StaticRuntimeConfigurationResolver;
 use Ucp\Sdk\Internal\Http\HttpAgentKeyDirectoryFetcher;
@@ -130,6 +131,7 @@ final class UcpSdkExtension extends Extension
     {
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
+        $config['version'] = $this->resolveServedVersion($config['version']);
 
         $container->registerForAutoconfiguration(CapabilityInterface::class)->addTag('ucp_sdk.capability');
         $container->registerForAutoconfiguration(PaymentHandlerInterface::class)->addTag('ucp_sdk.payment_handler');
@@ -448,5 +450,36 @@ final class UcpSdkExtension extends Extension
         $container->autowire(DeleteSigningKeyCommand::class)->addTag('console.command');
         $container->autowire(StorageCleanupCommand::class)->addTag('console.command');
         $container->autowire(PurgeSignatureNoncesCommand::class)->addTag('console.command');
+    }
+
+    /**
+     * The version this release will actually serve, given what the operator configured.
+     *
+     * A configured version that is no longer servable is stale, not wrong: the deployment
+     * named a version this SDK did serve, and then took an upgrade that moved on. Refusing
+     * to build the container over it punished the upgrade rather than the configuration --
+     * `assets:install` exits 255 and a Shopware core upgrade stops, with the failure
+     * pointing at asset installation rather than at the one line to delete. Serving the
+     * version this release does serve is the outcome the operator wanted anyway, and a
+     * platform still speaking the old one is refused per request with `version_unsupported`,
+     * which is where that disagreement belongs.
+     *
+     * Unknown versions never reach here: Configuration rejects them at validation.
+     */
+    private function resolveServedVersion(string $configured): string
+    {
+        if (UcpProtocolVersion::isSupported($configured)) {
+            return $configured;
+        }
+
+        trigger_deprecation(
+            'ucp-php-sdk/symfony-bundle',
+            '0.0.7',
+            'Configuring "ucp_sdk.version" with "%s" is deprecated: this release serves "%s" and will serve that instead. Remove the "version" key -- a release serves exactly one protocol version and defaults to it.',
+            $configured,
+            UcpProtocolVersion::current()->value,
+        );
+
+        return UcpProtocolVersion::current()->value;
     }
 }

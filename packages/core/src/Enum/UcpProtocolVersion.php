@@ -36,6 +36,20 @@ enum UcpProtocolVersion: string
     }
 
     /**
+     * Whether this release can name the version at all, servable or not.
+     *
+     * What this separates from `isSupported()` is stale configuration from nonsense.
+     * `2026-04-08` is a version this SDK once served and still parses, so a deployment
+     * that carries it in `ucp_sdk.version` is behind rather than misconfigured, and
+     * refusing to boot over it costs an operator their whole upgrade to say so. A value
+     * this enum cannot name is a different thing: nothing downstream could act on it.
+     */
+    public static function isKnown(string $version): bool
+    {
+        return in_array($version, self::knownVersions(), true);
+    }
+
+    /**
      * The versions this release can serve, which is not the same as the versions it can name.
      *
      * Enum cases outlive servability. `V20260408` is kept -- removing a case is a
