@@ -20,7 +20,9 @@ Use this package when you want to build UCP support without taking a dependency 
 Install:
 
 ```bash
-composer require ucp-php-sdk/core:^0.0.1
+composer require ucp-php-sdk/core
+
+Let Composer pick the newest release. A caret on a `0.0.x` version pins that exact patch (`^0.0.6` is `>=0.0.6 <0.0.7`); write a range out if you need one.
 ```
 
 Recommended integration pattern:

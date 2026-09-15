@@ -20,7 +20,9 @@ Use this package when the host app is Symfony and you want the SDK wired into HT
 Install:
 
 ```bash
-composer require ucp-php-sdk/symfony-bundle:^0.0.1
+composer require ucp-php-sdk/symfony-bundle
+
+Let Composer pick the newest release. A caret on a `0.0.x` version pins that exact patch (`^0.0.6` is `>=0.0.6 <0.0.7`); write a range out if you need one.
 ```
 
 The default bundle stack gives you:

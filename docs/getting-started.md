@@ -42,10 +42,15 @@ A runnable reference for Path A lives in
 ### 1. Install
 
 ```bash
-composer require ucp-php-sdk/symfony-bundle:^0.0.1
+composer require ucp-php-sdk/symfony-bundle
 ```
 
-This pulls in `ucp-php-sdk/core` automatically.
+This pulls in `ucp-php-sdk/core` automatically and lets Composer pick the newest release.
+
+Do not write `^0.0.6`. On a `0.0.x` version a caret pins that exact patch (`^0.0.6` means
+`>=0.0.6 <0.0.7`), so you would never receive `0.0.7`. If you want a bound, write it out, for
+example `">=0.0.6 <0.1.0"`. Releases before `1.0` may break between patches; read
+[CHANGELOG.md](../CHANGELOG.md) when you bump.
 
 ### 2. Register the bundle
 
@@ -62,11 +67,18 @@ return [
 ```yaml
 # config/packages/ucp_sdk.yaml
 ucp_sdk:
-    base_uri: '%env(UCP_BASE_URI)%'        # public base URL of this service
-    allowed_profile_hosts: ['your-host']    # hosts allowed when fetching remote profiles
-    signature_policy: 'log'                 # off | log | strict (start with log locally)
+    base_uri: '%env(UCP_BASE_URI)%'   # public base URL of this service, e.g. http://127.0.0.1:8080
+    signature_policy: 'log'           # off | log | strict — log locally, strict in production
     storage:
         dsn: 'sqlite:///%kernel.project_dir%/var/ucp_sdk.sqlite'  # or a MySQL/PostgreSQL DSN
+
+    # Local development only. Lets the shop act as its own agent for a first request (step 6)
+    # and admits plain-http and loopback profile hosts. Never enable this in production.
+    profile_fetching_development_mode: true
+
+    # Production: the hosts of the platforms allowed to call you, e.g. ['agent.example.com'].
+    # Empty means only local development hosts, and only in development mode.
+    allowed_profile_hosts: []
 ```
 
 Defaults you should know (full list in the [README "Runtime Defaults"](../README.md#runtime-defaults)):
@@ -114,6 +126,7 @@ declare(strict_types=1);
 namespace App\Ucp;
 
 use Ucp\Sdk\Contract\CatalogCapabilityInterface;
+use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
 use Ucp\Sdk\Model\Catalog\CatalogProductRequest;
 use Ucp\Sdk\Model\Catalog\CatalogSearchRequest;
@@ -165,14 +178,30 @@ can wrap them instead of implementing capabilities by hand.
 
 ### 6. Run it and make your first request
 
-Discovery document (lists the capabilities you registered):
+Discovery first. The document lists the capabilities you registered:
 
 ```bash
 curl http://127.0.0.1:8080/.well-known/ucp
 ```
 
-You should see your `dev.ucp.shopping.catalog.search` capability advertised. From there,
-clients call the REST operations under `/ucp/v1/*`.
+You should see `dev.ucp.shopping.catalog.search` advertised. From there, clients call the REST
+operations under `/ucp/v1/*`, and this is where most new adopters stall: every runtime request
+must carry a `UCP-Agent` header naming the *calling platform's* profile URL, and the SDK
+refuses everything a laptop can offer as that URL. With `profile_fetching_development_mode` on
+(step 3), your shop accepts its own discovery URL as the agent profile, so you can be the agent
+yourself. Let the bundle write the request:
+
+```bash
+bin/console ucp:dev:request catalog.search
+```
+
+It prints a `curl` with the right headers and a minimal body. Run it and expect a `200` whose
+`ucp.status` is `success` and whose `products` contain your demo product. Without an argument
+the command lists every operation; `--id` fills in product and resource ids.
+
+[local-testing.md](local-testing.md) explains what happens underneath, what this does and does
+not prove, and when you need a real second profile (strict signatures, an external agent, the
+conformance suite).
 
 To see the whole thing wired end-to-end, run the example app:
 
@@ -220,10 +249,13 @@ For a fuller list with causes and fixes, see [troubleshooting.md](troubleshootin
   (`bin/console ucp:signing-keys:generate` in the bundle).
 - **A2A / embedded routes return 404** — those transports are off by default; enable them
   in `transports`.
-- **Remote profile fetch blocked** — add the host to `allowed_profile_hosts`.
+- **"Platform profile host is not allowed"** — development mode is off, or the platform's host
+  is missing from `allowed_profile_hosts`. Locally, use your own profile as the agent;
+  see [local-testing.md](local-testing.md).
 
 ## Where to go next
 
+- [local-testing.md](local-testing.md) — requests against your own shop, and when you need more
 - [troubleshooting.md](troubleshooting.md) — common failure modes and fixes
 - [concepts-and-flows.md](concepts-and-flows.md) — how requests flow through the SDK
 - [extension-contract.md](extension-contract.md) — every extension point

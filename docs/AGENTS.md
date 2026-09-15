@@ -20,15 +20,5 @@ This folder stores cross-cutting architecture notes.
 
 ## Main Documents
 
-- `extension-contract.md`
-- `concepts-and-flows.md`
-- `full-ucp-parity-plan.md`
-- `platform-adapters.md`
-- `mapping-flow.md`
-- `repo-layout.md`
-- `release-process.md`
-- `production-operator-checklist.md`
-- `storage-adapters.md`
-- `security-model.md`
-- `shopware-plugin-blueprint.md`
-- `qa-dead-code.md`
+The index in [README.md](README.md) is the list of record, grouped by purpose. When a document
+is added, renamed or retired, update that index in the same change; this file does not repeat it.

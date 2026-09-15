@@ -64,15 +64,28 @@ metadata but does not generate or handle a runtime `/ucp/mcp` endpoint.
 MCP runtime is the adopter's responsibility (in Shopware, it depends on the
 6.7 core Store API MCP endpoint). See [full-ucp-parity-plan.md](full-ucp-parity-plan.md).
 
-## Remote profile fetch is blocked
+## "Platform profile host is not allowed by the current runtime configuration."
 
-**Cause:** The host of the profile being fetched is not in
-`allowed_profile_hosts`, or a non-public/unsafe URL was rejected by the URL
-safety checks (which block loopback, link-local, and metadata addresses).
+**Cause:** The host in the request's `UCP-Agent` profile URL is not on
+`allowed_profile_hosts`. With an empty list only `localhost`, `127.0.0.1` and
+`::1` are admitted, and only while `profile_fetching_development_mode` is on.
 
-**Fix:** Add the legitimate host to `allowed_profile_hosts`. For local
-development against a non-public host, the example apps enable a development
-mode for profile fetching.
+**Fix:** In production, add the platform's real host to `allowed_profile_hosts`;
+for an unknown platform this refusal is the correct answer. Locally, turn on
+development mode and let the shop be its own agent: point `UCP-Agent` at your
+own `/.well-known/ucp`, or let `bin/console ucp:dev:request` write the request.
+See [local-testing.md](local-testing.md).
+
+## "Plain http is only allowed for local development hosts." / "resolves to a blocked IP address."
+
+**Cause:** The profile URL's host is a `.localhost` name, a container hostname
+or an `/etc/hosts` alias. Those resolve to loopback or private addresses, which
+the URL safety rules refuse; only the three literal local names are exempt, and
+only in development mode.
+
+**Fix:** Use the own-profile shortcut above, or serve the agent profile from a
+local process on `localhost:<port>`. There is no way to allow a `.localhost`
+name, by design. See [local-testing.md](local-testing.md).
 
 ## Idempotent request returns a stale or unexpected response
 

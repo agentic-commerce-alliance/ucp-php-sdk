@@ -80,14 +80,20 @@ Release organization:
 Framework-free install:
 
 ```bash
-composer require ucp-php-sdk/core:^0.0.6
+composer require ucp-php-sdk/core
 ```
 
 Symfony install:
 
 ```bash
-composer require ucp-php-sdk/symfony-bundle:^0.0.6
+composer require ucp-php-sdk/symfony-bundle
 ```
+
+Let Composer pick the newest release. Do not write `^0.0.6`: on a `0.0.x` version a caret pins
+that exact patch (`>=0.0.6 <0.0.7`) and you never receive the next one. If you need a bound,
+write it out, for example `">=0.0.6 <0.1.0"`. New here? Follow the
+[Getting Started guide](docs/getting-started.md) and then [docs/local-testing.md](docs/local-testing.md)
+for your first request.
 
 Run the full QA pipeline:
 
