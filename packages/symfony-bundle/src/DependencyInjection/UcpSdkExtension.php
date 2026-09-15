@@ -101,6 +101,7 @@ use Ucp\Sdk\Symfony\Bridge\SymfonyEventDispatcher;
 use Ucp\Sdk\Symfony\Bridge\SymfonyHttpClient;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\Command\DeleteSigningKeyCommand;
+use Ucp\Sdk\Symfony\Command\DevRequestCommand;
 use Ucp\Sdk\Symfony\Command\GenerateSigningKeyCommand;
 use Ucp\Sdk\Symfony\Command\ListSigningKeysCommand;
 use Ucp\Sdk\Symfony\Command\PurgeSignatureNoncesCommand;
@@ -350,6 +351,7 @@ final class UcpSdkExtension extends Extension
             new Reference(CapabilityNegotiatorInterface::class),
             new Reference(NegotiationSessionRepositoryInterface::class),
             $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
+            new Reference(ProfileBuilderInterface::class),
         ]));
         $container->setAlias(HttpRequestContextFactoryInterface::class, new Alias(DefaultHttpRequestContextFactory::class, true));
 
@@ -447,5 +449,6 @@ final class UcpSdkExtension extends Extension
         $container->autowire(DeleteSigningKeyCommand::class)->addTag('console.command');
         $container->autowire(StorageCleanupCommand::class)->addTag('console.command');
         $container->autowire(PurgeSignatureNoncesCommand::class)->addTag('console.command');
+        $container->autowire(DevRequestCommand::class)->addTag('console.command');
     }
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- In profile-fetching development mode, a `UCP-Agent` profile URI that points at this deployment's own `/.well-known/ucp` is answered with the deployment's own profile, built in-process. The first request against a fresh install no longer needs a second web server to hand out an agent profile. Strictly development mode and strictly the own discovery URL; every other URI takes the normal fetch path with all of its checks.
+- `ucp:dev:request`: prints a ready-to-run `curl` for a UCP operation against this deployment, with the own profile as the agent, sample body and headers included. Lists the operations when called without one.
+
 ## 0.0.6 - 2026-09-11
 
 ### Changed (breaking)
