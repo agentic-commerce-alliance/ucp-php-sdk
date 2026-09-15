@@ -19,13 +19,25 @@ final class Configuration implements ConfigurationInterface
 
         $rootNode
             ->children()
+                // Setting this at all is discouraged: a release serves exactly one protocol
+                // version, so the only value that can ever be right is the default. A
+                // deployment that had pinned the previous version and then took an SDK
+                // upgrade used to fail here at container build, which surfaced as
+                // `assets:install` returning 255 part-way through a Shopware core upgrade --
+                // one stale line in one bundle's config taking the whole shop offline, with
+                // nothing in the message to say which line. A version this release knows but
+                // no longer serves is now corrected to the served one with a deprecation
+                // (see UcpSdkExtension::resolveServedVersion); only a version the SDK cannot
+                // name at all is still refused, because nothing downstream could act on it.
                 ->scalarNode('version')
                     ->defaultValue(UcpProtocolVersion::current()->value)
+                    ->info('UCP protocol version to serve. Leave unset: a release serves exactly one, and it is the default.')
                     ->validate()
-                        ->ifTrue(static fn (mixed $version): bool => ! is_string($version) || ! UcpProtocolVersion::isSupported($version))
+                        ->ifTrue(static fn (mixed $version): bool => ! is_string($version) || ! UcpProtocolVersion::isKnown($version))
                         ->thenInvalid(sprintf(
-                            'Unsupported UCP protocol version %%s. This SDK release serves %s.',
+                            'Unknown UCP protocol version %%s. This SDK release serves %s and can name %s.',
                             implode(', ', UcpProtocolVersion::supportedVersions()),
+                            implode(', ', UcpProtocolVersion::knownVersions()),
                         ))
                     ->end()
                 ->end()

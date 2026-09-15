@@ -11,6 +11,11 @@
 
 - `Ucp\Sdk\Event\VersionNegotiationObservedEvent` and `Ucp\Sdk\Enum\VersionNegotiationOutcome`. Dispatched on every shopping operation with the version the platform named, the version served, the platform profile URI and whether it was accepted, and on a refusal of the non-standard `UCP-Agent; version=` parameter. This is the measurement the single-version policy is revisited on.
 - `docs/ucp-version-support-policy.md`: the decision to serve one UCP version per release line, its reasons, the cost of serving N−1, the per-version testing strategy, and the revisit trigger.
+- `UcpProtocolVersion::isKnown()`, which separates a version this release can name from one it can serve.
+
+### Fixed
+
+- A configured `ucp_sdk.version` that this release knows but no longer serves is corrected to the served version with a deprecation, instead of failing the container build. A deployment that had pinned `2026-04-08` and then took the `0.0.6` upgrade got an `InvalidConfigurationException` during `assets:install`, which exits `255` and stops a Shopware core upgrade part-way through: one stale line in one bundle's config, surfaced as an asset-installation failure with nothing naming the line. A version the SDK cannot name at all is still refused at configuration time, because nothing downstream could act on it. Setting `version` is discouraged -- a release serves exactly one protocol version and defaults to it.
 
 ## 0.0.6 - 2026-09-11
 

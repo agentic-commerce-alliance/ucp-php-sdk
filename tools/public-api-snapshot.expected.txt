@@ -149,6 +149,7 @@ enum Ucp\Sdk\Enum\UcpProtocolVersion
   - static cases(): array
   - static current(): self
   - static from(string|int $value): static
+  - static isKnown(string $version): bool
   - static isSupported(string $version): bool
   - static knownVersions(): array
   - static supportedVersions(): array

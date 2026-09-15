@@ -15,6 +15,7 @@ use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
 use Ucp\Sdk\Internal\Validation\SchemaDirectoryLocator;
 use Ucp\Sdk\Symfony\DependencyInjection\Configuration;
 use Ucp\Sdk\Symfony\DependencyInjection\UcpSdkExtension;
+use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 /**
  * The protocol version has to come from one place.
@@ -69,35 +70,72 @@ final class ProtocolVersionSingleSourceTest extends TestCase
         );
     }
 
+    /**
+     * A version the SDK cannot name is still refused outright.
+     *
+     * Unlike a superseded version there is no correct behaviour to fall back to: there is
+     * no schema set to validate against and no value an envelope could honestly carry.
+     */
     #[Test]
-    public function aVersionTheSdkCannotServeIsRejectedAtConfigurationTime(): void
+    public function aVersionTheSdkCannotNameIsRejectedAtConfigurationTime(): void
     {
         $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('Unsupported UCP protocol version');
+        $this->expectExceptionMessage('Unknown UCP protocol version');
 
         $this->process(['version' => '1999-01-01']);
     }
 
     /**
-     * The previous protocol version is still nameable and no longer servable.
+     * The previous protocol version is still nameable, no longer servable, and no longer fatal.
      *
      * `V20260408` stays in the enum because removing a case breaks consumers and because
-     * persisted rows and the pinned tree still refer to it. That must not make it configurable:
-     * its generated schemas are gone, so accepting it would advertise a version the SDK cannot
-     * validate against, and the failure would surface as a missing-directory error rather than
-     * as the configuration mistake it is.
+     * persisted rows and the pinned tree still refer to it. Refusing it at container build
+     * is how a deployment that had pinned it turned an SDK upgrade into `assets:install`
+     * exiting 255 part-way through a Shopware core upgrade: one stale line in one bundle's
+     * config, surfaced as an asset-installation failure. It is corrected to the served
+     * version with a deprecation instead, which is what that configuration was asking for.
+     * A platform still speaking the old version is refused per request with
+     * `version_unsupported`, which is where the disagreement actually is.
      */
     #[Test]
-    public function theSupersededVersionIsStillNameableButNoLongerServable(): void
+    public function theSupersededVersionIsCorrectedRatherThanFailingTheBuild(): void
     {
         self::assertContains('2026-04-08', UcpProtocolVersion::knownVersions(), 'still nameable');
         self::assertNotContains('2026-04-08', UcpProtocolVersion::supportedVersions());
         self::assertFalse(UcpProtocolVersion::isSupported('2026-04-08'));
+        self::assertTrue(UcpProtocolVersion::isKnown('2026-04-08'));
+        self::assertSame('2026-04-08', $this->process(['version' => '2026-04-08'])['version'], 'the config layer keeps it');
 
-        $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('Unsupported UCP protocol version');
+        $deprecations = [];
+        $container = new ContainerBuilder();
+        set_error_handler(
+            static function (int $severity, string $message) use (&$deprecations): bool {
+                $deprecations[] = $message;
 
-        $this->process(['version' => '2026-04-08']);
+                return true;
+            },
+            E_USER_DEPRECATED,
+        );
+
+        try {
+            (new UcpSdkExtension())->load([['version' => '2026-04-08']], $container);
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertSame(
+            UcpProtocolVersion::current()->value,
+            $container->getDefinition(UcpSdkConfiguration::class)->getArgument(0),
+            'the container is built against the version this release serves',
+        );
+
+        $schemaDirectory = $container->getDefinition(GeneratedSchemaValidator::class)->getArgument(0);
+        self::assertIsString($schemaDirectory);
+        self::assertStringEndsWith('/generated/' . UcpProtocolVersion::current()->value, $schemaDirectory);
+
+        self::assertCount(1, $deprecations);
+        self::assertStringContainsString('ucp_sdk.version', $deprecations[0]);
+        self::assertStringContainsString('2026-04-08', $deprecations[0]);
     }
 
     /**
