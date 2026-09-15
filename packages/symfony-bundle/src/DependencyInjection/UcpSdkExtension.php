@@ -350,6 +350,7 @@ final class UcpSdkExtension extends Extension
             new Reference(CapabilityNegotiatorInterface::class),
             new Reference(NegotiationSessionRepositoryInterface::class),
             $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
+            new Reference(EventDispatcherInterface::class),
         ]));
         $container->setAlias(HttpRequestContextFactoryInterface::class, new Alias(DefaultHttpRequestContextFactory::class, true));
 

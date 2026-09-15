@@ -157,6 +157,10 @@ enum Ucp\Sdk\Enum\UcpResponseStatus
   - static cases(): array
   - static from(string|int $value): static
   - static tryFrom(string|int $value): ?static
+enum Ucp\Sdk\Enum\VersionNegotiationOutcome
+  - static cases(): array
+  - static from(string|int $value): static
+  - static tryFrom(string|int $value): ?static
 class Ucp\Sdk\Event\CheckoutRequestReceivedEvent
   - __construct(Ucp\Sdk\Model\Checkout\CheckoutCreateRequest $request, Ucp\Sdk\Model\RequestContext $context)
   - getContext(): Ucp\Sdk\Model\RequestContext
@@ -182,6 +186,12 @@ class Ucp\Sdk\Event\ProfileBuiltEvent
   - getInput(): Ucp\Sdk\Model\Profile\ProfileBuildInput
   - getProfile(): Ucp\Sdk\Model\Profile\PlatformProfile
   - replaceProfile(Ucp\Sdk\Model\Profile\PlatformProfile $profile): void
+class Ucp\Sdk\Event\VersionNegotiationObservedEvent
+  - __construct(string $observedVersion, string $servedVersion, ?string $agentProfileUri, Ucp\Sdk\Enum\VersionNegotiationOutcome $outcome)
+  - getAgentProfileUri(): ?string
+  - getObservedVersion(): string
+  - getOutcome(): Ucp\Sdk\Enum\VersionNegotiationOutcome
+  - getServedVersion(): string
 class Ucp\Sdk\Exception\AgentProfileException
   - static invalid(string $uri, string $reason, ?Throwable $previous = null): self
   - static tooLarge(string $uri, int $maxResponseBytes): self
