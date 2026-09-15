@@ -22,6 +22,10 @@ cd "${repo}"
 venv="${UCP_CONFORMANCE_VENV:-${repo}/var/conformance-venv}"
 server_url="${SERVER_URL:-http://127.0.0.1:8091}"
 state_dir="${UCP_MERCHANT_STATE_DIR:-${repo}/var/strict-signature-state}"
+# Its own compiled container, because the container bakes in the state directory above
+# and the conformance lane runs a second merchant that resolves a different one.
+cache_dir="${UCP_MERCHANT_CACHE_DIR:-${repo}/var/strict-signature-cache}"
+export UCP_MERCHANT_CACHE_DIR="${cache_dir}"
 log_dir="${repo}/var/reports/conformance"
 server_log="${log_dir}/merchant-strict.log"
 python_bin="${PYTHON:-python3}"
@@ -50,7 +54,7 @@ if [ -n "${UCP_STRICT_SKIP_SERVER:-}" ]; then
     exit $?
 fi
 
-rm -rf "${state_dir}" "${repo}/examples/merchant-symfony-app/var/cache"
+rm -rf "${state_dir}" "${cache_dir}"
 mkdir -p "${state_dir}"
 
 # Same shape as the default lane: prod, debug off, and profile-fetching development mode

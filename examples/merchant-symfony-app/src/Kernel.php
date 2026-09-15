@@ -95,9 +95,26 @@ final class Kernel extends BaseKernel
         return dirname(__DIR__);
     }
 
+    /**
+     * Where the compiled container goes, overridable for the same reason `stateDir()` is.
+     *
+     * The compiled container bakes in the values `stateDir()` resolved, the sqlite DSN among
+     * them. Two deployments of this app that differ only by `UCP_MERCHANT_STATE_DIR` therefore
+     * cannot share a cache directory -- and under Docker they did, because this returned a path
+     * inside the bind-mounted project while each container kept its own `/tmp`. The conformance
+     * lane runs exactly that pair: the merchant and the strict merchant, same image, same
+     * mounted repository, different state directories. Whichever warmed the cache last decided
+     * where the other one looked for its database, and the loser exited 14 -- SQLITE_CANTOPEN,
+     * a directory that only ever existed in the other container -- before serving a request.
+     */
     public function getCacheDir(): string
     {
-        return $this->getProjectDir() . '/var/cache/' . $this->environment;
+        $configured = self::env('UCP_MERCHANT_CACHE_DIR');
+        $base = $configured !== null
+            ? rtrim($configured, '/')
+            : $this->getProjectDir() . '/var/cache';
+
+        return $base . '/' . $this->environment;
     }
 
     public function getLogDir(): string

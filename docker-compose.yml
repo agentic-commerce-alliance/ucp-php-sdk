@@ -44,6 +44,10 @@ services:
       APP_DEBUG: '0'
       UCP_MERCHANT_BASE_URI: http://127.0.0.1:8081
       UCP_MERCHANT_STATE_DIR: /tmp/ucp-conformance-state
+      # Off the bind mount and distinct per service: the compiled container bakes in the state
+      # directory, and these two services differ by exactly that. Sharing one cache under the
+      # mounted repository let each recompile the other's container out from under it.
+      UCP_MERCHANT_CACHE_DIR: /tmp/ucp-conformance-cache
       # The suite serves its mock agent profile over plain http on loopback and cannot serve
       # https, while the SDK refuses plain-http profile fetching outside this mode. Set here
       # rather than inherited from APP_ENV=dev so this one relaxation is the only one in play.
@@ -56,7 +60,7 @@ services:
       - sh
       - -c
       - >-
-        rm -rf /tmp/ucp-conformance-state examples/merchant-symfony-app/var/cache &&
+        rm -rf /tmp/ucp-conformance-state /tmp/ucp-conformance-cache &&
         mkdir -p /tmp/ucp-conformance-state &&
         php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate &&
         php -S 127.0.0.1:8081 -t examples/merchant-symfony-app/public
@@ -81,13 +85,14 @@ services:
       APP_DEBUG: '0'
       UCP_MERCHANT_BASE_URI: http://127.0.0.1:8091
       UCP_MERCHANT_STATE_DIR: /tmp/ucp-strict-state
+      UCP_MERCHANT_CACHE_DIR: /tmp/ucp-strict-cache
       UCP_PROFILE_FETCHING_DEV_MODE: '1'
       UCP_SIGNATURE_POLICY: strict
     command:
       - sh
       - -c
       - >-
-        rm -rf /tmp/ucp-strict-state examples/merchant-symfony-app/var/cache &&
+        rm -rf /tmp/ucp-strict-state /tmp/ucp-strict-cache &&
         mkdir -p /tmp/ucp-strict-state &&
         php examples/merchant-symfony-app/bin/console ucp:signing-keys:generate &&
         php -S 127.0.0.1:8091 -t examples/merchant-symfony-app/public

@@ -31,6 +31,9 @@ checkout="${UCP_CONFORMANCE_DIR:-${repo}/var/conformance}"
 venv="${UCP_CONFORMANCE_VENV:-${repo}/var/conformance-venv}"
 server_url="${SERVER_URL:-http://127.0.0.1:8081}"
 state_dir="${UCP_MERCHANT_STATE_DIR:-${repo}/var/conformance-state}"
+# See run-strict-signature-pass.sh: one compiled container per state directory.
+cache_dir="${UCP_MERCHANT_CACHE_DIR:-${repo}/var/conformance-cache}"
+export UCP_MERCHANT_CACHE_DIR="${cache_dir}"
 report="${UCP_CONFORMANCE_REPORT:-${repo}/var/reports/conformance/junit.xml}"
 server_log="$(dirname "${report}")/merchant.log"
 python_bin="${PYTHON:-python3}"
@@ -98,7 +101,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ -z "${UCP_CONFORMANCE_SKIP_SERVER:-}" ]; then
-    rm -rf "${state_dir}" "${repo}/examples/merchant-symfony-app/var/cache"
+    rm -rf "${state_dir}" "${cache_dir}"
     mkdir -p "${state_dir}"
 
     # prod on purpose, with exactly one affordance turned on explicitly.
