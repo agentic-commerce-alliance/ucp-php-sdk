@@ -11,8 +11,11 @@ use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Security\AgentDomainAllowList;
+use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
+use Ucp\Sdk\Model\Profile\PlatformProfile;
+use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
@@ -20,6 +23,7 @@ use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
+use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
@@ -35,6 +39,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         private readonly ?NegotiationSessionRepositoryInterface $negotiationSessionRepository = null,
         private readonly ?MerchantAuthorizationServiceInterface $merchantAuthorizationService = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?ProfileBuilderInterface $profileBuilder = null,
     ) {
     }
 
@@ -88,16 +93,19 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             ));
         }
 
-        $this->assertSafeProfileUri(
-            $profileUri,
-            $configuration->allowedProfileHosts,
-            $configuration->allowedAgentDomains,
-            $configuration->profileFetchingDevelopmentMode,
-        );
+        $platformProfile = $this->ownProfileForDevelopment($profileUri, $request, $configuration);
+        if ($platformProfile === null) {
+            $this->assertSafeProfileUri(
+                $profileUri,
+                $configuration->allowedProfileHosts,
+                $configuration->allowedAgentDomains,
+                $configuration->profileFetchingDevelopmentMode,
+            );
 
-        $platformProfile = $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface
-            ? $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts)
-            : $this->agentProfileFetcher->fetch($profileUri);
+            $platformProfile = $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface
+                ? $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts)
+                : $this->agentProfileFetcher->fetch($profileUri);
+        }
         $publicKeys = $platformProfile->signingKeys;
         $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);
 
@@ -158,6 +166,69 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             $merchantAuthorizationVerification,
             $sessionId,
         );
+    }
+
+    /**
+     * In development mode, this business is an acceptable agent for itself.
+     *
+     * Every runtime request has to name an agent profile, and in production that profile lives
+     * on the platform's own public host. Locally there is no such host: `*.localhost` names and
+     * container hostnames resolve to loopback, which the SSRF rules refuse for good reason, so
+     * the first request against a fresh install used to need a second web server just to hand
+     * out a JSON document. The plugin's functional tests and the conformance lane both solved
+     * this by negotiating against the business's *own* profile, and this makes that a supported
+     * path: point `UCP-Agent` at this deployment's `/.well-known/ucp` and the profile is built
+     * in-process, exactly as the discovery endpoint would serve it, with no fetch and no cache.
+     *
+     * Strictly development mode, and strictly the own discovery URL: the URI must carry that
+     * path and its scheme, host and port must match either the request's own or the configured
+     * base URI. Anything else takes the normal fetch path with all of its checks.
+     */
+    private function ownProfileForDevelopment(string $profileUri, HttpRequest $request, RuntimeConfiguration $configuration): ?PlatformProfile
+    {
+        if (! $configuration->profileFetchingDevelopmentMode || $this->profileBuilder === null) {
+            return null;
+        }
+
+        $profile = parse_url($profileUri);
+        if (! is_array($profile) || ($profile['path'] ?? '') !== '/.well-known/ucp' || isset($profile['user']) || isset($profile['pass'])) {
+            return null;
+        }
+
+        $requestOrigin = self::origin($request->absoluteUri);
+        $baseOrigin = $configuration->baseUri !== '' ? self::origin($configuration->baseUri) : null;
+        $profileOrigin = self::origin($profileUri);
+
+        if ($profileOrigin === null || ($profileOrigin !== $requestOrigin && $profileOrigin !== $baseOrigin)) {
+            return null;
+        }
+
+        return $this->profileBuilder->build(new ProfileBuildInput(
+            $configuration->version,
+            $configuration->baseUri !== '' ? $configuration->baseUri : substr($profileUri, 0, -strlen('/.well-known/ucp')),
+            $configuration->transports,
+            supportedVersions: $configuration->supportedVersions,
+            transportEndpoints: $configuration->transportEndpoints,
+            tenantIdentifier: $configuration->tenantIdentifier,
+            enabledCapabilities: $configuration->enabledCapabilities,
+        ));
+    }
+
+    /**
+     * `scheme://host:port`, lower-cased, with the scheme's default port made explicit so that
+     * `https://shop.example` and `https://shop.example:443` compare equal.
+     */
+    private static function origin(string $uri): ?string
+    {
+        $parts = parse_url($uri);
+        if (! is_array($parts) || ! isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+
+        $scheme = strtolower($parts['scheme']);
+        $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
+
+        return sprintf('%s://%s:%d', $scheme, strtolower($parts['host']), $port);
     }
 
     private function extractProfileUri(?string $header): ?string
