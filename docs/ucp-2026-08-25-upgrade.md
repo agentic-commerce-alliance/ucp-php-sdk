@@ -82,7 +82,7 @@ withdrawn during Wave 1 -- see its entry -- so the wave is T4 to T8 plus T10 to 
 
 | Decision | Choice |
 |---|---|
-| Version strategy | **Hard switch** to `2026-08-25`. No runtime multi-version support. Pre-1.0, so breaks are permitted with CHANGELOG entries. |
+| Version strategy | **Hard switch** to `2026-08-25`. No runtime multi-version support. Pre-1.0, so breaks are permitted with CHANGELOG entries. Superseded as the decision of record by [ucp-version-support-policy.md](ucp-version-support-policy.md), which adds the reasons, the cost of the alternative and the revisit trigger. |
 | New-capability scope | **Core breaking absorptions only**: `keys[]`, reverse-DNS consent, fractional quantity, fulfillment restructure, `cart.id` omission, payment namespace migration, capability versioning. |
 | Conformance suite | **Adopt** it: a CI lane against `examples/merchant-symfony-app`, advisory first, then per-module blocking. |
 
