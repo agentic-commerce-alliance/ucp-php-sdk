@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Service;
 
 use Ucp\Sdk\Enum\SignaturePolicy;
+use Ucp\Sdk\Enum\VersionNegotiationOutcome;
+use Ucp\Sdk\Event\VersionNegotiationObservedEvent;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\ValidationException;
@@ -15,6 +17,7 @@ use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
+use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
 use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
@@ -31,6 +34,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         private readonly CapabilityNegotiatorInterface $capabilityNegotiator,
         private readonly ?NegotiationSessionRepositoryInterface $negotiationSessionRepository = null,
         private readonly ?MerchantAuthorizationServiceInterface $merchantAuthorizationService = null,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -62,8 +66,21 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         // release does not serve, in the shapes of the one it does, is how two peers end up
         // disagreeing about a field neither of them will mention -- so it is refused up front,
         // where the reason is still the version rather than whatever fails first because of it.
+        //
+        // A `version` parameter on UCP-Agent is not in the specification; it is proposed in
+        // upstream PR #793 and read here in case a platform sends it. A refusal on it never
+        // reaches the executor's version check, so it is observed here or not at all. A match
+        // is not observed here: that request goes on to the executor, which records the
+        // profile's version once, and counting it twice would skew the histogram.
         $requestedVersion = $this->extractAgentParameter($agentHeader, 'version');
         if ($requestedVersion !== null && $requestedVersion !== $configuration->version) {
+            $this->eventDispatcher?->dispatch(new VersionNegotiationObservedEvent(
+                $requestedVersion,
+                $configuration->version,
+                $profileUri,
+                VersionNegotiationOutcome::Rejected,
+            ));
+
             throw NegotiationException::versionUnsupported(sprintf(
                 'This business serves UCP %s; the request asked for %s.',
                 $configuration->version,

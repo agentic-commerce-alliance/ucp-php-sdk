@@ -41,6 +41,40 @@ final class ConfigurationTest extends TestCase
         self::assertSame(['agent.example', 'https://other-agent.example:8443'], $config['allowed_agent_domains']);
     }
 
+    /**
+     * The keys are protocol version dates and the values are where those versions are served.
+     * Nothing validated either, so a typo advertised a version no platform could match and a
+     * URI nothing could fetch, and the profile document carried both without complaint.
+     */
+    public function testItRefusesASupportedVersionsKeyThatIsNotAVersionDate(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Invalid ucp_sdk.supported_versions');
+
+        $this->process([
+            'supported_versions' => ['v1' => 'https://legacy.merchant.example/.well-known/ucp'],
+        ]);
+    }
+
+    public function testItRefusesASupportedVersionsEntryWithoutAProfileUri(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Invalid ucp_sdk.supported_versions');
+
+        $this->process([
+            'supported_versions' => ['2026-04-08' => ''],
+        ]);
+    }
+
+    public function testItKeepsSupportedVersionsAsAMapOfVersionToProfileUri(): void
+    {
+        $config = $this->process([
+            'supported_versions' => ['2026-04-08' => 'https://legacy.merchant.example/.well-known/ucp'],
+        ]);
+
+        self::assertSame(['2026-04-08' => 'https://legacy.merchant.example/.well-known/ucp'], $config['supported_versions']);
+    }
+
     public function testItRequiresExplicitMcpEndpointWhenMcpTransportIsEnabled(): void
     {
         $this->expectException(InvalidConfigurationException::class);

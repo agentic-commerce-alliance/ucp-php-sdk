@@ -19,9 +19,11 @@ use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Enum\UcpCapability;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Enum\UcpResponseStatus;
+use Ucp\Sdk\Enum\VersionNegotiationOutcome;
 use Ucp\Sdk\Event\CheckoutRequestReceivedEvent;
 use Ucp\Sdk\Event\CheckoutResponsePreparedEvent;
 use Ucp\Sdk\Event\PaymentMandateVerificationEvent;
+use Ucp\Sdk\Event\VersionNegotiationObservedEvent;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Model\Catalog\CatalogLookupResponse;
@@ -95,12 +97,27 @@ final class ShoppingOperationExecutor
             return;
         }
 
-        $configuration = $context->runtimeConfiguration;
-        if ($configuration !== null) {
-            $supportedVersions = [$configuration->version, ...array_keys($configuration->supportedVersions)];
-            if (! in_array($context->platformProfile->version, $supportedVersions, true)) {
-                throw NegotiationException::versionUnsupported();
-            }
+        // Exactly one version is answerable here: the configured one. `supported_versions`
+        // is deliberately not consulted. Its keys name versions served by *other*, self-contained
+        // profiles at the URIs they map to -- that is what the field means in the spec -- and
+        // counting them as answerable at this endpoint accepted a `2026-04-08` platform and
+        // answered it in `2026-08-25` shapes, which is the silent disagreement this check
+        // exists to refuse. See docs/ucp-version-support-policy.md.
+        $servedVersion = $context->runtimeConfiguration->version ?? UcpProtocolVersion::current()->value;
+        $observedVersion = $context->platformProfile->version;
+        $accepted = $observedVersion === $servedVersion;
+
+        // Observed before the decision is acted on, so the refused versions are counted too.
+        // They are the half of the histogram that says whether serving one version costs traffic.
+        $this->eventDispatcher->dispatch(new VersionNegotiationObservedEvent(
+            $observedVersion,
+            $servedVersion,
+            $context->platformProfileUri,
+            $accepted ? VersionNegotiationOutcome::Accepted : VersionNegotiationOutcome::Rejected,
+        ));
+
+        if (! $accepted) {
+            throw NegotiationException::versionUnsupported();
         }
 
         if ($context->negotiation === null || $context->negotiation->capabilitiesForOperation($request->operation) === []) {

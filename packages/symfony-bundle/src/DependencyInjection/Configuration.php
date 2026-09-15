@@ -88,8 +88,41 @@ final class Configuration implements ConfigurationInterface
                         ->integerNode('authorization_code_ttl')->defaultValue(600)->min(1)->end()
                     ->end()
                 ->end()
+                // Older protocol versions this *business* still serves, each at its own
+                // self-contained profile URI -- `supported_versions` in the profile document.
+                // Listing a version here does not make this instance answer it: this SDK
+                // release serves exactly `version`, and a request from a platform on any
+                // other version is refused with `version_unsupported` regardless of what is
+                // listed. The node exists for the operator who keeps an older SDK release
+                // deployed at another URL and wants the newest profile to point at it. See
+                // docs/ucp-version-support-policy.md.
                 ->arrayNode('supported_versions')
+                    ->info('Map of older UCP version (YYYY-MM-DD) to the profile URI of the deployment that serves it. Advertised only; this instance does not answer them.')
+                    // The keys are wire values. Symfony's default key normalisation rewrote
+                    // `2026-04-08` to `2026_04_08`, so the profile advertised a version no
+                    // platform could ever match -- silently, since nothing validated the map.
+                    ->normalizeKeys(false)
                     ->scalarPrototype()->end()
+                    ->validate()
+                        ->ifTrue(static function (mixed $versions): bool {
+                            if (! is_array($versions)) {
+                                return true;
+                            }
+
+                            foreach ($versions as $version => $profileUri) {
+                                if (! is_string($version) || preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $version) !== 1) {
+                                    return true;
+                                }
+
+                                if (! is_string($profileUri) || trim($profileUri) === '') {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        })
+                        ->thenInvalid('Invalid ucp_sdk.supported_versions %s. Keys must be UCP version dates (YYYY-MM-DD) and values the non-empty profile URI serving that version.')
+                    ->end()
                 ->end()
                 ->arrayNode('enabled_capabilities')
                     ->defaultValue([])

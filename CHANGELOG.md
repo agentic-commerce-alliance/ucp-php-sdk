@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- `supported_versions` no longer widens the set of protocol versions a request is accepted on. Its keys name versions served by other, self-contained profiles at the URIs they map to; `ShoppingOperationExecutor` used to accept a platform on any listed version and answer it in the configured version's shapes. Exactly the configured `version` is accepted now; anything else is refused with `422 version_unsupported`. The configuration node stays and is validated: keys must be `YYYY-MM-DD`, values a non-empty profile URI. See `docs/ucp-version-support-policy.md`.
+- `supported_versions` keys are no longer rewritten by Symfony's key normalisation. `2026-04-08` was advertised as `2026_04_08`, a version no platform could match.
+
+### Added
+
+- `Ucp\Sdk\Event\VersionNegotiationObservedEvent` and `Ucp\Sdk\Enum\VersionNegotiationOutcome`. Dispatched on every shopping operation with the version the platform named, the version served, the platform profile URI and whether it was accepted, and on a refusal of the non-standard `UCP-Agent; version=` parameter. This is the measurement the single-version policy is revisited on.
+- `docs/ucp-version-support-policy.md`: the decision to serve one UCP version per release line, its reasons, the cost of serving N−1, the per-version testing strategy, and the revisit trigger.
+
 ## 0.0.6 - 2026-09-11
 
 ### Changed (breaking)

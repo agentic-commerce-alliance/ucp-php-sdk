@@ -7,6 +7,9 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Enum\SignaturePolicy;
+use Ucp\Sdk\Enum\VersionNegotiationOutcome;
+use Ucp\Sdk\Event\VersionNegotiationObservedEvent;
+use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\SignatureException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
@@ -24,6 +27,7 @@ use Ucp\Sdk\Model\Security\SignatureVerificationResult;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
 use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
+use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
@@ -187,6 +191,98 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         self::assertSame('neg_' . substr(hash('sha256', 'https://platform.example/.well-known/ucp|tenant-a'), 0, 16), $context->negotiationSessionId);
         self::assertSame('tenant-a', $this->savedNegotiationSession->tenantIdentifier);
         self::assertSame($context->negotiationSessionId, $this->savedNegotiationSession->id);
+    }
+
+    /**
+     * A refusal on the header's `version` parameter never reaches the executor, where every
+     * other version decision is observed. If it were not observed here, the platforms that
+     * announce an older version up front -- the most explicit signal there is -- would be the
+     * one group missing from the histogram the single-version decision is revisited on.
+     */
+    #[Test]
+    public function itObservesAVersionRefusedOnTheAgentHeaderBeforeFetchingTheProfile(): void
+    {
+        $dispatcher = new ObservationRecordingEventDispatcher();
+        $factory = $this->factoryWithDispatcher($dispatcher);
+
+        $request = new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [
+            'UCP-Agent' => 'platform; profile="https://platform.example/.well-known/ucp"; version="2026-01-23"',
+        ], [], '{}');
+
+        try {
+            $factory->create($request);
+            self::fail('Expected the declared version to be refused.');
+        } catch (NegotiationException $exception) {
+            self::assertSame('version_unsupported', $exception->errorCode);
+        }
+
+        self::assertCount(1, $dispatcher->events);
+        $event = $dispatcher->events[0];
+        self::assertInstanceOf(VersionNegotiationObservedEvent::class, $event);
+        self::assertSame('2026-01-23', $event->getObservedVersion());
+        self::assertSame('2026-04-08', $event->getServedVersion());
+        self::assertSame('https://platform.example/.well-known/ucp', $event->getAgentProfileUri());
+        self::assertSame(VersionNegotiationOutcome::Rejected, $event->getOutcome());
+        self::assertSame(0, $this->profileFetches, 'The refusal must happen before the profile is fetched.');
+    }
+
+    /**
+     * A header version that matches is not observed here. The request goes on to the
+     * executor, which observes the profile's version once; a second observation for the same
+     * request would count that platform twice.
+     */
+    #[Test]
+    public function itDoesNotObserveAMatchingHeaderVersionTwice(): void
+    {
+        $dispatcher = new ObservationRecordingEventDispatcher();
+        $factory = $this->factoryWithDispatcher($dispatcher);
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            allowedProfileHosts: ['platform.example'],
+        );
+
+        $factory->create(new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [
+            'UCP-Agent' => 'platform; profile="https://platform.example/.well-known/ucp"; version="2026-04-08"',
+        ], [], '{}'));
+
+        self::assertSame([], $dispatcher->events);
+        self::assertSame(1, $this->profileFetches);
+    }
+
+    private function factoryWithDispatcher(EventDispatcherInterface $dispatcher): DefaultHttpRequestContextFactory
+    {
+        $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
+        $runtimeConfigurationResolver
+            ->method('resolve')
+            ->willReturnCallback(fn (HttpRequest $request): RuntimeConfiguration => $this->runtimeConfiguration);
+        $agentProfileFetcher = $this->createMock(AgentProfileFetcherInterface::class);
+        $agentProfileFetcher
+            ->method('fetch')
+            ->willReturnCallback(function (string $uri): PlatformProfile {
+                ++$this->profileFetches;
+
+                return $this->platformProfile;
+            });
+        $requestSignatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $requestSignatureService
+            ->method('verify')
+            ->willReturnCallback(fn (): SignatureVerificationResult => $this->signatureVerificationResult);
+        $capabilityNegotiator = $this->createMock(CapabilityNegotiatorInterface::class);
+        $capabilityNegotiator
+            ->method('negotiate')
+            ->willReturnCallback(fn (): NegotiatedCapabilities => $this->negotiatedCapabilities);
+
+        return new DefaultHttpRequestContextFactory(
+            $runtimeConfigurationResolver,
+            $agentProfileFetcher,
+            $requestSignatureService,
+            $capabilityNegotiator,
+            null,
+            null,
+            $dispatcher,
+        );
     }
 
     #[Test]
@@ -424,5 +520,18 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
             'UCP-Agent' => 'platform; profile="https://trusted.example/.well-known/ucp"',
         ]));
+    }
+}
+
+final class ObservationRecordingEventDispatcher implements EventDispatcherInterface
+{
+    /** @var list<object> */
+    public array $events = [];
+
+    public function dispatch(object $event): object
+    {
+        $this->events[] = $event;
+
+        return $event;
     }
 }

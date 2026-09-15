@@ -17,6 +17,8 @@ use Ucp\Sdk\Contract\PaymentAwareCheckoutCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
+use Ucp\Sdk\Enum\VersionNegotiationOutcome;
+use Ucp\Sdk\Event\VersionNegotiationObservedEvent;
 use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
@@ -346,6 +348,111 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
         }
 
         self::assertSame([], $validator->calls);
+    }
+
+    /**
+     * `supported_versions` keys name versions served by *other*, self-contained profiles at
+     * the URIs they map to. They used to be counted as answerable here, so an operator who
+     * listed `2026-04-08` had platforms on that version accepted at these endpoints and
+     * answered in the configured version's shapes -- the disagreement the check exists to
+     * refuse. Exactly one version is answerable at this endpoint: the configured one.
+     */
+    #[Test]
+    public function itRejectsAProfileVersionThatIsOnlyAdvertisedInSupportedVersions(): void
+    {
+        $observations = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(VersionNegotiationObservedEvent::class, static function (VersionNegotiationObservedEvent $event) use (&$observations): void {
+            $observations[] = $event;
+        });
+        $validator = new ShoppingOperationProtocolValidatorSpy();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            $validator,
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            $dispatcher,
+        );
+        $context = new RequestContext(
+            'merchant.example',
+            platformProfileUri: 'https://platform.example/.well-known/ucp',
+            platformProfile: new PlatformProfile('2026-04-08', [], [], []),
+            runtimeConfiguration: new RuntimeConfiguration(
+                '2026-08-25',
+                'https://merchant.example',
+                supportedVersions: ['2026-04-08' => 'https://legacy.merchant.example/.well-known/ucp'],
+            ),
+            negotiation: new NegotiatedCapabilities([
+                'dev.ucp.shopping' => [
+                    new CapabilityDescriptor('dev.ucp.shopping', '2026-04-08', 'spec', 'schema'),
+                ],
+            ], operationCapabilityMap: [
+                'catalog.search' => ['dev.ucp.shopping'],
+            ]),
+        );
+
+        try {
+            $executor->execute(new ShoppingOperationRequest('catalog.search', ['query' => 'tent'], $context));
+            self::fail('Expected unsupported version rejection.');
+        } catch (NegotiationException $exception) {
+            self::assertSame('version_unsupported', $exception->errorCode);
+        }
+
+        self::assertSame([], $validator->calls);
+        self::assertCount(1, $observations);
+        self::assertSame('2026-04-08', $observations[0]->getObservedVersion());
+        self::assertSame('2026-08-25', $observations[0]->getServedVersion());
+        self::assertSame('https://platform.example/.well-known/ucp', $observations[0]->getAgentProfileUri());
+        self::assertSame(VersionNegotiationOutcome::Rejected, $observations[0]->getOutcome());
+    }
+
+    /**
+     * The accepted path is observed too. A histogram of refusals alone cannot say what share
+     * of traffic they are, and that share is the revisit trigger in
+     * docs/ucp-version-support-policy.md.
+     */
+    #[Test]
+    public function itObservesAnAcceptedProfileVersionOnEveryOperation(): void
+    {
+        $observations = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(VersionNegotiationObservedEvent::class, static function (VersionNegotiationObservedEvent $event) use (&$observations): void {
+            $observations[] = $event;
+        });
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            $dispatcher,
+        );
+        $context = new RequestContext(
+            'merchant.example',
+            platformProfileUri: 'https://platform.example/.well-known/ucp',
+            platformProfile: new PlatformProfile('2026-04-08', [], [], []),
+            runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example'),
+            negotiation: new NegotiatedCapabilities([
+                'dev.ucp.shopping' => [
+                    new CapabilityDescriptor('dev.ucp.shopping', '2026-04-08', 'spec', 'schema'),
+                ],
+            ], operationCapabilityMap: [
+                'catalog.search' => ['dev.ucp.shopping'],
+            ]),
+        );
+
+        $executor->execute(new ShoppingOperationRequest('catalog.search', ['query' => 'tent'], $context));
+        $executor->execute(new ShoppingOperationRequest('catalog.search', ['query' => 'stove'], $context));
+
+        self::assertCount(2, $observations);
+        foreach ($observations as $observation) {
+            self::assertSame('2026-04-08', $observation->getObservedVersion());
+            self::assertSame('2026-04-08', $observation->getServedVersion());
+            self::assertSame(VersionNegotiationOutcome::Accepted, $observation->getOutcome());
+        }
     }
 
     #[Test]
