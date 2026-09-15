@@ -102,6 +102,7 @@ use Ucp\Sdk\Symfony\Bridge\SymfonyEventDispatcher;
 use Ucp\Sdk\Symfony\Bridge\SymfonyHttpClient;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
 use Ucp\Sdk\Symfony\Command\DeleteSigningKeyCommand;
+use Ucp\Sdk\Symfony\Command\DevRequestCommand;
 use Ucp\Sdk\Symfony\Command\GenerateSigningKeyCommand;
 use Ucp\Sdk\Symfony\Command\ListSigningKeysCommand;
 use Ucp\Sdk\Symfony\Command\PurgeSignatureNoncesCommand;
@@ -345,14 +346,19 @@ final class UcpSdkExtension extends Extension
         ]));
         $container->setAlias(CapabilityNegotiatorInterface::class, new Alias(DefaultCapabilityNegotiator::class, true));
 
+        // Named rather than positional: this constructor has grown four optional collaborators,
+        // each appended by a different change, and the order lived here as well as in the class.
+        // Two lists that must agree, edited by separate pull requests, is the arrangement that
+        // produced a conflict on exactly these lines. Names cannot be reordered wrongly.
         $container->setDefinition(DefaultHttpRequestContextFactory::class, new Definition(DefaultHttpRequestContextFactory::class, [
-            new Reference(RuntimeConfigurationResolverInterface::class),
-            new Reference(AgentProfileFetcherInterface::class),
-            new Reference(RequestSignatureServiceInterface::class),
-            new Reference(CapabilityNegotiatorInterface::class),
-            new Reference(NegotiationSessionRepositoryInterface::class),
-            $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
-            new Reference(EventDispatcherInterface::class),
+            '$runtimeConfigurationResolver' => new Reference(RuntimeConfigurationResolverInterface::class),
+            '$agentProfileFetcher' => new Reference(AgentProfileFetcherInterface::class),
+            '$requestSignatureService' => new Reference(RequestSignatureServiceInterface::class),
+            '$capabilityNegotiator' => new Reference(CapabilityNegotiatorInterface::class),
+            '$negotiationSessionRepository' => new Reference(NegotiationSessionRepositoryInterface::class),
+            '$merchantAuthorizationService' => $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
+            '$eventDispatcher' => new Reference(EventDispatcherInterface::class),
+            '$profileBuilder' => new Reference(ProfileBuilderInterface::class),
         ]));
         $container->setAlias(HttpRequestContextFactoryInterface::class, new Alias(DefaultHttpRequestContextFactory::class, true));
 
@@ -450,6 +456,7 @@ final class UcpSdkExtension extends Extension
         $container->autowire(DeleteSigningKeyCommand::class)->addTag('console.command');
         $container->autowire(StorageCleanupCommand::class)->addTag('console.command');
         $container->autowire(PurgeSignatureNoncesCommand::class)->addTag('console.command');
+        $container->autowire(DevRequestCommand::class)->addTag('console.command');
     }
 
     /**

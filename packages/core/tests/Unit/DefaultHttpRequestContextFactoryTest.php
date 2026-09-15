@@ -20,6 +20,7 @@ use Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities;
 use Ucp\Sdk\Model\Negotiation\NegotiationSession;
 use Ucp\Sdk\Model\Profile\CapabilityDescriptor;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
+use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Model\Security\MerchantAuthorizationVerificationResult;
 use Ucp\Sdk\Model\Security\PublicSigningKey;
@@ -29,6 +30,7 @@ use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
+use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
@@ -251,7 +253,116 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         self::assertSame(1, $this->profileFetches);
     }
 
+    /**
+     * The first request against a fresh install used to need a second web server, because the
+     * agent profile has to come from somewhere and nothing a laptop can offer passes the SSRF
+     * rules. In development mode the business's own discovery document is that profile: built
+     * in-process, not fetched, so the fetcher is never asked.
+     */
+    #[Test]
+    public function itNegotiatesAgainstItsOwnProfileInDevelopmentMode(): void
+    {
+        $builder = new RecordingProfileBuilder(new PlatformProfile('2026-04-08', [], [
+            'dev.ucp.shopping.checkout' => [
+                new CapabilityDescriptor('dev.ucp.shopping.checkout', '2026-04-08', 'https://merchant.example/spec', 'https://merchant.example/schema'),
+            ],
+        ], []));
+        $factory = $this->factoryWithProfileBuilder($builder);
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            enabledCapabilities: ['dev.ucp.shopping.checkout'],
+            tenantIdentifier: 'tenant-a',
+            profileFetchingDevelopmentMode: true,
+        );
+
+        $context = $factory->create(new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [
+            'UCP-Agent' => 'dev-console; profile="https://merchant.example/.well-known/ucp"',
+        ], [], '{}'));
+
+        self::assertSame(0, $this->profileFetches, 'The own profile is built, never fetched.');
+        self::assertSame($builder->profile, $context->platformProfile);
+        self::assertSame($builder->profile, $this->negotiatedProfile);
+        self::assertNotNull($builder->input);
+        self::assertSame('2026-04-08', $builder->input->version);
+        self::assertSame('https://merchant.example', $builder->input->baseUri);
+        self::assertSame('tenant-a', $builder->input->tenantIdentifier);
+        self::assertSame(['dev.ucp.shopping.checkout'], $builder->input->enabledCapabilities);
+    }
+
+    #[Test]
+    public function itAcceptsItsOwnProfileByTheRequestOriginWhenNoBaseUriIsConfigured(): void
+    {
+        $builder = new RecordingProfileBuilder(new PlatformProfile('2026-04-08', [], [], []));
+        $factory = $this->factoryWithProfileBuilder($builder);
+        $this->runtimeConfiguration = new RuntimeConfiguration('2026-04-08', '', SignaturePolicy::Log, profileFetchingDevelopmentMode: true);
+
+        $factory->create(new HttpRequest('POST', 'http://shop.localhost:8088/ucp/v1/carts', [
+            'UCP-Agent' => 'dev-console; profile="http://shop.localhost:8088/.well-known/ucp"',
+        ], [], '{}'));
+
+        self::assertSame(0, $this->profileFetches);
+        self::assertNotNull($builder->input);
+        self::assertSame('http://shop.localhost:8088', $builder->input->baseUri, 'The base URI is derived from the profile URI when none is configured.');
+    }
+
+    /**
+     * Outside development mode the own profile is just another URL, and takes the full path:
+     * with an empty allowlist that means refusal. Development mode is the whole permission.
+     */
+    #[Test]
+    public function itDoesNotTreatItsOwnProfileAsTheAgentOutsideDevelopmentMode(): void
+    {
+        $factory = $this->factoryWithProfileBuilder(new RecordingProfileBuilder(new PlatformProfile('2026-04-08', [], [], [])));
+        $this->runtimeConfiguration = new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Log);
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform profile host is not allowed by the current runtime configuration.');
+
+        $factory->create(new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [
+            'UCP-Agent' => 'dev-console; profile="https://merchant.example/.well-known/ucp"',
+        ], [], '{}'));
+    }
+
+    /**
+     * Only the discovery path short-circuits. Any other document on the own host is fetched and
+     * checked like a stranger's, so development mode does not turn the host into a wildcard.
+     */
+    #[Test]
+    public function itOnlyShortCircuitsTheOwnDiscoveryPath(): void
+    {
+        $builder = new RecordingProfileBuilder(new PlatformProfile('2026-04-08', [], [], []));
+        $factory = $this->factoryWithProfileBuilder($builder);
+        $this->runtimeConfiguration = new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Log, profileFetchingDevelopmentMode: true);
+
+        try {
+            $factory->create(new HttpRequest('POST', 'https://merchant.example/ucp/v1/checkout-sessions', [
+                'UCP-Agent' => 'dev-console; profile="https://merchant.example/agent-profile.json"',
+            ], [], '{}'));
+            self::fail('A non-discovery URL on the own host must take the normal path.');
+        } catch (SignatureException $exception) {
+            self::assertSame('Platform profile host is not allowed by the current runtime configuration.', $exception->getMessage());
+        }
+
+        self::assertNull($builder->input, 'The profile builder is not consulted for other paths.');
+    }
+
     private function factoryWithDispatcher(EventDispatcherInterface $dispatcher): DefaultHttpRequestContextFactory
+    {
+        return $this->factory($dispatcher, null);
+    }
+
+    private function factoryWithProfileBuilder(ProfileBuilderInterface $profileBuilder): DefaultHttpRequestContextFactory
+    {
+        return $this->factory(null, $profileBuilder);
+    }
+
+    /**
+     * One builder for both: the observation tests need the dispatcher, the development-mode
+     * tests need the profile builder, and the factory takes them in that order.
+     */
+    private function factory(?EventDispatcherInterface $dispatcher, ?ProfileBuilderInterface $profileBuilder): DefaultHttpRequestContextFactory
     {
         $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
         $runtimeConfigurationResolver
@@ -272,7 +383,11 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         $capabilityNegotiator = $this->createMock(CapabilityNegotiatorInterface::class);
         $capabilityNegotiator
             ->method('negotiate')
-            ->willReturnCallback(fn (): NegotiatedCapabilities => $this->negotiatedCapabilities);
+            ->willReturnCallback(function (?PlatformProfile $platformProfile): NegotiatedCapabilities {
+                $this->negotiatedProfile = $platformProfile;
+
+                return $this->negotiatedCapabilities;
+            });
 
         return new DefaultHttpRequestContextFactory(
             $runtimeConfigurationResolver,
@@ -282,6 +397,7 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
             null,
             null,
             $dispatcher,
+            $profileBuilder,
         );
     }
 
@@ -533,5 +649,21 @@ final class ObservationRecordingEventDispatcher implements EventDispatcherInterf
         $this->events[] = $event;
 
         return $event;
+    }
+}
+
+final class RecordingProfileBuilder implements ProfileBuilderInterface
+{
+    public ?ProfileBuildInput $input = null;
+
+    public function __construct(public readonly PlatformProfile $profile)
+    {
+    }
+
+    public function build(ProfileBuildInput $input): PlatformProfile
+    {
+        $this->input = $input;
+
+        return $this->profile;
     }
 }

@@ -12,6 +12,8 @@
 - `Ucp\Sdk\Event\VersionNegotiationObservedEvent` and `Ucp\Sdk\Enum\VersionNegotiationOutcome`. Dispatched on every shopping operation with the version the platform named, the version served, the platform profile URI and whether it was accepted, and on a refusal of the non-standard `UCP-Agent; version=` parameter. This is the measurement the single-version policy is revisited on.
 - `docs/ucp-version-support-policy.md`: the decision to serve one UCP version per release line, its reasons, the cost of serving N−1, the per-version testing strategy, and the revisit trigger.
 - `UcpProtocolVersion::isKnown()`, which separates a version this release can name from one it can serve.
+- In profile-fetching development mode, a `UCP-Agent` profile URI that points at this deployment's own `/.well-known/ucp` is answered with the deployment's own profile, built in-process. The first request against a fresh install no longer needs a second web server to hand out an agent profile. Strictly development mode and strictly the own discovery URL; every other URI takes the normal fetch path with all of its checks.
+- `ucp:dev:request`: prints a ready-to-run `curl` for a UCP operation against this deployment, with the own profile as the agent, sample body and headers included. Lists the operations when called without one.
 
 ### Fixed
 
