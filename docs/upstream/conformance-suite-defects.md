@@ -95,7 +95,8 @@ implementation, which validates requests against the published schemas.
 
 ## Effect, measured
 
-Against our implementation, at pinned commit `fdbdafd`:
+Against our implementation, at commit `fdbdafd` — the pin when this was filed. All three patches
+still apply unchanged at `016ecbc`, so none of the three has been fixed upstream since:
 
 | | Failed | Passed |
 | --- | ---: | ---: |

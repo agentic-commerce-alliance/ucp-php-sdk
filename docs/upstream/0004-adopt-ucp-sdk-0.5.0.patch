@@ -53,7 +53,7 @@ index c9496e3..aa52745 100644
  )
  
 diff --git a/checkout_lifecycle_test.py b/checkout_lifecycle_test.py
-index 44bba18..b7cc0de 100644
+index d738135..68752b0 100644
 --- a/checkout_lifecycle_test.py
 +++ b/checkout_lifecycle_test.py
 @@ -20,8 +20,8 @@ from ucp_sdk.models.schemas.shopping import (
@@ -67,14 +67,14 @@ index 44bba18..b7cc0de 100644
    Payment,
  )
  from ucp_sdk.models.schemas.shopping.types import buyer_update_request
-@@ -128,6 +128,7 @@ class CheckoutLifecycleTest(integration_test_utils.IntegrationTestBase):
- 
-     new_destination = shipping_destination.ShippingDestination(
-       id="dest_2",
-+      type="shipping_address",
-       address_country="US",
-       postal_code="90210",
-       locality="Beverly Hills",
+@@ -129,6 +129,7 @@ class CheckoutLifecycleTest(integration_test_utils.IntegrationTestBase):
+     new_destination = (
+       shipping_destination_update_request.ShippingDestinationUpdateRequest(
+         id="dest_2",
++        type="shipping_address",
+         address_country="US",
+         postal_code="90210",
+         locality="Beverly Hills",
 diff --git a/fulfillment_structure_test.py b/fulfillment_structure_test.py
 index c940ace..430ea44 100644
 --- a/fulfillment_structure_test.py
@@ -119,7 +119,7 @@ index a1b8fb3..efd0bed 100644
  )
  
 diff --git a/integration_test_utils.py b/integration_test_utils.py
-index 0feb4f4..af7bcd2 100644
+index f3368ab..00578e1 100644
 --- a/integration_test_utils.py
 +++ b/integration_test_utils.py
 @@ -32,8 +32,8 @@ from fastapi.responses import JSONResponse
@@ -133,14 +133,14 @@ index 0feb4f4..af7bcd2 100644
  from ucp_sdk.models.schemas.shopping.checkout_update_request import (
    CheckoutUpdateRequest,
  )
-@@ -891,6 +891,7 @@ class IntegrationTestBase(absltest.TestCase):
-       dest_data = ctx.get_test_destination()
-       destination = shipping_destination.ShippingDestination(
-         id="dest_1",
-+        type="shipping_address",
-         address_country=dest_data.get(
-           "address_country", dest_data.get("country", "US")
-         ),
+@@ -894,6 +894,7 @@ class IntegrationTestBase(absltest.TestCase):
+       destination = (
+         shipping_destination_create_request.ShippingDestinationCreateRequest(
+           id="dest_1",
++          type="shipping_address",
+           address_country=dest_data.get(
+             "address_country", dest_data.get("country", "US")
+           ),
 diff --git a/invalid_input_test.py b/invalid_input_test.py
 index 404e14d..a7fb2a0 100644
 --- a/invalid_input_test.py
@@ -174,7 +174,7 @@ index 3ae9ece..5166a79 100644
  # Rebuild models to resolve forward references
  checkout.Checkout.model_rebuild(_types_namespace={"Payment": Payment})
 diff --git a/protocol_test.py b/protocol_test.py
-index 87cbbfc..3a2f215 100644
+index 42769f1..378fe98 100644
 --- a/protocol_test.py
 +++ b/protocol_test.py
 @@ -19,11 +19,11 @@ import integration_test_utils
@@ -192,14 +192,14 @@ index 87cbbfc..3a2f215 100644
  )
  
 diff --git a/pyproject.toml b/pyproject.toml
-index 1eca52d..d39c90f 100644
+index c5787c6..d39c90f 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -11,7 +11,7 @@ dependencies = [
      "absl-py>=1.0.0",
      "httpx>=0.26.0",
      "pydantic>=2.12.0",
--    "ucp-sdk==0.4.4",
+-    "ucp-sdk==0.4.6",
 +    "ucp-sdk==0.5.0",
      "fastapi>=0.109.0",
      "uvicorn[standard]>=0.38.0",
