@@ -11,19 +11,32 @@ The suite's request and response models come from the `ucp-sdk` Python package, 
 ```toml
 dependencies = [
     ...
-    "ucp-sdk==0.4.4",
+    "ucp-sdk==0.4.6",
 ]
 ```
 
-`0.4.4` is the `2026-04-08` line. The commit that set it says so outright — "Updates `ucp-sdk`
-dependency version in `pyproject.toml` from `0.3.0` to `0.4.4` (matching the UCP 2026-04-08
-specification)" (`c7b9a69`).
+`0.4.x` is the `2026-04-08` line. The commit that first pinned it says so outright — "Updates
+`ucp-sdk` dependency version in `pyproject.toml` from `0.3.0` to `0.4.4` (matching the UCP
+2026-04-08 specification)" (`c7b9a69`).
 
 `Universal-Commerce-Protocol/python-sdk` released `v2026-08-25` on 2026-08-27, and that tag's
-`pyproject.toml` declares `version = "0.5.0"`. So the models for the new version exist; the
-suite has not adopted them. Its newest commit, `fdbdafd`, is dated **2026-08-18** — a week
-before the `2026-08-25` specification was published, and nine days before the SDK that
-implements it.
+`pyproject.toml` declares `version = "0.5.0"`. So the models for the new version exist and the
+suite has not adopted them.
+
+## Since this was filed
+
+The suite has moved twice, and both moves confirm rather than close this. `9021907` raised the
+pin to `0.4.6` and switched the two destination construction sites to
+`ShippingDestinationCreateRequest`/`UpdateRequest`; `016ecbc` pinned the CI checkout of
+`python-sdk` to `v2026-04-08-6`, so what the suite runs against is now unambiguously the
+`2026-04-08` line rather than whatever `main` happened to be
+([#99](https://github.com/Universal-Commerce-Protocol/conformance/issues/99)). That is a
+deliberate stay, not an oversight — which makes the ask below a decision someone has to take
+rather than a backlog item.
+
+The two moves do shrink the diff `0004` carries: the `*CreateRequest`/`*UpdateRequest` classes it
+needed already exist in `0.5.0` under the same names and paths, so the patch now adds the
+`type: "shipping_address"` discriminator to those calls rather than replacing the class.
 
 ## Why it matters here
 
@@ -36,7 +49,7 @@ version = self.conformance_config.get("ucp_version", "2026-04-08")
 
 That plumbing is version-agnostic, so setting `2026-08-25` is accepted. What is not agnostic
 are the Pydantic models the tests construct responses with — `checkout.Checkout(**response_json)`
-and friends. A `2026-08-25` response carries shapes `0.4.4` does not describe: a structured
+and friends. A `2026-08-25` response carries shapes `0.4.x` does not describe: a structured
 `description` object where it expects a string, a tagged fulfillment destination where it
 expects an untagged address-or-location, `pan`/`network_token` credentials where it expects
 `card` with a `card_number_type`.
@@ -54,10 +67,15 @@ which model set the assertions use. Until then the conformance lane can report o
 
 `tests/conformance/conformance_input.json` declares `ucp_version: "2026-08-25"`, because that is
 what this SDK serves and sending `2026-04-08` would fail version negotiation on every request —
-a uniformly red lane that reports nothing about conformance. The lane stays advisory with an
-empty `tests/conformance/enforced-modules.txt`, and it re-arms on its own: when the suite adopts
-`0.5.0`, the model-shape failures disappear and what remains is ours.
+a uniformly red lane that reports nothing about conformance.
 
-No patch is offered here. Changing a dependency pin is a one-line edit that upstream should make
-deliberately when it cuts a `2026-08-25` revision of the suite, not something to carry as a
-local diff.
+`0004-adopt-ucp-sdk-0.5.0.patch` carries the port, applied by `scripts/run-conformance.sh` to the
+pinned checkout. It was written after this was filed, once the measurement showed the port was
+six import paths and one field rather than a rewrite: the lane needs a suite that can assert the
+version this SDK serves, and waiting for upstream to cut one meant measuring nothing. Twelve
+modules are enforced in CI on top of it.
+
+It is a patch rather than a fork because it stays a proposal — the same diff offered on
+[#104](https://github.com/Universal-Commerce-Protocol/conformance/issues/104), re-checked against
+every pin bump. When upstream adopts `0.5.0` the patch stops applying, the runner fails loudly,
+and this entry goes away.

@@ -70,6 +70,16 @@ Upstream publishes no tags, so `.conformance-version` holds a **commit SHA**. Bu
 deliberate act: the suite is the moving target this SDK is measured against, and a silent
 upgrade would turn an unrelated pull request red.
 
+The pin sits at `016ecbc2` (2026-09-07), two commits past `fdbdafdb`. Both of them are the suite
+tightening its own dependency rather than moving the protocol: it raised its `ucp-sdk` pin from
+`0.4.4` to `0.4.6` and adopted `ShippingDestinationCreateRequest`/`UpdateRequest` in place of the
+bare `ShippingDestination`, then pinned its CI checkout of `python-sdk` to `v2026-04-08-6` so the
+declared version stops being overridden by that repository's `main`
+([conformance#99](https://github.com/Universal-Commerce-Protocol/conformance/issues/99)). Both
+keep the suite on the `2026-04-08` line, so `0004-adopt-ucp-sdk-0.5.0.patch` is still what lets
+it assert `2026-08-25` shapes; it was rebased onto the new destination models, which is where the
+`type: "shipping_address"` discriminator now has to be added. The score did not move.
+
 ## Where we stand
 
 Baseline from a **clean clone**, twice with identical failure sets, on `ucp-sdk` 0.5.0:
