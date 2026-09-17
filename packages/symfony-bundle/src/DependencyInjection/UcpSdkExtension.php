@@ -358,9 +358,9 @@ final class UcpSdkExtension extends Extension
             '$requestSignatureService' => new Reference(RequestSignatureServiceInterface::class),
             '$capabilityNegotiator' => new Reference(CapabilityNegotiatorInterface::class),
             '$negotiationSessionRepository' => new Reference(NegotiationSessionRepositoryInterface::class),
-            '$merchantAuthorizationService' => $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
             '$eventDispatcher' => new Reference(EventDispatcherInterface::class),
             '$profileBuilder' => new Reference(ProfileBuilderInterface::class),
+            '$merchantAuthorizationService' => $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
         ]));
         $container->setAlias(HttpRequestContextFactoryInterface::class, new Alias(DefaultHttpRequestContextFactory::class, true));
 
