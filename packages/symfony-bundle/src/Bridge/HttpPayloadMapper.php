@@ -203,6 +203,7 @@ final class HttpPayloadMapper
             (string) ($payload['handler_id'] ?? ''),
             is_array($payload['credential'] ?? null) ? $payload['credential'] : [],
             is_array($payload['billing_address'] ?? null) ? $payload['billing_address'] : [],
+            ($payload['selected'] ?? false) === true,
         );
     }
 
@@ -228,21 +229,14 @@ final class HttpPayloadMapper
         }
 
         if (isset($payload['instruments'])) {
-            $first = null;
-
-            foreach (is_array($payload['instruments']) ? $payload['instruments'] : [] as $instrument) {
-                if (! is_array($instrument)) {
-                    continue;
+            $instruments = $this->toPaymentInstruments($payload);
+            foreach ($instruments as $instrument) {
+                if ($instrument->selected) {
+                    return $instrument;
                 }
-
-                if (($instrument['selected'] ?? false) === true) {
-                    return $this->toPaymentInstrument($instrument);
-                }
-
-                $first ??= $instrument;
             }
 
-            return $first === null ? null : $this->toPaymentInstrument($first);
+            return $instruments[0] ?? null;
         }
 
         // No instrument identity anywhere means no instrument, which is distinct from a
