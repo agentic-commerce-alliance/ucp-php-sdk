@@ -36,10 +36,13 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         private readonly AgentProfileFetcherInterface $agentProfileFetcher,
         private readonly RequestSignatureServiceInterface $requestSignatureService,
         private readonly CapabilityNegotiatorInterface $capabilityNegotiator,
-        private readonly ?NegotiationSessionRepositoryInterface $negotiationSessionRepository = null,
-        private readonly ?MerchantAuthorizationServiceInterface $merchantAuthorizationService = null,
-        private readonly ?EventDispatcherInterface $eventDispatcher = null,
-        private readonly ?ProfileBuilderInterface $profileBuilder = null,
+        private readonly NegotiationSessionRepositoryInterface $negotiationSessionRepository,
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly ProfileBuilderInterface $profileBuilder,
+        // The one collaborator that is genuinely absent in a valid configuration: there is no
+        // merchant authorization service to verify against when `ap2.enabled` is false. Nullable
+        // without a default, so the absence is stated at the call site rather than defaulted into.
+        private readonly ?MerchantAuthorizationServiceInterface $merchantAuthorizationService,
     ) {
     }
 
@@ -79,7 +82,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         // profile's version once, and counting it twice would skew the histogram.
         $requestedVersion = $this->extractAgentParameter($agentHeader, 'version');
         if ($requestedVersion !== null && $requestedVersion !== $configuration->version) {
-            $this->eventDispatcher?->dispatch(new VersionNegotiationObservedEvent(
+            $this->eventDispatcher->dispatch(new VersionNegotiationObservedEvent(
                 $requestedVersion,
                 $configuration->version,
                 $profileUri,
@@ -133,23 +136,20 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         }
 
         $negotiation = $this->capabilityNegotiator->negotiate($platformProfile, $context);
-        $sessionId = null;
 
-        if ($this->negotiationSessionRepository !== null) {
-            $existing = $this->negotiationSessionRepository->findByProfileUri($profileUri, $configuration->tenantIdentifier);
-            $sessionId = $existing instanceof NegotiationSession
-                ? $existing->id
-                : 'neg_' . substr(hash('sha256', $profileUri . '|' . ($configuration->tenantIdentifier ?? 'default')), 0, 16);
-            $this->negotiationSessionRepository->save(new NegotiationSession(
-                $sessionId,
-                $profileUri,
-                $configuration->version,
-                $negotiation->capabilityNames(),
-                $negotiation->paymentHandlerIds,
-                $configuration->tenantIdentifier,
-                gmdate('c'),
-            ));
-        }
+        $existing = $this->negotiationSessionRepository->findByProfileUri($profileUri, $configuration->tenantIdentifier);
+        $sessionId = $existing instanceof NegotiationSession
+            ? $existing->id
+            : 'neg_' . substr(hash('sha256', $profileUri . '|' . ($configuration->tenantIdentifier ?? 'default')), 0, 16);
+        $this->negotiationSessionRepository->save(new NegotiationSession(
+            $sessionId,
+            $profileUri,
+            $configuration->version,
+            $negotiation->capabilityNames(),
+            $negotiation->paymentHandlerIds,
+            $configuration->tenantIdentifier,
+            gmdate('c'),
+        ));
 
         return new RequestContext(
             $context->host,
@@ -186,7 +186,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
      */
     private function ownProfileForDevelopment(string $profileUri, HttpRequest $request, RuntimeConfiguration $configuration): ?PlatformProfile
     {
-        if (! $configuration->profileFetchingDevelopmentMode || $this->profileBuilder === null) {
+        if (! $configuration->profileFetchingDevelopmentMode) {
             return null;
         }
 

@@ -125,7 +125,7 @@ final class ProtocolVersionSingleSourceTest extends TestCase
 
         self::assertSame(
             UcpProtocolVersion::current()->value,
-            $container->getDefinition(UcpSdkConfiguration::class)->getArgument(0),
+            $container->getDefinition(UcpSdkConfiguration::class)->getArgument('$version'),
             'the container is built against the version this release serves',
         );
 
