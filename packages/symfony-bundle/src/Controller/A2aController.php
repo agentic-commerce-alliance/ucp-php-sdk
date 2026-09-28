@@ -21,6 +21,7 @@ use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
+use Ucp\Sdk\Symfony\Internal\TargetUri;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
@@ -257,7 +258,7 @@ final class A2aController
 
         return new HttpRequest(
             $request->getMethod(),
-            $request->getUri(),
+            TargetUri::of($request),
             $headers,
             array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
             '',

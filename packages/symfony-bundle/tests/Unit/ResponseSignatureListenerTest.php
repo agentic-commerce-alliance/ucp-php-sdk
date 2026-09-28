@@ -13,8 +13,11 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Ucp\Sdk\Internal\Security\ContentDigestService;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Security\Rfc9421ResponseSignatureService;
+use Ucp\Sdk\Model\Http\HttpRequest;
+use Ucp\Sdk\Model\Http\HttpResponse;
 use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Service\ResponseSignatureServiceInterface;
 use Ucp\Sdk\Symfony\EventListener\ResponseSignatureListener;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
@@ -81,6 +84,39 @@ final class ResponseSignatureListenerTest extends TestCase
         $response = $this->handle('/ucp/v1/checkout-sessions', $already);
 
         self::assertSame('sig=:existing:', $response->headers->get('Signature'));
+    }
+
+    #[Test]
+    public function theResponseIsBoundToTheTargetUriTheCallerSent(): void
+    {
+        // `"@target-uri";req` is what the caller rebuilds from the request it sent. Binding the
+        // response to Symfony's sorted getUri() gave every caller whose query was not already
+        // alphabetical a response signature it could not verify.
+        $captured = null;
+        $signatureService = $this->createMock(ResponseSignatureServiceInterface::class);
+        $signatureService->method('sign')
+            ->willReturnCallback(static function (HttpResponse $response, HttpRequest $request) use (&$captured): array {
+                $captured = $request;
+
+                return [];
+            });
+        $repository = $this->createStub(ManagedSigningKeyRepositoryInterface::class);
+        $repository->method('active')->willReturn([(new DefaultSigningKeyManager())->generate('kid-1')]);
+
+        $request = new Request(server: [
+            'REQUEST_METHOD' => 'GET',
+            'HTTPS' => 'on',
+            'HTTP_HOST' => 'www.example.com',
+            'SERVER_PORT' => 443,
+            'REQUEST_URI' => '/ucp/v1/carts?param=value&foo=bar&baz=bat%2Dman',
+            'QUERY_STRING' => 'param=value&foo=bar&baz=bat%2Dman',
+        ]);
+
+        (new ResponseSignatureListener($this->configuration(true), $signatureService, $repository))
+            ->onKernelResponse(new ResponseEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, new Response('{}')));
+
+        self::assertInstanceOf(HttpRequest::class, $captured);
+        self::assertSame('https://www.example.com/ucp/v1/carts?param=value&foo=bar&baz=bat%2Dman', $captured->absoluteUri);
     }
 
     private function configuration(bool $responseSigningEnabled): UcpSdkConfiguration

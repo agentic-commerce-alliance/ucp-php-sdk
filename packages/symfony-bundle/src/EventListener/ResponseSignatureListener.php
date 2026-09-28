@@ -14,6 +14,7 @@ use Ucp\Sdk\Model\Security\ManagedSigningKey;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\TenantAwareManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Service\ResponseSignatureServiceInterface;
+use Ucp\Sdk\Symfony\Internal\TargetUri;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 /**
@@ -120,6 +121,6 @@ final class ResponseSignatureListener
             }
         }
 
-        return new HttpRequest($request->getMethod(), $request->getUri(), $headers);
+        return new HttpRequest($request->getMethod(), TargetUri::of($request), $headers);
     }
 }

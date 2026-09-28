@@ -637,6 +637,75 @@ final class EventListenersTest extends TestCase
         self::assertSame(413, $event->getResponse()?->getStatusCode());
     }
 
+    #[Test]
+    public function theTargetUriCarriesTheQueryExactlyAsSent(): void
+    {
+        // The query is RFC 9421 section 2.2.7's own example: unsorted, and with a percent-encoded
+        // octet the spec says is not decoded. Symfony's getUri() sorts it and re-encodes %2D as
+        // '-', so every signed request whose parameters were not already in that order failed
+        // verification -- including an OAuth authorize request, whose parameter order no
+        // client has a reason to choose alphabetically.
+        $query = 'param=value&foo=bar&baz=bat%2Dman';
+
+        self::assertSame(
+            'https://www.example.com/ucp/v1/carts?' . $query,
+            $this->contextRequestFor($this->rawRequest('/ucp/v1/carts?' . $query, $query))->absoluteUri,
+        );
+    }
+
+    #[Test]
+    public function theTargetUriKeepsTheQueryWhenTheFrontControllerRewroteTheRequestUri(): void
+    {
+        // A host application may rewrite REQUEST_URI to a resolved path and leave the query only
+        // in QUERY_STRING. Reading the raw REQUEST_URI would drop the query from the signature
+        // base altogether.
+        self::assertSame(
+            'https://www.example.com/ucp/v1/carts?b=2&a=1',
+            $this->contextRequestFor($this->rawRequest('/ucp/v1/carts', 'b=2&a=1'))->absoluteUri,
+        );
+    }
+
+    private function contextRequestFor(Request $request): HttpRequest
+    {
+        $captured = null;
+        $contextFactory = $this->createMock(HttpRequestContextFactoryInterface::class);
+        $contextFactory->method('create')
+            ->willReturnCallback(static function (HttpRequest $request) use (&$captured): RequestContext {
+                $captured = $request;
+
+                return new RequestContext('www.example.com', $request->headers);
+            });
+
+        $listener = new RequestContextListener(
+            $contextFactory,
+            $this->createStub(IdempotencyServiceInterface::class),
+            new UcpResponseFactory($this->configuration()),
+            $this->configuration(),
+        );
+        $listener->onKernelRequest(new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST));
+
+        self::assertInstanceOf(HttpRequest::class, $captured);
+
+        return $captured;
+    }
+
+    /**
+     * Request::create() rebuilds QUERY_STRING through http_build_query(), which would normalise
+     * away exactly what these tests are about, so the server variables are set as a web server
+     * sets them.
+     */
+    private function rawRequest(string $requestUri, string $queryString): Request
+    {
+        return new Request(server: [
+            'REQUEST_METHOD' => 'GET',
+            'HTTPS' => 'on',
+            'HTTP_HOST' => 'www.example.com',
+            'SERVER_PORT' => 443,
+            'REQUEST_URI' => $requestUri,
+            'QUERY_STRING' => $queryString,
+        ]);
+    }
+
     private function configuration(int $maxRequestBodyBytes = 262144): UcpSdkConfiguration
     {
         return new UcpSdkConfiguration(
