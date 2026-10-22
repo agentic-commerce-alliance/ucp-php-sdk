@@ -212,6 +212,9 @@ final class HttpPayloadMapper
      *
      * `payment.json` defines `{"instruments": [...]}` and the item carries `selected`, so
      * the one the buyer chose is the one to read, falling back to the first offered.
+     * That fallback keeps the payload's `selected: false`: an adapter reading
+     * `$request->payment->selected` must not treat false as "no instrument chosen", because
+     * it is also what a sole instrument without the flag looks like.
      *
      * Reading the payment object itself -- what update used to do -- looks for a top-level
      * `handler_id` the spec shape does not have, so a conformant
