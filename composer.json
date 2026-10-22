@@ -13,7 +13,7 @@
         "icanhazstring/composer-unused": "^0.9.4",
         "infection/infection": "^0.31.9",
         "maglnet/composer-require-checker": "^4.18",
-        "pdepend/pdepend": "^2.16",
+        "pdepend/pdepend": "^3.0",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.5",
         "roave/backward-compatibility-check": "^8.12",
