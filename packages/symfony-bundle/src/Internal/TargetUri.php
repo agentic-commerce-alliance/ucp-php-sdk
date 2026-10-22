@@ -26,9 +26,17 @@ final class TargetUri
 {
     public static function of(Request $request): string
     {
-        $query = $request->server->get('QUERY_STRING');
+        $uri = $request->getSchemeAndHttpHost() . $request->getBaseUrl() . $request->getPathInfo();
 
-        return $request->getSchemeAndHttpHost() . $request->getBaseUrl() . $request->getPathInfo()
-            . (is_string($query) && $query !== '' ? '?' . $query : '');
+        $query = $request->server->get('QUERY_STRING');
+        if (is_string($query) && $query !== '') {
+            return $uri . '?' . $query;
+        }
+
+        // An empty query the peer did send, as in `/carts?`, is still part of the URI it signed.
+        // QUERY_STRING cannot tell it apart from no query at all; REQUEST_URI can.
+        $requestUri = $request->server->get('REQUEST_URI');
+
+        return $uri . (is_string($requestUri) && str_ends_with($requestUri, '?') ? '?' : '');
     }
 }

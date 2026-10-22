@@ -665,6 +665,27 @@ final class EventListenersTest extends TestCase
         );
     }
 
+    #[Test]
+    public function theTargetUriKeepsABareQuestionMarkTheClientSent(): void
+    {
+        // RFC 9421 section 2.2.2 takes the target URI as sent, and RFC 3986 does not make
+        // `/carts?` and `/carts` the same string. A peer that signed the former would fail to
+        // verify against the latter.
+        self::assertSame(
+            'https://www.example.com/ucp/v1/carts?',
+            $this->contextRequestFor($this->rawRequest('/ucp/v1/carts?', ''))->absoluteUri,
+        );
+    }
+
+    #[Test]
+    public function theTargetUriHasNoQuestionMarkWhenTheClientSentNoQuery(): void
+    {
+        self::assertSame(
+            'https://www.example.com/ucp/v1/carts',
+            $this->contextRequestFor($this->rawRequest('/ucp/v1/carts', ''))->absoluteUri,
+        );
+    }
+
     private function contextRequestFor(Request $request): HttpRequest
     {
         $captured = null;
@@ -678,11 +699,11 @@ final class EventListenersTest extends TestCase
 
         $listener = new RequestContextListener(
             $contextFactory,
-            $this->createStub(IdempotencyServiceInterface::class),
+            $this->createMock(IdempotencyServiceInterface::class),
             new UcpResponseFactory($this->configuration()),
             $this->configuration(),
         );
-        $listener->onKernelRequest(new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST));
+        $listener->onKernelRequest(new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST));
 
         self::assertInstanceOf(HttpRequest::class, $captured);
 

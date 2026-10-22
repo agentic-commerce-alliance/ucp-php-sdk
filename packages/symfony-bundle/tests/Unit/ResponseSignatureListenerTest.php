@@ -100,7 +100,7 @@ final class ResponseSignatureListenerTest extends TestCase
 
                 return [];
             });
-        $repository = $this->createStub(ManagedSigningKeyRepositoryInterface::class);
+        $repository = $this->createMock(ManagedSigningKeyRepositoryInterface::class);
         $repository->method('active')->willReturn([(new DefaultSigningKeyManager())->generate('kid-1')]);
 
         $request = new Request(server: [
@@ -113,7 +113,7 @@ final class ResponseSignatureListenerTest extends TestCase
         ]);
 
         (new ResponseSignatureListener($this->configuration(true), $signatureService, $repository))
-            ->onKernelResponse(new ResponseEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, new Response('{}')));
+            ->onKernelResponse(new ResponseEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, new Response('{}')));
 
         self::assertInstanceOf(HttpRequest::class, $captured);
         self::assertSame('https://www.example.com/ucp/v1/carts?param=value&foo=bar&baz=bat%2Dman', $captured->absoluteUri);
