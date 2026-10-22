@@ -14,7 +14,9 @@ final class Product
     /**
      * @param array<string, bool|float|int|string|null|array<string, bool|float|int|string|null>|list<bool|float|int|string|null>> $extra
      * @param string|null $description Plain-text product description. Falls back to the title when null so the schema-required `description` field is always populated.
-     * @param list<Media>|null $media Ordered product media. Null leaves the legacy payload unchanged; an empty list explicitly publishes no media.
+     * @param list<Media>|null $media Ordered product media; the first item is the featured media. Null leaves the legacy payload unchanged; an empty list explicitly publishes no media.
+     *                              Without an explicit `$imageUrl`, `image_url` is taken from the first item only when it is an image, so `[video, image]` publishes no `image_url`.
+     *                              Media is published at product level only; variants carry none.
      */
     public function __construct(
         public readonly string $id,
