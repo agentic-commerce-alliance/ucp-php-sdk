@@ -55,15 +55,18 @@ final class ProductTest extends TestCase
 
         self::assertSame(['plain' => 'From extra', 'html' => '<p>From extra</p>'], $payload['description']);
     }
+
     #[Test]
     public function itKeepsLegacyOutputWhenMediaIsOmitted(): void
     {
         $legacy = new Product('p-1', 'Runner Pro', 19.99, 'https://example.test/cover.jpg');
         $omitted = new Product('p-1', 'Runner Pro', 19.99, 'https://example.test/cover.jpg', media: null);
 
-        self::assertSame($legacy->toArray(), $omitted->toArray());
-        self::assertArrayNotHasKey('media', $omitted->toArray());
-        self::assertSame('https://example.test/cover.jpg', $omitted->toArray()['image_url']);
+        $payload = $omitted->toArray();
+
+        self::assertSame($legacy->toArray(), $payload);
+        self::assertArrayNotHasKey('media', $payload);
+        self::assertSame('https://example.test/cover.jpg', $payload['image_url'] ?? null);
     }
 
     #[Test]
@@ -76,33 +79,41 @@ final class ProductTest extends TestCase
         ]);
 
         $payload = $product->toArray();
+
         self::assertSame([
             ['type' => 'image', 'url' => 'https://example.test/front.jpg', 'alt_text' => 'Front view', 'width' => 800, 'height' => 600],
             ['type' => 'video', 'url' => 'https://example.test/demo.mp4'],
             ['type' => 'model_3d', 'url' => 'https://example.test/model.glb'],
-        ], $payload['media']);
-        self::assertSame('https://example.test/front.jpg', $payload['image_url']);
+        ], $payload['media'] ?? null);
+        self::assertSame('https://example.test/front.jpg', $payload['image_url'] ?? null);
         self::assertArrayNotHasKey('media', $payload['variants'][0]);
     }
 
     #[Test]
     public function itPreservesAnExplicitImageUrlAndTheExtraOverride(): void
     {
-        $product = new Product('p-1', 'Runner Pro', 19.99, 'https://example.test/legacy.jpg',
-            extra: ['media' => [['type' => 'image', 'url' => 'https://example.test/override.jpg']]],
+        $product = new Product(
+            'p-1',
+            'Runner Pro',
+            19.99,
+            'https://example.test/legacy.jpg',
+            extra: ['media' => []],
             media: [new Media('video', 'https://example.test/demo.mp4')],
         );
+
         $payload = $product->toArray();
-        self::assertSame('https://example.test/legacy.jpg', $payload['image_url']);
-        self::assertSame([['type' => 'image', 'url' => 'https://example.test/override.jpg']], $payload['media']);
+
+        self::assertSame('https://example.test/legacy.jpg', $payload['image_url'] ?? null);
+        self::assertSame([], $payload['media'] ?? null);
     }
 
     #[Test]
     public function itDoesNotDeriveImageUrlFromNonImageOrEmptyMedia(): void
     {
         $video = new Product('p-1', 'Runner Pro', 19.99, media: [new Media('video', 'https://example.test/demo.mp4')]);
-        self::assertArrayNotHasKey('image_url', $video->toArray());
-        self::assertSame([], (new Product('p-1', 'Runner Pro', 19.99, media: []))->toArray()['media']);
-    }
+        $empty = (new Product('p-1', 'Runner Pro', 19.99, media: []))->toArray();
 
+        self::assertArrayNotHasKey('image_url', $video->toArray());
+        self::assertSame([], $empty['media'] ?? null);
+    }
 }
