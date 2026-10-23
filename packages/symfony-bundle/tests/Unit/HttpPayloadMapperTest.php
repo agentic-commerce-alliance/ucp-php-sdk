@@ -103,6 +103,46 @@ final class HttpPayloadMapperTest extends TestCase
             self::assertNotNull($instrument);
             self::assertSame('com.shopware.invoice', $instrument->handlerId);
             self::assertSame('delegated', $instrument->type);
+            self::assertTrue($instrument->selected);
+            self::assertSame('Billing Street 2', $instrument->billingAddress['street_address'] ?? null);
+        }
+    }
+
+    #[Test]
+    public function itPreservesSelectionAndBillingAddressForEveryCompletionInstrument(): void
+    {
+        $mapper = new HttpPayloadMapper();
+        $payment = ['instruments' => [
+            [
+                'handler_id' => 'com.example.card',
+                'type' => 'card',
+                'selected' => false,
+                'billing_address' => ['street_address' => 'First Street'],
+            ],
+            [
+                'handler_id' => 'com.shopware.invoice',
+                'type' => 'delegated',
+                'selected' => true,
+                'billing_address' => ['street_address' => 'Billing Street 2'],
+            ],
+        ]];
+
+        $complete = $mapper->toCheckoutCompleteRequest('checkout-1', ['payment' => $payment]);
+        self::assertCount(2, $complete->instruments);
+        self::assertSame('com.example.card', $complete->instruments[0]->handlerId);
+        self::assertFalse($complete->instruments[0]->selected);
+        self::assertSame('First Street', $complete->instruments[0]->billingAddress['street_address'] ?? null);
+        self::assertSame('com.shopware.invoice', $complete->instruments[1]->handlerId);
+        self::assertTrue($complete->instruments[1]->selected);
+        self::assertSame('Billing Street 2', $complete->instruments[1]->billingAddress['street_address'] ?? null);
+
+        foreach ([
+            $mapper->toCheckoutCreateRequest(['payment' => $payment])->payment,
+            $mapper->toCheckoutUpdateRequest('checkout-1', ['payment' => $payment])->payment,
+        ] as $instrument) {
+            self::assertNotNull($instrument);
+            self::assertSame('com.shopware.invoice', $instrument->handlerId);
+            self::assertTrue($instrument->selected);
             self::assertSame('Billing Street 2', $instrument->billingAddress['street_address'] ?? null);
         }
     }

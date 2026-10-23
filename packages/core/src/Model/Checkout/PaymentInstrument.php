@@ -15,6 +15,7 @@ final class PaymentInstrument
         public readonly string $handlerId,
         public readonly array $credential = [],
         public readonly array $billingAddress = [],
+        public readonly bool $selected = false,
     ) {
     }
 }
