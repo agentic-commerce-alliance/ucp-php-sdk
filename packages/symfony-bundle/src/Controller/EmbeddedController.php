@@ -16,6 +16,7 @@ use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
 use Ucp\Sdk\Symfony\Internal\OriginMatcher;
+use Ucp\Sdk\Symfony\Internal\TargetUri;
 
 /** @internal */
 final class EmbeddedController
@@ -143,7 +144,7 @@ final class EmbeddedController
 
         return new HttpRequest(
             $request->getMethod(),
-            $request->getUri(),
+            TargetUri::of($request),
             $headers,
             array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
             '',
