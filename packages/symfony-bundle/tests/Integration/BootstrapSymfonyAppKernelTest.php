@@ -195,6 +195,20 @@ final class BootstrapSymfonyAppKernelTest extends WebTestCase
     }
 
     #[Test]
+    public function itAnswersTheRootOAuthMetadataPathWithNotFoundWhileIdentityLinkingIsDisabled(): void
+    {
+        // The pinned identity linking schema has platforms fall back to OIDC discovery on a
+        // 404, and RFC 8414 clients only try the next well-known candidate after one. A 501
+        // here would stop them at a path another OAuth server on the host may own.
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_ENABLED_CAPABILITIES' => 'dev.ucp.shopping.cart']);
+        $this->request($client, 'GET', '/.well-known/oauth-authorization-server');
+
+        self::assertResponseStatusCodeSame(404);
+        $payload = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('error', $payload['ucp']['status']);
+    }
+
+    #[Test]
     public function itDoesNotExposeNonRestTransportsByDefault(): void
     {
         $client = $this->createConfiguredClient();
