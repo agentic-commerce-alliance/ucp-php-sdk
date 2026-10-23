@@ -123,19 +123,24 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
             });
 
         $this->factory = new DefaultHttpRequestContextFactory(
-            $runtimeConfigurationResolver,
-            $agentProfileFetcher,
-            $requestSignatureService,
-            $capabilityNegotiator,
-            $negotiationSessionRepository,
+            runtimeConfigurationResolver: $runtimeConfigurationResolver,
+            agentProfileFetcher: $agentProfileFetcher,
+            requestSignatureService: $requestSignatureService,
+            capabilityNegotiator: $capabilityNegotiator,
+            negotiationSessionRepository: $negotiationSessionRepository,
+            eventDispatcher: $this->createMock(EventDispatcherInterface::class),
+            profileBuilder: $this->createMock(ProfileBuilderInterface::class),
+            merchantAuthorizationService: null,
         );
         $this->factoryWithMerchantAuthorization = new DefaultHttpRequestContextFactory(
-            $runtimeConfigurationResolver,
-            $agentProfileFetcher,
-            $requestSignatureService,
-            $capabilityNegotiator,
-            $negotiationSessionRepository,
-            $merchantAuthorizationService,
+            runtimeConfigurationResolver: $runtimeConfigurationResolver,
+            agentProfileFetcher: $agentProfileFetcher,
+            requestSignatureService: $requestSignatureService,
+            capabilityNegotiator: $capabilityNegotiator,
+            negotiationSessionRepository: $negotiationSessionRepository,
+            eventDispatcher: $this->createMock(EventDispatcherInterface::class),
+            profileBuilder: $this->createMock(ProfileBuilderInterface::class),
+            merchantAuthorizationService: $merchantAuthorizationService,
         );
     }
 
@@ -350,19 +355,20 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
 
     private function factoryWithDispatcher(EventDispatcherInterface $dispatcher): DefaultHttpRequestContextFactory
     {
-        return $this->factory($dispatcher, null);
+        return $this->factory(dispatcher: $dispatcher);
     }
 
     private function factoryWithProfileBuilder(ProfileBuilderInterface $profileBuilder): DefaultHttpRequestContextFactory
     {
-        return $this->factory(null, $profileBuilder);
+        return $this->factory(profileBuilder: $profileBuilder);
     }
 
     /**
-     * One builder for both: the observation tests need the dispatcher, the development-mode
-     * tests need the profile builder, and the factory takes them in that order.
+     * One builder for both: the observation tests need the dispatcher and the development-mode
+     * tests need the profile builder. Whichever the test does not name is an inert mock, so the
+     * collaborator under test is the only one it has to think about.
      */
-    private function factory(?EventDispatcherInterface $dispatcher, ?ProfileBuilderInterface $profileBuilder): DefaultHttpRequestContextFactory
+    private function factory(?EventDispatcherInterface $dispatcher = null, ?ProfileBuilderInterface $profileBuilder = null): DefaultHttpRequestContextFactory
     {
         $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
         $runtimeConfigurationResolver
@@ -390,14 +396,14 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
             });
 
         return new DefaultHttpRequestContextFactory(
-            $runtimeConfigurationResolver,
-            $agentProfileFetcher,
-            $requestSignatureService,
-            $capabilityNegotiator,
-            null,
-            null,
-            $dispatcher,
-            $profileBuilder,
+            runtimeConfigurationResolver: $runtimeConfigurationResolver,
+            agentProfileFetcher: $agentProfileFetcher,
+            requestSignatureService: $requestSignatureService,
+            capabilityNegotiator: $capabilityNegotiator,
+            negotiationSessionRepository: $this->createMock(NegotiationSessionRepositoryInterface::class),
+            eventDispatcher: $dispatcher ?? $this->createMock(EventDispatcherInterface::class),
+            profileBuilder: $profileBuilder ?? $this->createMock(ProfileBuilderInterface::class),
+            merchantAuthorizationService: null,
         );
     }
 
@@ -509,10 +515,14 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
             ->method('negotiate');
 
         $factory = new DefaultHttpRequestContextFactory(
-            $runtimeConfigurationResolver,
-            $agentProfileFetcher,
-            $requestSignatureService,
-            $capabilityNegotiator,
+            runtimeConfigurationResolver: $runtimeConfigurationResolver,
+            agentProfileFetcher: $agentProfileFetcher,
+            requestSignatureService: $requestSignatureService,
+            capabilityNegotiator: $capabilityNegotiator,
+            negotiationSessionRepository: $this->createMock(NegotiationSessionRepositoryInterface::class),
+            eventDispatcher: $this->createMock(EventDispatcherInterface::class),
+            profileBuilder: $this->createMock(ProfileBuilderInterface::class),
+            merchantAuthorizationService: null,
         );
 
         $this->expectException(SignatureException::class);

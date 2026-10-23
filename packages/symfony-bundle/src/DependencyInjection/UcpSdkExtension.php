@@ -153,51 +153,57 @@ final class UcpSdkExtension extends Extension
 
         $transports = array_map(static fn (mixed $transport): Transport => Transport::from((string) $transport), $config['transports']);
 
+        // Definitions with more than a handful of arguments are wired by parameter name rather
+        // than by position. A positional list repeats the constructor's order in a second file,
+        // so every change that appends a collaborator touches the same two lines and independent
+        // pull requests collide there — which is what happened when #182 and #184 each appended
+        // an optional parameter to DefaultHttpRequestContextFactory. Names cannot collide that
+        // way, and they say at the call site what each reference binds to.
         $container->setDefinition(UcpSdkConfiguration::class, new Definition(UcpSdkConfiguration::class, [
-            $config['version'],
-            $config['base_uri'],
-            $config['allowed_profile_hosts'],
-            $config['signature_policy'],
-            $config['allowed_agent_domains'],
-            $config['idempotency_required'],
-            $config['idempotency_ttl'],
-            $config['max_request_body_bytes'],
-            $config['platform_profile_cache_ttl'],
-            $config['negotiation_session_ttl'],
-            $config['signature_max_lifetime_seconds'],
-            $config['oauth']['authorization_code_ttl'],
-            $config['supported_versions'],
-            $config['signing_keys']['auto_generate'],
-            $config['signing_keys']['default_kid'],
-            $config['signing_keys']['algorithm'],
-            $config['signing_keys']['retire_after'],
-            $config['signing_keys']['retired_key_retention'],
-            $config['idempotency']['max_stored_response_bytes'],
-            $config['webhooks']['timeout'],
-            $config['ap2']['enabled'],
-            $config['storage']['dsn'],
-            $transports,
-            $config['transport_endpoints'],
-            $config['webhooks']['max_response_body_bytes'],
-            $config['profile_fetching_development_mode'],
-            $config['enabled_capabilities'],
-            $config['response_signing']['enabled'],
-            $config['profile_cache_max_age'],
+            '$version' => $config['version'],
+            '$baseUri' => $config['base_uri'],
+            '$allowedProfileHosts' => $config['allowed_profile_hosts'],
+            '$signaturePolicy' => $config['signature_policy'],
+            '$allowedAgentDomains' => $config['allowed_agent_domains'],
+            '$idempotencyRequired' => $config['idempotency_required'],
+            '$idempotencyTtl' => $config['idempotency_ttl'],
+            '$maxRequestBodyBytes' => $config['max_request_body_bytes'],
+            '$platformProfileCacheTtl' => $config['platform_profile_cache_ttl'],
+            '$negotiationSessionTtl' => $config['negotiation_session_ttl'],
+            '$signatureMaxLifetimeSeconds' => $config['signature_max_lifetime_seconds'],
+            '$oauthAuthorizationCodeTtl' => $config['oauth']['authorization_code_ttl'],
+            '$supportedVersions' => $config['supported_versions'],
+            '$signingKeysAutoGenerate' => $config['signing_keys']['auto_generate'],
+            '$signingKeysDefaultKid' => $config['signing_keys']['default_kid'],
+            '$signingKeysAlgorithm' => $config['signing_keys']['algorithm'],
+            '$signingKeysRetireAfter' => $config['signing_keys']['retire_after'],
+            '$signingKeysRetiredKeyRetention' => $config['signing_keys']['retired_key_retention'],
+            '$idempotencyMaxStoredResponseBytes' => $config['idempotency']['max_stored_response_bytes'],
+            '$webhookTimeout' => $config['webhooks']['timeout'],
+            '$ap2Enabled' => $config['ap2']['enabled'],
+            '$storageDsn' => $config['storage']['dsn'],
+            '$transports' => $transports,
+            '$transportEndpoints' => $config['transport_endpoints'],
+            '$webhookMaxResponseBodyBytes' => $config['webhooks']['max_response_body_bytes'],
+            '$profileFetchingDevelopmentMode' => $config['profile_fetching_development_mode'],
+            '$enabledCapabilities' => $config['enabled_capabilities'],
+            '$responseSigningEnabled' => $config['response_signing']['enabled'],
+            '$profileCacheMaxAge' => $config['profile_cache_max_age'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
-            $config['version'],
-            (string) ($config['base_uri'] ?? ''),
-            SignaturePolicy::from($config['signature_policy']),
-            $config['idempotency_required'],
-            $config['allowed_profile_hosts'],
-            $config['allowed_agent_domains'],
-            $config['supported_versions'],
-            $transports,
-            $config['enabled_capabilities'],
-            null,
-            $config['transport_endpoints'],
-            $config['profile_fetching_development_mode'],
+            '$version' => $config['version'],
+            '$baseUri' => (string) ($config['base_uri'] ?? ''),
+            '$signaturePolicy' => SignaturePolicy::from($config['signature_policy']),
+            '$idempotencyRequired' => $config['idempotency_required'],
+            '$allowedProfileHosts' => $config['allowed_profile_hosts'],
+            '$allowedAgentDomains' => $config['allowed_agent_domains'],
+            '$supportedVersions' => $config['supported_versions'],
+            '$transports' => $transports,
+            '$enabledCapabilities' => $config['enabled_capabilities'],
+            '$tenantIdentifier' => null,
+            '$transportEndpoints' => $config['transport_endpoints'],
+            '$profileFetchingDevelopmentMode' => $config['profile_fetching_development_mode'],
         ]));
 
         $container->setDefinition(StaticRuntimeConfigurationResolver::class, new Definition(StaticRuntimeConfigurationResolver::class, [
@@ -271,14 +277,14 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(SignatureNonceRepositoryInterface::class, new Alias(DoctrineDbalSignatureNonceRepository::class, true));
 
         $container->setDefinition(StorageCleanupService::class, new Definition(StorageCleanupService::class, [
-            new Reference(OAuthStateRepositoryInterface::class),
-            new Reference(IdempotencyRepositoryInterface::class),
-            new Reference(NegotiationSessionRepositoryInterface::class),
-            new Reference(PlatformProfileCacheRepositoryInterface::class),
-            new Reference(SignatureNonceRepositoryInterface::class),
-            new Reference(ManagedSigningKeyRepositoryInterface::class),
-            $config['signature_max_lifetime_seconds'],
-            $config['signing_keys']['retired_key_retention'],
+            '$oauthStateRepository' => new Reference(OAuthStateRepositoryInterface::class),
+            '$idempotencyRepository' => new Reference(IdempotencyRepositoryInterface::class),
+            '$negotiationSessionRepository' => new Reference(NegotiationSessionRepositoryInterface::class),
+            '$platformProfileCacheRepository' => new Reference(PlatformProfileCacheRepositoryInterface::class),
+            '$signatureNonceRepository' => new Reference(SignatureNonceRepositoryInterface::class),
+            '$managedSigningKeyRepository' => new Reference(ManagedSigningKeyRepositoryInterface::class),
+            '$signatureNonceRetentionSeconds' => $config['signature_max_lifetime_seconds'],
+            '$retiredKeyRetention' => $config['signing_keys']['retired_key_retention'],
         ]));
 
         $container->setDefinition(UrlSafetyValidator::class, new Definition(UrlSafetyValidator::class, [
@@ -346,19 +352,15 @@ final class UcpSdkExtension extends Extension
         ]));
         $container->setAlias(CapabilityNegotiatorInterface::class, new Alias(DefaultCapabilityNegotiator::class, true));
 
-        // Named rather than positional: this constructor has grown four optional collaborators,
-        // each appended by a different change, and the order lived here as well as in the class.
-        // Two lists that must agree, edited by separate pull requests, is the arrangement that
-        // produced a conflict on exactly these lines. Names cannot be reordered wrongly.
         $container->setDefinition(DefaultHttpRequestContextFactory::class, new Definition(DefaultHttpRequestContextFactory::class, [
             '$runtimeConfigurationResolver' => new Reference(RuntimeConfigurationResolverInterface::class),
             '$agentProfileFetcher' => new Reference(AgentProfileFetcherInterface::class),
             '$requestSignatureService' => new Reference(RequestSignatureServiceInterface::class),
             '$capabilityNegotiator' => new Reference(CapabilityNegotiatorInterface::class),
             '$negotiationSessionRepository' => new Reference(NegotiationSessionRepositoryInterface::class),
-            '$merchantAuthorizationService' => $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
             '$eventDispatcher' => new Reference(EventDispatcherInterface::class),
             '$profileBuilder' => new Reference(ProfileBuilderInterface::class),
+            '$merchantAuthorizationService' => $config['ap2']['enabled'] ? new Reference(MerchantAuthorizationServiceInterface::class) : null,
         ]));
         $container->setAlias(HttpRequestContextFactoryInterface::class, new Alias(DefaultHttpRequestContextFactory::class, true));
 
@@ -368,12 +370,12 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(IdempotencyServiceInterface::class, new Alias(DefaultIdempotencyService::class, true));
 
         $container->setDefinition(RepositoryProfileSigningKeyProvider::class, new Definition(RepositoryProfileSigningKeyProvider::class, [
-            new Reference(ManagedSigningKeyRepositoryInterface::class),
-            new Reference(SigningKeyManagerInterface::class),
-            $config['signing_keys']['auto_generate'],
-            $config['signing_keys']['default_kid'],
-            $config['signing_keys']['algorithm'],
-            $config['signing_keys']['retire_after'],
+            '$repository' => new Reference(ManagedSigningKeyRepositoryInterface::class),
+            '$signingKeyManager' => new Reference(SigningKeyManagerInterface::class),
+            '$autoGenerate' => $config['signing_keys']['auto_generate'],
+            '$defaultKid' => $config['signing_keys']['default_kid'],
+            '$defaultAlgorithm' => $config['signing_keys']['algorithm'],
+            '$retireAfter' => $config['signing_keys']['retire_after'],
         ]));
         $container->getDefinition(RepositoryProfileSigningKeyProvider::class)->addTag('ucp_sdk.profile_signing_key_provider');
 
@@ -387,14 +389,14 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(ProfileBuilderInterface::class, new Alias(DefaultProfileBuilder::class, true));
 
         $container->setDefinition(DefaultOrderWebhookDispatcher::class, new Definition(DefaultOrderWebhookDispatcher::class, [
-            new Reference(ManagedSigningKeyRepositoryInterface::class),
-            new Reference(RequestSignatureServiceInterface::class),
-            new Reference(HttpClientInterface::class),
-            new TaggedIteratorArgument('ucp_sdk.order_webhook_enricher'),
-            new Reference(EventDispatcherInterface::class),
-            $config['webhooks']['timeout'],
-            new Reference(UrlSafetyValidator::class),
-            $config['webhooks']['max_response_body_bytes'],
+            '$signingKeyRepository' => new Reference(ManagedSigningKeyRepositoryInterface::class),
+            '$requestSignatureService' => new Reference(RequestSignatureServiceInterface::class),
+            '$httpClient' => new Reference(HttpClientInterface::class),
+            '$enrichers' => new TaggedIteratorArgument('ucp_sdk.order_webhook_enricher'),
+            '$eventDispatcher' => new Reference(EventDispatcherInterface::class),
+            '$timeoutSeconds' => $config['webhooks']['timeout'],
+            '$urlSafetyValidator' => new Reference(UrlSafetyValidator::class),
+            '$maxResponseBodyBytes' => $config['webhooks']['max_response_body_bytes'],
         ]));
         $container->setAlias(OrderWebhookPublisherInterface::class, new Alias(DefaultOrderWebhookDispatcher::class, true));
 
