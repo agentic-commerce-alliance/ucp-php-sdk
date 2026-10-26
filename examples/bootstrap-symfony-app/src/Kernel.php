@@ -44,7 +44,7 @@ final class Kernel extends BaseKernel
             'router' => ['utf8' => true],
         ]);
 
-        $container->extension('ucp_sdk', [
+        $ucpSdk = [
             'base_uri' => $baseUri,
             'allowed_profile_hosts' => $this->allowedProfileHosts($baseUri),
             'profile_fetching_development_mode' => $this->profileFetchingDevelopmentMode(),
@@ -52,7 +52,14 @@ final class Kernel extends BaseKernel
             'storage' => [
                 'dsn' => 'sqlite:///' . dirname(__DIR__) . '/var/ucp_sdk.sqlite',
             ],
-        ]);
+        ];
+
+        $enabledCapabilities = $this->enabledCapabilities();
+        if ($enabledCapabilities !== null) {
+            $ucpSdk['enabled_capabilities'] = $enabledCapabilities;
+        }
+
+        $container->extension('ucp_sdk', $ucpSdk);
 
         $services = $container->services()->defaults()->autowire()->autoconfigure();
         $services->load('BootstrapSymfonyApp\\', '../src/*')
@@ -99,6 +106,22 @@ final class Kernel extends BaseKernel
     private function signaturePolicy(): string
     {
         return $_ENV['UCP_SIGNATURE_POLICY'] ?? $_SERVER['UCP_SIGNATURE_POLICY'] ?? 'log';
+    }
+
+    /**
+     * Comma-separated capability ids from `UCP_ENABLED_CAPABILITIES`; unset leaves every
+     * registered capability enabled.
+     *
+     * @return list<string>|null
+     */
+    private function enabledCapabilities(): ?array
+    {
+        $value = $_ENV['UCP_ENABLED_CAPABILITIES'] ?? $_SERVER['UCP_ENABLED_CAPABILITIES'] ?? getenv('UCP_ENABLED_CAPABILITIES');
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        return array_values(array_filter(array_map(trim(...), explode(',', $value)), static fn (string $id): bool => $id !== ''));
     }
 
     private function profileFetchingDevelopmentMode(): bool
