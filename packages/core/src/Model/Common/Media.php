@@ -20,8 +20,11 @@ final class Media
             throw new ValidationException('Media type must be a non-empty string.');
         }
 
-        if (trim($url) === '') {
-            throw new ValidationException('Media URL must be a non-empty string.');
+        // The schema declares `format: uri`, and the response validator checks it with
+        // FILTER_VALIDATE_URL. A relative URL accepted here would fail the whole catalog
+        // response there, far from the item that caused it.
+        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+            throw new ValidationException(sprintf('Media URL must be an absolute URL, "%s" given.', $url));
         }
 
         // The schema sets a minimum of 1 on both dimensions; 0 would publish an invalid payload.

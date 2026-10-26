@@ -8,7 +8,9 @@ use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
 use Ucp\Sdk\Internal\Validation\SchemaDirectoryLocator;
+use Ucp\Sdk\Model\Catalog\Product;
 use Ucp\Sdk\Model\Checkout\OrderConfirmation;
+use Ucp\Sdk\Model\Common\Media;
 
 final class GeneratedSchemaValidatorTest extends TestCase
 {
@@ -265,6 +267,23 @@ final class GeneratedSchemaValidatorTest extends TestCase
         $validator->validate('catalog.product.response', [
             'ucp' => $this->ucpEnvelope('catalog'),
             'product' => $this->validProduct(),
+        ]);
+    }
+
+    public function testAProductWithMediaValidatesAgainstThePinnedProductResponse(): void
+    {
+        // The pinned schema is the oracle here, not arrays the model tests write themselves.
+        $product = new Product('sku-1', 'Tent', 10.0, media: [
+            new Media('image', 'https://example.test/front.jpg', 'Front view', 800, 600),
+            new Media('video', 'https://example.test/demo.mp4'),
+            new Media('model_3d', 'https://example.test/model.glb'),
+        ]);
+        $validator = new GeneratedSchemaValidator(SchemaDirectoryLocator::generated());
+
+        $this->expectNotToPerformAssertions();
+        $validator->validate('catalog.product.response', [
+            'ucp' => $this->ucpEnvelope('dev.ucp.shopping.catalog.lookup'),
+            'product' => $product->toArray(),
         ]);
     }
 

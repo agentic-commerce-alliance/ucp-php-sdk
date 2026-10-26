@@ -36,6 +36,15 @@ final class MediaTest extends TestCase
     }
 
     #[Test]
+    public function aRelativeUrlIsRejected(): void
+    {
+        // The pinned media schema declares `url` with `format: uri`.
+        $this->expectException(ValidationException::class);
+
+        new Media('image', '/media/a.jpg');
+    }
+
+    #[Test]
     public function aZeroWidthIsRejected(): void
     {
         // The pinned media schema sets a minimum of 1 on width and height.
