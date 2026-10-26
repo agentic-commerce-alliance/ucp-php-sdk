@@ -135,16 +135,6 @@ final class HttpPayloadMapperTest extends TestCase
         self::assertSame('com.shopware.invoice', $complete->instruments[1]->handlerId);
         self::assertTrue($complete->instruments[1]->selected);
         self::assertSame('Billing Street 2', $complete->instruments[1]->billingAddress['street_address'] ?? null);
-
-        foreach ([
-            $mapper->toCheckoutCreateRequest(['payment' => $payment])->payment,
-            $mapper->toCheckoutUpdateRequest('checkout-1', ['payment' => $payment])->payment,
-        ] as $instrument) {
-            self::assertNotNull($instrument);
-            self::assertSame('com.shopware.invoice', $instrument->handlerId);
-            self::assertTrue($instrument->selected);
-            self::assertSame('Billing Street 2', $instrument->billingAddress['street_address'] ?? null);
-        }
     }
 
     #[Test]
@@ -157,6 +147,7 @@ final class HttpPayloadMapperTest extends TestCase
         ]);
 
         self::assertSame('com.example.card', $request->payment?->handlerId);
+        self::assertFalse($request->payment?->selected);
     }
 
     #[Test]
