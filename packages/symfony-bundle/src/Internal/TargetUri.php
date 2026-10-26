@@ -12,8 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
  * That value is what RFC 9421 `@target-uri` resolves to, on request signatures and on the
  * `;req` binding of response signatures, so it has to be the URI the peer signed. Symfony's
  * `Request::getUri()` is not: it runs the query through `normalizeQueryString()`, which sorts
- * the parameters by name and re-encodes them, and every signature over a query that was not
- * already in that form failed to verify.
+ * the parameters by name and re-encodes them.
  *
  * This is `getUri()` with the raw `QUERY_STRING` in place of the normalised one. It does not
  * use `getRequestUri()` instead: a host application may rewrite `REQUEST_URI` to a resolved
@@ -34,7 +33,9 @@ final class TargetUri
         }
 
         // An empty query the peer did send, as in `/carts?`, is still part of the URI it signed.
-        // QUERY_STRING cannot tell it apart from no query at all; REQUEST_URI can.
+        // QUERY_STRING cannot tell it apart from no query at all; REQUEST_URI can, unless the
+        // host rewrote it as described above. On such a host the bare `?` is lost, which only a
+        // host-supplied request URI can fix (#213).
         $requestUri = $request->server->get('REQUEST_URI');
 
         return $uri . (is_string($requestUri) && str_ends_with($requestUri, '?') ? '?' : '');

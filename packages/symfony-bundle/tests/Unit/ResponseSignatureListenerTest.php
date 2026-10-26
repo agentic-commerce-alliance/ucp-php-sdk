@@ -89,9 +89,7 @@ final class ResponseSignatureListenerTest extends TestCase
     #[Test]
     public function theResponseIsBoundToTheTargetUriTheCallerSent(): void
     {
-        // `"@target-uri";req` is what the caller rebuilds from the request it sent. Binding the
-        // response to Symfony's sorted getUri() gave every caller whose query was not already
-        // alphabetical a response signature it could not verify.
+        // `"@target-uri";req` is what the caller rebuilds from the request it sent.
         $captured = null;
         $signatureService = $this->createMock(ResponseSignatureServiceInterface::class);
         $signatureService->method('sign')
