@@ -147,7 +147,7 @@ final class HttpPayloadMapperTest extends TestCase
         ]);
 
         self::assertSame('com.example.card', $request->payment?->handlerId);
-        self::assertFalse($request->payment?->selected);
+        self::assertFalse($request->payment->selected);
     }
 
     #[Test]
