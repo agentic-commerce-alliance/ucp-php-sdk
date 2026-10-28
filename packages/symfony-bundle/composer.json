@@ -1,6 +1,6 @@
 {
     "name": "ucp-php-sdk/symfony-bundle",
-    "description": "Symfony bundle for the UCP PHP SDK",
+    "description": "Symfony integration for the Universal Commerce Protocol (UCP): merchant HTTP endpoints, configuration and storage adapters",
     "type": "library",
     "license": "MIT",
     "require": {
@@ -25,5 +25,22 @@
         "psr-4": {
             "Ucp\\Sdk\\Symfony\\": "src/"
         }
+    },
+    "keywords": [
+        "ucp",
+        "universal-commerce-protocol",
+        "agentic-commerce",
+        "ai-agents",
+        "ecommerce",
+        "checkout",
+        "sdk",
+        "symfony",
+        "bundle"
+    ],
+    "homepage": "https://www.agentic-commerce.sh/protokolle/ucp/",
+    "support": {
+        "docs": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/blob/main/docs/getting-started.md",
+        "issues": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues",
+        "source": "https://github.com/agentic-commerce-alliance/ucp-php-sdk"
     }
 }

@@ -203,6 +203,7 @@ final class HttpPayloadMapper
             (string) ($payload['handler_id'] ?? ''),
             is_array($payload['credential'] ?? null) ? $payload['credential'] : [],
             is_array($payload['billing_address'] ?? null) ? $payload['billing_address'] : [],
+            ($payload['selected'] ?? false) === true,
         );
     }
 
@@ -211,6 +212,9 @@ final class HttpPayloadMapper
      *
      * `payment.json` defines `{"instruments": [...]}` and the item carries `selected`, so
      * the one the buyer chose is the one to read, falling back to the first offered.
+     * That fallback keeps the payload's `selected: false`: an adapter reading
+     * `$request->payment->selected` must not treat false as "no instrument chosen", because
+     * it is also what a sole instrument without the flag looks like.
      *
      * Reading the payment object itself -- what update used to do -- looks for a top-level
      * `handler_id` the spec shape does not have, so a conformant
@@ -228,21 +232,14 @@ final class HttpPayloadMapper
         }
 
         if (isset($payload['instruments'])) {
-            $first = null;
-
-            foreach (is_array($payload['instruments']) ? $payload['instruments'] : [] as $instrument) {
-                if (! is_array($instrument)) {
-                    continue;
+            $instruments = $this->toPaymentInstruments($payload);
+            foreach ($instruments as $instrument) {
+                if ($instrument->selected) {
+                    return $instrument;
                 }
-
-                if (($instrument['selected'] ?? false) === true) {
-                    return $this->toPaymentInstrument($instrument);
-                }
-
-                $first ??= $instrument;
             }
 
-            return $first === null ? null : $this->toPaymentInstrument($first);
+            return $instruments[0] ?? null;
         }
 
         // No instrument identity anywhere means no instrument, which is distinct from a

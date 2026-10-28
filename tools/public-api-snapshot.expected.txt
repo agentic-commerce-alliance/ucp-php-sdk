@@ -268,7 +268,7 @@ class Ucp\Sdk\Model\Checkout\OrderConfirmation
   - __construct(string $id, string $permalinkUrl)
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\PaymentInstrument
-  - __construct(string $type, string $handlerId, array $credential = [], array $billingAddress = [])
+  - __construct(string $type, string $handlerId, array $credential = [], array $billingAddress = [], bool $selected = false)
 class Ucp\Sdk\Model\Common\Buyer
   - __construct(?string $email = null, ?string $firstName = null, ?string $lastName = null, ?string $phoneNumber = null)
   - toArray(): array

@@ -1,6 +1,6 @@
 {
     "name": "ucp-php-sdk/core",
-    "description": "Core library for the UCP PHP SDK",
+    "description": "Universal Commerce Protocol (UCP) merchant SDK for PHP: discovery, catalog, cart, checkout, orders and request signing",
     "type": "library",
     "license": "MIT",
     "require": {
@@ -15,5 +15,21 @@
         "psr-4": {
             "Ucp\\Sdk\\": "src/"
         }
+    },
+    "keywords": [
+        "ucp",
+        "universal-commerce-protocol",
+        "agentic-commerce",
+        "ai-agents",
+        "ecommerce",
+        "checkout",
+        "sdk",
+        "php"
+    ],
+    "homepage": "https://www.agentic-commerce.sh/protokolle/ucp/",
+    "support": {
+        "docs": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/blob/main/docs/getting-started.md",
+        "issues": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues",
+        "source": "https://github.com/agentic-commerce-alliance/ucp-php-sdk"
     }
 }
