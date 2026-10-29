@@ -2736,7 +2736,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/core",
-                "reference": "0b45c67497dc547ea6ffdf4ee80bd1df0d7a225f"
+                "reference": "e26420e25d082ed823b5d80367ff547b9efd2bce"
             },
             "require": {
                 "ext-filter": "*",
@@ -2755,7 +2755,23 @@
             "license": [
                 "MIT"
             ],
-            "description": "Core library for the UCP PHP SDK",
+            "description": "Universal Commerce Protocol (UCP) merchant SDK for PHP: discovery, catalog, cart, checkout, orders and request signing",
+            "homepage": "https://www.agentic-commerce.sh/protokolle/ucp/",
+            "keywords": [
+                "agentic-commerce",
+                "ai-agents",
+                "checkout",
+                "ecommerce",
+                "php",
+                "sdk",
+                "ucp",
+                "universal-commerce-protocol"
+            ],
+            "support": {
+                "docs": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/blob/main/docs/getting-started.md",
+                "issues": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues",
+                "source": "https://github.com/agentic-commerce-alliance/ucp-php-sdk"
+            },
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -2767,7 +2783,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/symfony-bundle",
-                "reference": "a56f5df2ce76a4c9224baf5d73c1ef2bf888bf0b"
+                "reference": "1db56a007d96215a415aec2e0c71512f1a8104ab"
             },
             "require": {
                 "doctrine/dbal": "^3.7 || ^4.0",
@@ -2796,7 +2812,24 @@
             "license": [
                 "MIT"
             ],
-            "description": "Symfony bundle for the UCP PHP SDK",
+            "description": "Symfony integration for the Universal Commerce Protocol (UCP): merchant HTTP endpoints, configuration and storage adapters",
+            "homepage": "https://www.agentic-commerce.sh/protokolle/ucp/",
+            "keywords": [
+                "agentic-commerce",
+                "ai-agents",
+                "bundle",
+                "checkout",
+                "ecommerce",
+                "sdk",
+                "symfony",
+                "ucp",
+                "universal-commerce-protocol"
+            ],
+            "support": {
+                "docs": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/blob/main/docs/getting-started.md",
+                "issues": "https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues",
+                "source": "https://github.com/agentic-commerce-alliance/ucp-php-sdk"
+            },
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -8705,16 +8738,16 @@
         },
         {
             "name": "symfony/phpunit-bridge",
-            "version": "v8.1.9",
+            "version": "v8.1.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/phpunit-bridge.git",
-                "reference": "8a18197104d682fc3fa59718524ccca0d090f8ad"
+                "reference": "989d3fba892a7229c0529c33650e50eba51b6565"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/phpunit-bridge/zipball/8a18197104d682fc3fa59718524ccca0d090f8ad",
-                "reference": "8a18197104d682fc3fa59718524ccca0d090f8ad",
+                "url": "https://api.github.com/repos/symfony/phpunit-bridge/zipball/989d3fba892a7229c0529c33650e50eba51b6565",
+                "reference": "989d3fba892a7229c0529c33650e50eba51b6565",
                 "shasum": ""
             },
             "require": {
@@ -8766,7 +8799,7 @@
                 "testing"
             ],
             "support": {
-                "source": "https://github.com/symfony/phpunit-bridge/tree/v8.1.9"
+                "source": "https://github.com/symfony/phpunit-bridge/tree/v8.1.10"
             },
             "funding": [
                 {
@@ -8786,7 +8819,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-30T22:00:36+00:00"
+            "time": "2026-10-18T14:56:39+00:00"
         },
         {
             "name": "symfony/polyfill-php73",
