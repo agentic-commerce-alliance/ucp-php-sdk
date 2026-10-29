@@ -17,6 +17,7 @@ use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
+use Ucp\Sdk\Symfony\Internal\TargetUri;
 
 /** @internal */
 final class OAuthController
@@ -89,7 +90,7 @@ final class OAuthController
 
         $httpRequest = new HttpRequest(
             $request->getMethod(),
-            $request->getUri(),
+            TargetUri::of($request),
             $headers,
             array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
             '',

@@ -12,6 +12,7 @@ use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
+use Ucp\Sdk\Symfony\Internal\TargetUri;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 /** @internal */
@@ -67,7 +68,7 @@ final class ProfileController
 
         return new HttpRequest(
             $request->getMethod(),
-            $request->getUri(),
+            TargetUri::of($request),
             $headers,
             array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
             '',

@@ -13,6 +13,7 @@ use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\IdempotencyServiceInterface;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
+use Ucp\Sdk\Symfony\Internal\TargetUri;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 /** @internal */
@@ -70,7 +71,7 @@ final class RequestContextListener
 
         $context = $this->requestContextFactory->create(new HttpRequest(
             $request->getMethod(),
-            $request->getUri(),
+            TargetUri::of($request),
             $headers,
             $query,
             $body,
