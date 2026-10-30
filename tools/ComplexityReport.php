@@ -8,6 +8,7 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Function_;
+use PhpParser\Modifiers;
 use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
@@ -70,13 +71,6 @@ final class ComplexityReport
         'BootstrapSymfonyApp\\',
         'MerchantSymfonyApp\\',
     ];
-
-    /**
-     * A constructor that only promotes its arguments in one of these namespace segments
-     * describes the shape of a value. Its parameter count is the schema's field count, so
-     * it is reported but not ranked as a parameter-list smell.
-     */
-    private const DATA_NAMESPACE_SEGMENTS = ['\\Model\\', '\\Event\\', '\\Exception\\'];
 
     private readonly Parser $parser;
 
@@ -179,7 +173,7 @@ final class ComplexityReport
                     $file,
                     $method,
                     $this->surface($className, $class, $method),
-                    $this->isDataConstructor($className, $method),
+                    $this->isDataConstructor($method),
                 );
             }
         }
@@ -240,25 +234,24 @@ final class ComplexityReport
         return str_starts_with($symbol, 'class@anonymous');
     }
 
-    private function isDataConstructor(string $className, ClassMethod $method): bool
+    /**
+     * A constructor whose body is empty and whose every argument is a public promoted property
+     * describes the shape of a value, wherever the class lives. Its parameter count is the
+     * schema's field count, so it is reported but not ranked as a parameter-list smell.
+     */
+    private function isDataConstructor(ClassMethod $method): bool
     {
-        if ($method->name->toLowerString() !== '__construct' || ($method->stmts ?? []) !== []) {
+        if ($method->name->toLowerString() !== '__construct' || ($method->stmts ?? []) !== [] || $method->params === []) {
             return false;
         }
 
         foreach ($method->params as $param) {
-            if ($param->flags === 0) {
+            if (($param->flags & Modifiers::PUBLIC) === 0) {
                 return false;
             }
         }
 
-        foreach (self::DATA_NAMESPACE_SEGMENTS as $segment) {
-            if (str_contains('\\' . $className, $segment)) {
-                return true;
-            }
-        }
-
-        return false;
+        return true;
     }
 
     /**

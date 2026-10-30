@@ -5,9 +5,9 @@ It measures four things:
 
 1. **Cognitive complexity** per function, as SonarSource defines it. Nesting costs more than
    sequence, so a flat list of guard clauses scores lower than the same logic nested.
-2. **Parameter count** per function. Data constructors in `Model`, `Event` and `Exception`
-   namespaces are left out: a constructor whose promoted properties are the wire shape is
-   not a smell.
+2. **Parameter count** per function. Data constructors are left out: a constructor with an
+   empty body whose every argument is a public promoted property is the wire shape, not a
+   smell. The rule reads the constructor's shape, not its namespace.
 3. **Body length** in lines.
 4. **Duplicated code** across the analysed tree, ignoring whitespace and comments.
 

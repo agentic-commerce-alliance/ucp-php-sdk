@@ -20,7 +20,7 @@ This folder contains small repo maintenance tools.
 - `complexity-report.php` is the CLI and `ComplexityReport.php` the analysis, autoloaded through `autoload-dev.files`
 - `complexity-baseline.json` is regenerated with `composer complexity:baseline`, never edited by hand
 - lower the baseline in the same pull request that removes a hotspot, so the gain sticks
-- the parameter ranking skips data constructors in `Model`, `Event` and `Exception`; keep that list in step with `docs/qa-complexity.md`
+- the parameter ranking skips data constructors, recognised by shape (empty body, every argument a public promoted property); keep the rule in step with `docs/qa-complexity.md`
 - `ComplexityReportToolTest` uses SonarSource's published examples as the oracle; do not replace them with values read back from the tool
 
 ## Why This Exists

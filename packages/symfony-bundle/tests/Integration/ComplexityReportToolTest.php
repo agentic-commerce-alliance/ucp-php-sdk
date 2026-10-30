@@ -136,7 +136,7 @@ final class ComplexityReportToolTest extends TestCase
     }
 
     #[Test]
-    public function marksPromotedModelConstructorsAsDataShapes(): void
+    public function marksPublicPromotedConstructorsAsDataShapes(): void
     {
         $this->writeSource('Money.php', <<<'PHP'
             <?php
@@ -165,9 +165,24 @@ final class ComplexityReportToolTest extends TestCase
             }
             PHP);
 
+        $this->writeSource('Window.php', <<<'PHP'
+            <?php
+            namespace Ucp\Sdk\Internal\Service;
+
+            final class Window
+            {
+                public function __construct(
+                    public readonly int $from,
+                    public readonly int $to,
+                ) {
+                }
+            }
+            PHP);
+
         self::assertTrue($this->metricsOf('Ucp\Sdk\Model\Common\Money::__construct')['data_constructor']);
         self::assertSame(2, $this->metricsOf('Ucp\Sdk\Model\Common\Money::__construct')['parameters']);
         self::assertFalse($this->metricsOf('Ucp\Sdk\Internal\Service\Service::__construct')['data_constructor'], 'collaborators are not a data shape');
+        self::assertTrue($this->metricsOf('Ucp\Sdk\Internal\Service\Window::__construct')['data_constructor'], 'the shape decides, not the namespace');
     }
 
     #[Test]
