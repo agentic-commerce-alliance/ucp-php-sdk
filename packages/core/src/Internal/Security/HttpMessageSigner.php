@@ -70,35 +70,30 @@ final class HttpMessageSigner
         return $this->signatureCodec->derToRaw($signature, $algorithm->coordinateBytes());
     }
 
-    public function verify(string $base, string $signature, string $publicKeyPem, SignatureAlgorithm $algorithm): int
+    public function verify(string $base, string $signature, string $publicKeyPem, SignatureAlgorithm $algorithm): bool
     {
         if ($algorithm !== SignatureAlgorithm::Ed25519) {
-            $result = openssl_verify($base, $this->toDer($signature, $algorithm), $publicKeyPem, $this->opensslAlgorithm($algorithm));
-
-            // openssl reports an internal error as false, which is not a verdict on the
-            // signature. -1 is what openssl_verify itself uses for that, and the caller already
-            // treats anything other than 1 as unverified.
-            return $result === false ? -1 : $result;
+            return openssl_verify($base, $this->toDer($signature, $algorithm), $publicKeyPem, $this->opensslAlgorithm($algorithm)) === 1;
         }
 
         // A wrong-length signature is a failed verification, not an exception: a peer sending
         // one is not a configuration problem here, and throwing would turn a bad signature into
         // a different status code than a bad signature.
         if (strlen($signature) !== SODIUM_CRYPTO_SIGN_BYTES) {
-            return 0;
+            return false;
         }
 
         try {
             $publicKey = $this->ed25519Codec->publicKeyFromPem($publicKeyPem);
         } catch (SignatureException) {
-            return 0;
+            return false;
         }
 
         if ($publicKey === '') {
-            return 0;
+            return false;
         }
 
-        return sodium_crypto_sign_verify_detached($signature, $base, $publicKey) ? 1 : 0;
+        return sodium_crypto_sign_verify_detached($signature, $base, $publicKey);
     }
 
     private function opensslAlgorithm(SignatureAlgorithm $algorithm): int

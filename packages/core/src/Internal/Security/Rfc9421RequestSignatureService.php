@@ -147,7 +147,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
             $algorithm = $this->keyAlgorithm($key, $parameters->requestedAlgorithm);
             $base = $this->signatureBase($request, $components, $signatureParams, $headers);
 
-            if ($this->signer->verify($base, $signature, $this->publicKeyPem($key), $algorithm) !== 1) {
+            if (! $this->signer->verify($base, $signature, $this->publicKeyPem($key), $algorithm)) {
                 throw new SignatureException('Request signature verification failed.');
             }
 
