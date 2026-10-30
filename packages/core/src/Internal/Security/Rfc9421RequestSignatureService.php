@@ -105,7 +105,6 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         }
 
         $base = $this->signatureBase($request, $components, $signatureParams, $headers);
-        $signature = '';
         $signature = $this->signer->sign($base, $key, $algorithm, 'request');
 
         $headers = [
@@ -121,7 +120,6 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         $headers = $this->normalizeHeaders($request->headers);
         $signatureInput = $headers['signature-input'] ?? null;
         $signatureHeader = $headers['signature'] ?? null;
-        $digest = $headers['content-digest'] ?? null;
         $contentDigestVerified = false;
 
         if ($signatureInput === null || $signatureHeader === null) {
@@ -130,114 +128,183 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
 
         try {
             [$parts, $components, $signatureParams] = $this->parseSignatureInput($signatureInput);
-            $label = $parts['@label'] ?? self::DEFAULT_SIGNATURE_LABEL;
-            $kid = $parts['keyid'] ?? null;
-            $requestedAlgorithm = $parts['alg'] ?? null;
-            $created = isset($parts['created']) ? (int) $parts['created'] : null;
-            $expires = isset($parts['expires']) ? (int) $parts['expires'] : null;
-
-            // `expires` is deliberately not required. The specification's default signature
-            // shape carries `created` and `keyid` and nothing else; `expires` belongs to the
-            // web-bot-auth shape. Demanding it refused every peer signing the way the spec
-            // describes -- and said so with a message that named no parameter, so the peer
-            // could not tell which one it was missing.
-            //
-            // This is the same class of defect as emitting DER signatures: self-consistent,
-            // green against our own signer, and unable to talk to anyone else. Found by an
-            // external spec-derived agent, which is the only kind of test that could.
-            if ($kid === null || $created === null) {
-                throw new SignatureException('Signature-Input must carry both keyid and created.');
-            }
-
-            if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) === null) {
-                throw new SignatureException(sprintf('Unsupported signature algorithm "%s".', $requestedAlgorithm));
-            }
-
-            // `tag` says what the signature is for. An unrecognised one is refused rather than
-            // ignored: a tag this implementation does not understand may carry requirements it
-            // therefore has not applied, and verifying anyway would report a check as passed
-            // that was never performed.
-            $tag = $parts['tag'] ?? null;
-            if ($tag !== null && ! in_array($tag, self::SUPPORTED_TAGS, true)) {
-                throw new SignatureException(sprintf('Unsupported signature tag "%s".', $tag));
-            }
+            $parameters = $this->checkedParameters($parts);
 
             // Web-bot-auth points at the agent's own key directory. Fetching it is an outbound
             // request whose destination the caller chose, so it goes through the same allow-list
             // and address pinning as a platform profile -- and only when the tag asks for it,
             // because otherwise a `Signature-Agent` header alone would make every request an
             // outbound fetch.
-            if ($tag === self::TAG_WEB_BOT_AUTH) {
+            if ($parameters->tag === self::TAG_WEB_BOT_AUTH) {
                 $keys = [...$keys, ...$this->agentDirectoryKeys($headers)];
             }
 
-            if ($created > time() + 60) {
-                throw new SignatureException('Signature created timestamp is too far in the future.');
-            }
+            $this->assertWithinLifetime($parameters->created, $parameters->expires);
+            $contentDigestVerified = $this->verifyContentDigest($request, $components, $headers[self::CONTENT_DIGEST] ?? null);
 
-            if ($expires !== null) {
-                if ($expires < time() - 60) {
-                    throw new SignatureException('Signature has expired.');
-                }
-
-                if (($expires - $created) > $this->maxLifetimeSeconds) {
-                    throw new SignatureException('Signature lifetime exceeds the allowed window.');
-                }
-            } elseif ($created < time() - $this->maxLifetimeSeconds) {
-                // A signature naming no expiry is still not valid forever. Bounding its age by
-                // the same window keeps the replay protection that requiring `expires` was
-                // reaching for, without refusing the shape the spec defines. The nonce guard
-                // below is the other half; this is what stops a captured signature being
-                // replayable after the nonce record has been purged.
-                throw new SignatureException('Signature is older than the allowed window.');
-            }
-
-            if (in_array(self::CONTENT_DIGEST, $components, true)) {
-                $this->contentDigestService->verify($request->body, $digest);
-                $contentDigestVerified = true;
-            } elseif ($request->body !== '') {
-                // The security half of making the digest conditional. Without this, stripping
-                // content-digest from the covered list is a body-swap primitive: the signature
-                // still verifies over method and target, and nothing has attested to the bytes.
-                throw new SignatureException(
-                    'Signature does not cover content-digest, so the request body is unattested.',
-                );
-            }
-            $signature = $this->extractSignatureValue($signatureHeader, $label);
-            $key = $this->resolveKey($keys, $kid);
-            $algorithm = SignatureAlgorithm::fromIdentifier($key->algorithm);
-            if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) !== $algorithm) {
-                throw new SignatureException('Signature algorithm does not match signing key.');
-            }
-
+            $signature = $this->extractSignatureValue($signatureHeader, $parameters->label);
+            $key = $this->resolveKey($keys, $parameters->kid);
+            $algorithm = $this->keyAlgorithm($key, $parameters->requestedAlgorithm);
             $base = $this->signatureBase($request, $components, $signatureParams, $headers);
-            $publicKeyPem = $key->publicKeyPem ?? null;
-            if ($publicKeyPem === null || $publicKeyPem === '') {
-                throw new SignatureException('Public key PEM is not available for signature verification.');
-            }
 
-            if (! $this->signer->verify($base, $signature, $publicKeyPem, $algorithm)) {
+            if (! $this->signer->verify($base, $signature, $this->publicKeyPem($key), $algorithm)) {
                 throw new SignatureException('Request signature verification failed.');
             }
 
-            $replayChecked = false;
-            if ($this->replayGuard !== null) {
-                $scope = parse_url($request->absoluteUri, PHP_URL_HOST);
-                if (! is_string($scope) || $scope === '') {
-                    $scope = 'unknown:' . sha1($request->absoluteUri);
-                }
-
-                $this->replayGuard->rememberOrThrow($scope, $kid, $signature, $created);
-                $replayChecked = true;
-            }
+            $replayChecked = $this->guardReplay($request, $parameters->kid, $signature, $parameters->created);
 
             // Was a hardcoded `true`, so every successful verification claimed the digest had
             // been checked -- harmless while it always had been, and an overstatement the moment
             // a bodyless request legitimately has nothing to digest.
-            return new SignatureVerificationResult(true, $kid, $key->algorithm, $created, $expires, $contentDigestVerified, $replayChecked);
+            return new SignatureVerificationResult(
+                true,
+                $parameters->kid,
+                $key->algorithm,
+                $parameters->created,
+                $parameters->expires,
+                $contentDigestVerified,
+                $replayChecked,
+            );
         } catch (SignatureException $exception) {
             return new SignatureVerificationResult(false, failureReason: $exception->getMessage(), contentDigestVerified: $contentDigestVerified);
         }
+    }
+
+    /**
+     * @param array<string, string> $parts
+     */
+    private function checkedParameters(array $parts): SignatureInputParameters
+    {
+        $kid = $parts['keyid'] ?? null;
+        $created = isset($parts['created']) ? (int) $parts['created'] : null;
+
+        // `expires` is deliberately not required. The specification's default signature
+        // shape carries `created` and `keyid` and nothing else; `expires` belongs to the
+        // web-bot-auth shape. Demanding it refused every peer signing the way the spec
+        // describes -- and said so with a message that named no parameter, so the peer
+        // could not tell which one it was missing.
+        //
+        // This is the same class of defect as emitting DER signatures: self-consistent,
+        // green against our own signer, and unable to talk to anyone else. Found by an
+        // external spec-derived agent, which is the only kind of test that could.
+        if ($kid === null || $created === null) {
+            throw new SignatureException('Signature-Input must carry both keyid and created.');
+        }
+
+        $requestedAlgorithm = $parts['alg'] ?? null;
+        if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) === null) {
+            throw new SignatureException(sprintf('Unsupported signature algorithm "%s".', $requestedAlgorithm));
+        }
+
+        // `tag` says what the signature is for. An unrecognised one is refused rather than
+        // ignored: a tag this implementation does not understand may carry requirements it
+        // therefore has not applied, and verifying anyway would report a check as passed
+        // that was never performed.
+        $tag = $parts['tag'] ?? null;
+        if ($tag !== null && ! in_array($tag, self::SUPPORTED_TAGS, true)) {
+            throw new SignatureException(sprintf('Unsupported signature tag "%s".', $tag));
+        }
+
+        return new SignatureInputParameters(
+            $parts['@label'] ?? self::DEFAULT_SIGNATURE_LABEL,
+            $kid,
+            $created,
+            isset($parts['expires']) ? (int) $parts['expires'] : null,
+            $requestedAlgorithm,
+            $tag,
+        );
+    }
+
+    private function assertWithinLifetime(int $created, ?int $expires): void
+    {
+        if ($created > time() + 60) {
+            throw new SignatureException('Signature created timestamp is too far in the future.');
+        }
+
+        if ($expires === null) {
+            // A signature naming no expiry is still not valid forever. Bounding its age by
+            // the same window keeps the replay protection that requiring `expires` was
+            // reaching for, without refusing the shape the spec defines. The nonce guard
+            // is the other half; this is what stops a captured signature being replayable
+            // after the nonce record has been purged.
+            if ($created < time() - $this->maxLifetimeSeconds) {
+                throw new SignatureException('Signature is older than the allowed window.');
+            }
+
+            return;
+        }
+
+        if ($expires < time() - 60) {
+            throw new SignatureException('Signature has expired.');
+        }
+
+        if (($expires - $created) > $this->maxLifetimeSeconds) {
+            throw new SignatureException('Signature lifetime exceeds the allowed window.');
+        }
+    }
+
+    /**
+     * Whether the digest was checked: only when the signature covers it.
+     *
+     * @param list<string> $components
+     */
+    private function verifyContentDigest(HttpRequest $request, array $components, ?string $digest): bool
+    {
+        if (in_array(self::CONTENT_DIGEST, $components, true)) {
+            $this->contentDigestService->verify($request->body, $digest);
+
+            return true;
+        }
+
+        if ($request->body !== '') {
+            // The security half of making the digest conditional. Without this, stripping
+            // content-digest from the covered list is a body-swap primitive: the signature
+            // still verifies over method and target, and nothing has attested to the bytes.
+            throw new SignatureException(
+                'Signature does not cover content-digest, so the request body is unattested.',
+            );
+        }
+
+        return false;
+    }
+
+    private function keyAlgorithm(PublicSigningKey $key, ?string $requestedAlgorithm): SignatureAlgorithm
+    {
+        $algorithm = SignatureAlgorithm::fromIdentifier($key->algorithm);
+        if ($requestedAlgorithm !== null && SignatureAlgorithm::tryFromIdentifier($requestedAlgorithm) !== $algorithm) {
+            throw new SignatureException('Signature algorithm does not match signing key.');
+        }
+
+        return $algorithm;
+    }
+
+    private function publicKeyPem(PublicSigningKey $key): string
+    {
+        $publicKeyPem = $key->publicKeyPem ?? null;
+        if ($publicKeyPem === null || $publicKeyPem === '') {
+            throw new SignatureException('Public key PEM is not available for signature verification.');
+        }
+
+        return $publicKeyPem;
+    }
+
+    /**
+     * Whether the replay guard saw this signature: only when one is configured.
+     */
+    private function guardReplay(HttpRequest $request, string $kid, string $signature, int $created): bool
+    {
+        if ($this->replayGuard === null) {
+            return false;
+        }
+
+        $scope = parse_url($request->absoluteUri, PHP_URL_HOST);
+        if (! is_string($scope) || $scope === '') {
+            $scope = 'unknown:' . sha1($request->absoluteUri);
+        }
+
+        $this->replayGuard->rememberOrThrow($scope, $kid, $signature, $created);
+
+        return true;
     }
 
     /**
@@ -321,9 +388,6 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         return $components;
     }
 
-    /**
-     * @param list<PublicSigningKey> $keys
-     */
     /**
      * The keys published at the request's `Signature-Agent` URL.
      *
