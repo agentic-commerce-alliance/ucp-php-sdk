@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Http;
 
 use Ucp\Sdk\Exception\AgentProfileException;
-use Ucp\Sdk\Exception\UcpException;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Model\Security\AgentKeyDirectory;
 use Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface;
@@ -26,13 +25,16 @@ use Ucp\Sdk\Service\HttpClientInterface;
  */
 final class HttpAgentKeyDirectoryFetcher implements AgentKeyDirectoryFetcherInterface
 {
+    private readonly BoundedJsonReader $bodyReader;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly AgentKeyDirectoryCacheRepositoryInterface $cacheRepository,
         private readonly UrlSafetyValidator $urlSafetyValidator,
         private readonly int $timeoutSeconds = 5,
-        private readonly int $maxResponseBytes = 1048576,
+        int $maxResponseBytes = 1048576,
     ) {
+        $this->bodyReader = new BoundedJsonReader($httpClient, $timeoutSeconds, $maxResponseBytes);
     }
 
     public function fetch(string $uri): AgentKeyDirectory
@@ -63,32 +65,7 @@ final class HttpAgentKeyDirectoryFetcher implements AgentKeyDirectoryFetcherInte
             }
 
             $headers = $response->getHeaders(false);
-            $contentLength = isset($headers['content-length'][0]) ? (int) $headers['content-length'][0] : null;
-            if ($contentLength !== null && $contentLength > $this->maxResponseBytes) {
-                throw AgentProfileException::tooLarge($uri, $this->maxResponseBytes);
-            }
-
-            $content = '';
-            foreach ($this->httpClient->stream($response, $this->timeoutSeconds) as $chunk) {
-                if ($chunk->isTimeout() || $chunk->isFirst()) {
-                    continue;
-                }
-
-                $content .= $chunk->getContent();
-
-                // Checked while streaming rather than after: a declared Content-Length is the
-                // sender's claim, and this is the part that holds when the claim is a lie.
-                if (strlen($content) > $this->maxResponseBytes) {
-                    $response->cancel();
-
-                    throw AgentProfileException::tooLarge($uri, $this->maxResponseBytes);
-                }
-            }
-
-            $payload = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
-            if (! is_array($payload)) {
-                throw AgentProfileException::invalid($uri, 'the response body does not decode to a JSON object.');
-            }
+            $payload = $this->bodyReader->read($response, $headers, $uri);
 
             $directory = AgentKeyDirectory::fromArray($uri, $payload);
             $this->cacheRepository->save($uri, $directory);
@@ -99,15 +76,7 @@ final class HttpAgentKeyDirectoryFetcher implements AgentKeyDirectoryFetcherInte
                 return $stale;
             }
 
-            if ($exception instanceof UcpException) {
-                throw $exception;
-            }
-
-            if ($exception instanceof \JsonException) {
-                throw AgentProfileException::invalid($uri, $exception->getMessage(), $exception);
-            }
-
-            throw AgentProfileException::unreachable($uri, $exception);
+            throw BoundedJsonReader::failure($exception, $uri);
         }
     }
 }
