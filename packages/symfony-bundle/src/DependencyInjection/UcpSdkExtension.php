@@ -153,12 +153,8 @@ final class UcpSdkExtension extends Extension
 
         $transports = array_map(static fn (mixed $transport): Transport => Transport::from((string) $transport), $config['transports']);
 
-        // Definitions with more than a handful of arguments are wired by parameter name rather
-        // than by position. A positional list repeats the constructor's order in a second file,
-        // so every change that appends a collaborator touches the same two lines and independent
-        // pull requests collide there — which is what happened when #182 and #184 each appended
-        // an optional parameter to DefaultHttpRequestContextFactory. Names cannot collide that
-        // way, and they say at the call site what each reference binds to.
+        // Long definitions are wired by parameter name, so an appended collaborator can't shift
+        // the binding of the others.
         $container->setDefinition(UcpSdkConfiguration::class, new Definition(UcpSdkConfiguration::class, [
             '$version' => $config['version'],
             '$baseUri' => $config['base_uri'],

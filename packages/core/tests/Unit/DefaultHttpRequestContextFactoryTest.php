@@ -363,11 +363,6 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
         return $this->factory(profileBuilder: $profileBuilder);
     }
 
-    /**
-     * One builder for both: the observation tests need the dispatcher and the development-mode
-     * tests need the profile builder. Whichever the test does not name is an inert mock, so the
-     * collaborator under test is the only one it has to think about.
-     */
     private function factory(?EventDispatcherInterface $dispatcher = null, ?ProfileBuilderInterface $profileBuilder = null): DefaultHttpRequestContextFactory
     {
         $runtimeConfigurationResolver = $this->createMock(RuntimeConfigurationResolverInterface::class);

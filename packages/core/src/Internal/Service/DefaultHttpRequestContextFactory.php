@@ -39,9 +39,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         private readonly NegotiationSessionRepositoryInterface $negotiationSessionRepository,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ProfileBuilderInterface $profileBuilder,
-        // The one collaborator that is genuinely absent in a valid configuration: there is no
-        // merchant authorization service to verify against when `ap2.enabled` is false. Nullable
-        // without a default, so the absence is stated at the call site rather than defaulted into.
+        // null when `ap2.enabled` is false
         private readonly ?MerchantAuthorizationServiceInterface $merchantAuthorizationService,
     ) {
     }
