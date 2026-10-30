@@ -216,8 +216,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 throw new SignatureException('Public key PEM is not available for signature verification.');
             }
 
-            $result = $this->signer->verify($base, $signature, $publicKeyPem, $algorithm);
-            if ($result !== 1) {
+            if (! $this->signer->verify($base, $signature, $publicKeyPem, $algorithm)) {
                 throw new SignatureException('Request signature verification failed.');
             }
 
