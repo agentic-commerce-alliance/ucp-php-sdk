@@ -40,8 +40,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     private const CONTENT_DIGEST = 'content-digest';
 
     private readonly SignatureComponentResolver $componentResolver;
-    private readonly EcdsaSignatureCodec $signatureCodec;
-    private readonly Ed25519KeyCodec $ed25519Codec;
+    private readonly HttpMessageSigner $signer;
     private readonly JwkThumbprint $jwkThumbprint;
 
     public function __construct(
@@ -55,8 +54,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         private readonly ?AgentKeyDirectoryFetcherInterface $agentKeyDirectoryFetcher = null,
     ) {
         $this->componentResolver = $componentResolver ?? new SignatureComponentResolver();
-        $this->signatureCodec = $signatureCodec ?? new EcdsaSignatureCodec();
-        $this->ed25519Codec = $ed25519Codec ?? new Ed25519KeyCodec();
+        $this->signer = new HttpMessageSigner($signatureCodec ?? new EcdsaSignatureCodec(), $ed25519Codec ?? new Ed25519KeyCodec());
         $this->jwkThumbprint = $jwkThumbprint ?? new JwkThumbprint();
     }
 
@@ -108,7 +106,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
 
         $base = $this->signatureBase($request, $components, $signatureParams, $headers);
         $signature = '';
-        $signature = $this->rawSignature($base, $key, $algorithm);
+        $signature = $this->signer->sign($base, $key, $algorithm, 'request');
 
         $headers = [
             'Signature-Input' => $signatureInput,
@@ -218,7 +216,7 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
                 throw new SignatureException('Public key PEM is not available for signature verification.');
             }
 
-            $result = $this->verifySignature($base, $signature, $publicKeyPem, $algorithm);
+            $result = $this->signer->verify($base, $signature, $publicKeyPem, $algorithm);
             if ($result !== 1) {
                 throw new SignatureException('Request signature verification failed.');
             }
@@ -429,90 +427,5 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
         $lines[] = sprintf('"@signature-params": %s', $signatureParams);
 
         return implode("\n", $lines);
-    }
-
-    /**
-     * Accepts the fixed-width form the spec requires, and DER for one transition release.
-     *
-     * Releases up to 0.0.5 emitted DER here, so a peer still running one of those keeps working
-     * across the upgrade. Dispatch is on length rather than on the leading 0x30 byte: a raw
-     * signature starts with 0x30 once every 256 signatures, which would misread a conformant
-     * signature as DER and reject it. A DER signature that happens to be exactly the raw length
-     * needs both halves to encode two bytes short, which is around one in 2^48.
-     */
-    private function toDer(string $signature, SignatureAlgorithm $algorithm): string
-    {
-        if (strlen($signature) === $algorithm->coordinateBytes() * 2) {
-            return $this->signatureCodec->rawToDer($signature, $algorithm->coordinateBytes());
-        }
-
-        return $signature;
-    }
-
-    /**
-     * The signature as it goes on the wire.
-     *
-     * Ed25519 is not routed through openssl: PHP's extension cannot use these keys, and the
-     * signature RFC 8032 defines is already the 64 bytes the wire wants -- putting it through
-     * the ECDSA codec would corrupt it rather than reformat it.
-     */
-    private function rawSignature(string $base, ManagedSigningKey $key, SignatureAlgorithm $algorithm): string
-    {
-        if ($algorithm === SignatureAlgorithm::Ed25519) {
-            $secretKey = $this->ed25519Codec->secretKeyFromPem($key->privateKeyPem);
-            if ($secretKey === '') {
-                throw new SignatureException('Ed25519 signing key is empty.');
-            }
-
-            return sodium_crypto_sign_detached($base, $secretKey);
-        }
-
-        $signature = '';
-        if (! openssl_sign($base, $signature, $key->privateKeyPem, $this->opensslAlgorithm($algorithm))) {
-            throw new SignatureException('Unable to sign request.');
-        }
-
-        // openssl emits DER; the wire format is fixed-width r||s.
-        return $this->signatureCodec->derToRaw($signature, $algorithm->coordinateBytes());
-    }
-
-    private function verifySignature(string $base, string $signature, string $publicKeyPem, SignatureAlgorithm $algorithm): int
-    {
-        if ($algorithm !== SignatureAlgorithm::Ed25519) {
-            $result = openssl_verify($base, $this->toDer($signature, $algorithm), $publicKeyPem, $this->opensslAlgorithm($algorithm));
-
-            // openssl reports an internal error as false, which is not a verdict on the
-            // signature. -1 is what openssl_verify itself uses for that, and the caller already
-            // treats anything other than 1 as unverified.
-            return $result === false ? -1 : $result;
-        }
-
-        // A wrong-length signature is a failed verification, not an exception: a peer sending
-        // one is not a configuration problem here, and throwing would turn a bad signature into
-        // a different status code than a bad signature.
-        if (strlen($signature) !== SODIUM_CRYPTO_SIGN_BYTES) {
-            return 0;
-        }
-
-        try {
-            $publicKey = $this->ed25519Codec->publicKeyFromPem($publicKeyPem);
-        } catch (SignatureException) {
-            return 0;
-        }
-
-        if ($publicKey === '') {
-            return 0;
-        }
-
-        return sodium_crypto_sign_verify_detached($signature, $base, $publicKey) ? 1 : 0;
-    }
-
-    private function opensslAlgorithm(SignatureAlgorithm $algorithm): int
-    {
-        return match ($algorithm) {
-            SignatureAlgorithm::Es256 => OPENSSL_ALGO_SHA256,
-            SignatureAlgorithm::Es384 => OPENSSL_ALGO_SHA384,
-            SignatureAlgorithm::Ed25519 => throw new SignatureException('Ed25519 does not use an openssl digest algorithm.'),
-        };
     }
 }
