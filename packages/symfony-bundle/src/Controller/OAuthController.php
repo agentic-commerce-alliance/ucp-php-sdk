@@ -11,13 +11,12 @@ use Symfony\Component\Routing\Attribute\Route;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Contract\IdentityLinkingCapabilityInterface;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
-use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
 use Ucp\Sdk\Symfony\Bridge\UcpResponseFactory;
-use Ucp\Sdk\Symfony\Internal\TargetUri;
+use Ucp\Sdk\Symfony\Internal\SymfonyHttpRequest;
 
 /** @internal */
 final class OAuthController
@@ -80,25 +79,11 @@ final class OAuthController
 
     private function publicContext(Request $request): RequestContext
     {
-        $headers = [];
-        foreach ($request->headers->all() as $name => $values) {
-            $headers[strtolower($name)] = implode(', ', $values);
-        }
-
-        $query = $request->query->all();
-        ksort($query);
-
-        $httpRequest = new HttpRequest(
-            $request->getMethod(),
-            TargetUri::of($request),
-            $headers,
-            array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
-            '',
-        );
+        $httpRequest = SymfonyHttpRequest::withoutBody($request);
 
         return new RequestContext(
             parse_url($request->getUri(), PHP_URL_HOST) ?: '',
-            $headers,
+            $httpRequest->headers,
             runtimeConfiguration: $this->runtimeConfigurationResolver->resolve($httpRequest),
         );
     }
