@@ -11,5 +11,8 @@ Current tools:
 - `internal-class-allowlist.php` holds reviewed exceptions for the internal reference scan.
 - `public-api-snapshot.expected.txt` is the committed reference file.
 - `public-api-snapshot.txt` is the generated working file.
+- `complexity-report.php` ranks cognitive complexity, parameter counts, body length and duplicated code, with a hint per hotspot.
+- `ComplexityReport.php` holds the analysis behind it.
+- `complexity-baseline.json` is the committed ratchet the complexity gate compares against.
 
 For technical notes about how these tools fit into QA, see [AGENTS.md](AGENTS.md).

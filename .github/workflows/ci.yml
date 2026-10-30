@@ -49,6 +49,17 @@ jobs:
       # requirements rather than what a consumer of a published package gets.
       - name: Run QA suite
         run: docker compose run --rm php sh scripts/run-composer-in-ci.sh qa
+      # `qa` ends with `complexity:gate`, which writes the report this step publishes. It runs
+      # on failure too, because a failed gate is exactly when the hotspot list is worth reading.
+      - name: Publish complexity report
+        if: always() && matrix.php == '8.2' && hashFiles('var/reports/complexity/report.md') != ''
+        run: cat var/reports/complexity/report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload complexity report
+        if: always() && matrix.php == '8.2' && hashFiles('var/reports/complexity/report.md') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: complexity-report
+          path: var/reports/complexity/
       - name: Run full mutation sweep
         if: matrix.php == '8.2'
         run: docker compose run --rm php sh scripts/run-composer-in-ci.sh mutation:full
