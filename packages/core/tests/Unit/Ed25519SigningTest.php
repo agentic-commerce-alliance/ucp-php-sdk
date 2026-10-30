@@ -150,6 +150,21 @@ final class Ed25519SigningTest extends TestCase
     }
 
     #[Test]
+    public function aTamperedSignatureOfTheRightLengthFails(): void
+    {
+        $manager = new DefaultSigningKeyManager();
+        $key = $manager->generate('kid-ed', 'EdDSA');
+        $service = new Rfc9421RequestSignatureService(new ContentDigestService());
+        $request = new HttpRequest('GET', 'https://merchant.example/ucp/v1/orders/o1');
+        $headers = $service->sign($request, $key);
+        $headers['Signature'] = 'sig=:' . base64_encode(str_repeat("\0", SODIUM_CRYPTO_SIGN_BYTES)) . ':';
+
+        $result = $service->verify(new HttpRequest($request->method, $request->absoluteUri, $headers), [$manager->toPublicKey($key)]);
+
+        self::assertFalse($result->verified);
+    }
+
+    #[Test]
     public function aSignatureIsVerifiedWhenKeyidIsAThumbprintRatherThanALabel(): void
     {
         // Web-bot-auth names keys by thumbprint. The key set here calls the key "kid-ec", and
