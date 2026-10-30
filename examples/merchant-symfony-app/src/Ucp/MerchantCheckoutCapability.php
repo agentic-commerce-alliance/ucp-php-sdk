@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MerchantSymfonyApp\Ucp;
 
+use MerchantSymfonyApp\Support\CheckoutSelection;
 use MerchantSymfonyApp\Support\FulfillmentPlanner;
 use MerchantSymfonyApp\Support\JsonStateStore;
 use MerchantSymfonyApp\Support\MerchantSettings;
@@ -67,13 +68,9 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
 
         $checkout = $this->checkoutFromRequest(
             $checkoutId,
-            $lineItems,
-            $request->discounts,
-            $request->fulfillment,
-            $request->buyer,
+            new CheckoutSelection($lineItems, $request->discounts, $request->fulfillment, $request->buyer, $request->payment),
             CheckoutStatus::Incomplete,
-            [new Message('info', 'Checkout created from merchant example.')],
-            $request->payment,
+            new Message('info', 'Checkout created from merchant example.'),
         );
 
         $this->stateStore->put(self::COLLECTION, $checkout->id, $checkout->toArray());
@@ -118,13 +115,9 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
 
         $checkout = $this->checkoutFromRequest(
             $request->id,
-            $request->lineItems,
-            $request->discounts,
-            $request->fulfillment,
-            $request->buyer,
+            new CheckoutSelection($request->lineItems, $request->discounts, $request->fulfillment, $request->buyer, $request->payment),
             $status,
-            [new Message('info', 'Checkout updated and re-priced.')],
-            $request->payment,
+            new Message('info', 'Checkout updated and re-priced.'),
         );
 
         $this->stateStore->put(self::COLLECTION, $checkout->id, $checkout->toArray());
@@ -250,22 +243,11 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
         return $canceled;
     }
 
-    /**
-     * @param list<\Ucp\Sdk\Model\Common\LineItem> $lineItems
-     * @param list<\Ucp\Sdk\Model\Checkout\DiscountCode> $discounts
-     * @param list<Message> $messages
-     */
-    private function checkoutFromRequest(
-        string $id,
-        array $lineItems,
-        array $discounts,
-        ?\Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment,
-        ?\Ucp\Sdk\Model\Common\Buyer $buyer,
-        CheckoutStatus $status,
-        array $messages,
-        ?PaymentInstrument $payment = null,
-    ): Checkout {
-        $canonicalLineItems = $this->priceCalculator->canonicalizeLineItems($lineItems);
+    private function checkoutFromRequest(string $id, CheckoutSelection $selection, CheckoutStatus $status, Message $message): Checkout
+    {
+        $discounts = $selection->discounts;
+        $fulfillment = $selection->fulfillment;
+        $canonicalLineItems = $this->priceCalculator->canonicalizeLineItems($selection->lineItems);
         $plannedFulfillment = $this->fulfillmentPlanner->plan($fulfillment, $canonicalLineItems);
 
         return new Checkout(
@@ -274,12 +256,12 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
             $this->settings->currency,
             $canonicalLineItems,
             $this->priceCalculator->calculateTotals($canonicalLineItems, $discounts, $plannedFulfillment),
-            $messages,
+            [$message],
             [
                 new Link('privacy', $this->settings->baseUri . '/privacy', 'Privacy policy'),
                 new Link('terms', $this->settings->baseUri . '/terms', 'Terms and conditions'),
             ],
-            $buyer,
+            $selection->buyer,
             $this->settings->checkoutContinueUrl($id),
             gmdate('c', time() + 1800),
             null,
@@ -291,7 +273,7 @@ final class MerchantCheckoutCapability implements CheckoutCapabilityInterface
                     'codes' => array_map(static fn (\Ucp\Sdk\Model\Checkout\DiscountCode $discount): string => $discount->code, $discounts),
                     'applied' => $this->priceCalculator->appliedDiscounts($canonicalLineItems, $discounts),
                 ],
-                'payment' => $this->paymentView($payment),
+                'payment' => $this->paymentView($selection->payment),
                 'merchant_reference' => [
                     'brand' => $this->settings->brandName,
                     'fulfillment_method' => $fulfillment?->methodId,
