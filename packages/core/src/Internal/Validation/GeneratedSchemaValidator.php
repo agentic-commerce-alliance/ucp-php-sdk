@@ -46,87 +46,12 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
     {
         $schema = $this->resolveSchema($schema, $rootSchema);
 
-        if (isset($schema['allOf']) && is_array($schema['allOf'])) {
-            foreach ($schema['allOf'] as $index => $subSchema) {
-                if (is_array($subSchema)) {
-                    $this->validateValue($value, $subSchema, $path . '.allOf[' . $index . ']', $violations, $rootSchema);
-                }
-            }
-        }
-
-        if (isset($schema['anyOf']) && is_array($schema['anyOf'])) {
-            $branches = $this->validateBranches($value, $schema['anyOf'], $path, $rootSchema);
-
-            if ($branches['matched'] === []) {
-                $violations[] = sprintf('%s must match at least one allowed schema.', $path);
-                foreach ($this->branchReasons($path, $branches['rejected']) as $reason) {
-                    $violations[] = $reason;
-                }
-            }
-        }
-
-        if (isset($schema['oneOf']) && is_array($schema['oneOf'])) {
-            $branches = $this->validateBranches($value, $schema['oneOf'], $path, $rootSchema);
-            $matched = $branches['matched'];
-
-            if (count($matched) !== 1) {
-                $violations[] = sprintf('%s must match exactly one allowed schema.', $path);
-
-                if ($matched === []) {
-                    foreach ($this->branchReasons($path, $branches['rejected']) as $reason) {
-                        $violations[] = $reason;
-                    }
-                } else {
-                    // Ambiguity reads nothing like absence, and the fix is the opposite:
-                    // remove what makes a second branch match, rather than add what a
-                    // missing one wants.
-                    $violations[] = sprintf(
-                        '%s matches %d allowed schemas (%s) and must match exactly one.',
-                        $path,
-                        count($matched),
-                        implode(', ', $matched),
-                    );
-                }
-            }
-        }
-
-        if (isset($schema['not']) && is_array($schema['not'])) {
-            $candidateViolations = [];
-            $this->validateValue($value, $schema['not'], $path, $candidateViolations, $rootSchema);
-            if ($candidateViolations === []) {
-                $violations[] = sprintf('%s must not match the disallowed schema.', $path);
-            }
-        }
-
-        if (isset($schema['if']) && is_array($schema['if'])) {
-            $candidateViolations = [];
-            $this->validateValue($value, $schema['if'], $path, $candidateViolations, $rootSchema);
-            if ($candidateViolations === [] && isset($schema['then']) && is_array($schema['then'])) {
-                $this->validateValue($value, $schema['then'], $path, $violations, $rootSchema);
-            }
-
-            if ($candidateViolations !== [] && isset($schema['else']) && is_array($schema['else'])) {
-                $this->validateValue($value, $schema['else'], $path, $violations, $rootSchema);
-            }
-        }
-
-        if (isset($schema['const']) && ! $this->valuesEqual($value, $schema['const'])) {
-            $violations[] = sprintf('%s must match the expected constant value.', $path);
-        }
-
-        if (isset($schema['enum']) && is_array($schema['enum'])) {
-            $match = false;
-            foreach ($schema['enum'] as $allowedValue) {
-                if ($this->valuesEqual($value, $allowedValue)) {
-                    $match = true;
-                    break;
-                }
-            }
-
-            if (! $match) {
-                $violations[] = sprintf('%s must match one of the allowed values.', $path);
-            }
-        }
+        $this->validateAllOf($value, $schema, $path, $violations, $rootSchema);
+        $this->validateAnyOf($value, $schema, $path, $violations, $rootSchema);
+        $this->validateOneOf($value, $schema, $path, $violations, $rootSchema);
+        $this->validateNot($value, $schema, $path, $violations, $rootSchema);
+        $this->validateConditional($value, $schema, $path, $violations, $rootSchema);
+        $this->validateConstAndEnum($value, $schema, $path, $violations);
 
         $expectedTypes = $this->normalizeExpectedTypes($schema['type'] ?? null);
         if ($expectedTypes !== null && ! $this->matchesExpectedTypes($value, $expectedTypes)) {
@@ -154,6 +79,160 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
         if ($this->expectsArray($schema)) {
             $this->validateArray($value, $schema, $path, $violations, $rootSchema);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateAllOf(mixed $value, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        $allOf = $schema['allOf'] ?? null;
+        if (! is_array($allOf)) {
+            return;
+        }
+
+        foreach ($allOf as $index => $subSchema) {
+            if (is_array($subSchema)) {
+                $this->validateValue($value, $subSchema, $path . '.allOf[' . $index . ']', $violations, $rootSchema);
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateAnyOf(mixed $value, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        $anyOf = $schema['anyOf'] ?? null;
+        if (! is_array($anyOf)) {
+            return;
+        }
+
+        $branches = $this->validateBranches($value, $anyOf, $path, $rootSchema);
+
+        if ($branches['matched'] !== []) {
+            return;
+        }
+
+        $violations[] = sprintf('%s must match at least one allowed schema.', $path);
+        foreach ($this->branchReasons($path, $branches['rejected']) as $reason) {
+            $violations[] = $reason;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateOneOf(mixed $value, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        $oneOf = $schema['oneOf'] ?? null;
+        if (! is_array($oneOf)) {
+            return;
+        }
+
+        $branches = $this->validateBranches($value, $oneOf, $path, $rootSchema);
+        $matched = $branches['matched'];
+
+        if (count($matched) === 1) {
+            return;
+        }
+
+        $violations[] = sprintf('%s must match exactly one allowed schema.', $path);
+
+        if ($matched === []) {
+            foreach ($this->branchReasons($path, $branches['rejected']) as $reason) {
+                $violations[] = $reason;
+            }
+
+            return;
+        }
+
+        // Ambiguity reads nothing like absence, and the fix is the opposite:
+        // remove what makes a second branch match, rather than add what a
+        // missing one wants.
+        $violations[] = sprintf(
+            '%s matches %d allowed schemas (%s) and must match exactly one.',
+            $path,
+            count($matched),
+            implode(', ', $matched),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateNot(mixed $value, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        $notSchema = $schema['not'] ?? null;
+        if (! is_array($notSchema)) {
+            return;
+        }
+
+        $candidateViolations = [];
+        $this->validateValue($value, $notSchema, $path, $candidateViolations, $rootSchema);
+        if ($candidateViolations === []) {
+            $violations[] = sprintf('%s must not match the disallowed schema.', $path);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateConditional(mixed $value, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        $ifSchema = $schema['if'] ?? null;
+        if (! is_array($ifSchema)) {
+            return;
+        }
+
+        $candidateViolations = [];
+        $this->validateValue($value, $ifSchema, $path, $candidateViolations, $rootSchema);
+        if ($candidateViolations === [] && isset($schema['then']) && is_array($schema['then'])) {
+            $this->validateValue($value, $schema['then'], $path, $violations, $rootSchema);
+        }
+
+        if ($candidateViolations !== [] && isset($schema['else']) && is_array($schema['else'])) {
+            $this->validateValue($value, $schema['else'], $path, $violations, $rootSchema);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     */
+    private function validateConstAndEnum(mixed $value, array $schema, string $path, array &$violations): void
+    {
+        if (isset($schema['const']) && ! $this->valuesEqual($value, $schema['const'])) {
+            $violations[] = sprintf('%s must match the expected constant value.', $path);
+        }
+
+        if (isset($schema['enum']) && is_array($schema['enum']) && ! $this->matchesAnyValue($value, $schema['enum'])) {
+            $violations[] = sprintf('%s must match one of the allowed values.', $path);
+        }
+    }
+
+    /**
+     * @param array<mixed> $allowedValues
+     */
+    private function matchesAnyValue(mixed $value, array $allowedValues): bool
+    {
+        foreach ($allowedValues as $allowedValue) {
+            if ($this->valuesEqual($value, $allowedValue)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -185,8 +264,19 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             $violations[] = sprintf('%s must contain at most %d properties', $path, $schema['maxProperties']);
         }
 
-        $properties = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
-        foreach ($properties as $property => $propertySchema) {
+        $this->validateDeclaredProperties($payload, $schema, $path, $violations, $rootSchema);
+        $this->validateAdditionalProperties($payload, $schema, $path, $violations, $rootSchema);
+    }
+
+    /**
+     * @param array<int|string, mixed> $payload
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateDeclaredProperties(array $payload, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        foreach ($this->declaredProperties($schema) as $property => $propertySchema) {
             if (! array_key_exists((string) $property, $payload) || ! is_array($propertySchema)) {
                 continue;
             }
@@ -195,12 +285,25 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             $this->validateValue($value, $propertySchema, $path . '.' . $property, $violations, $rootSchema);
         }
 
-        if (isset($schema['propertyNames']) && is_array($schema['propertyNames'])) {
-            foreach (array_keys($payload) as $property) {
-                $this->validateValue((string) $property, $schema['propertyNames'], $path . '.' . $property, $violations, $rootSchema);
-            }
+        $propertyNames = $schema['propertyNames'] ?? null;
+        if (! is_array($propertyNames)) {
+            return;
         }
 
+        foreach (array_keys($payload) as $property) {
+            $this->validateValue((string) $property, $propertyNames, $path . '.' . $property, $violations, $rootSchema);
+        }
+    }
+
+    /**
+     * @param array<int|string, mixed> $payload
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateAdditionalProperties(array $payload, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        $properties = $this->declaredProperties($schema);
         $additionalProperties = $schema['additionalProperties'] ?? true;
         foreach ($payload as $property => $propertyValue) {
             if (array_key_exists((string) $property, $properties)) {
@@ -216,6 +319,16 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
                 $this->validateValue($propertyValue, $additionalProperties, $path . '.' . $property, $violations, $rootSchema);
             }
         }
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     *
+     * @return array<int|string, mixed>
+     */
+    private function declaredProperties(array $schema): array
+    {
+        return is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
     }
 
     /**
@@ -241,25 +354,7 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             $violations[] = sprintf('%s must contain at most %d items', $path, $schema['maxItems']);
         }
 
-        if (isset($schema['contains']) && is_array($schema['contains'])) {
-            $matches = 0;
-            foreach ($value as $entry) {
-                $candidateViolations = [];
-                $this->validateValue($entry, $schema['contains'], $path, $candidateViolations, $rootSchema);
-                if ($candidateViolations === []) {
-                    ++$matches;
-                }
-            }
-
-            $minContains = isset($schema['minContains']) && is_int($schema['minContains']) ? $schema['minContains'] : 1;
-            if ($matches < $minContains) {
-                $violations[] = sprintf('%s must contain at least %d matching items', $path, $minContains);
-            }
-
-            if (isset($schema['maxContains']) && is_int($schema['maxContains']) && $matches > $schema['maxContains']) {
-                $violations[] = sprintf('%s must contain at most %d matching items', $path, $schema['maxContains']);
-            }
-        }
+        $this->validateContains($value, $schema, $path, $violations, $rootSchema);
 
         $items = $schema['items'] ?? null;
         if (! is_array($items)) {
@@ -268,6 +363,38 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
 
         foreach ($value as $index => $entry) {
             $this->validateValue($entry, $items, sprintf('%s[%d]', $path, $index), $violations, $rootSchema);
+        }
+    }
+
+    /**
+     * @param list<mixed> $value
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validateContains(array $value, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
+        $contains = $schema['contains'] ?? null;
+        if (! is_array($contains)) {
+            return;
+        }
+
+        $matches = 0;
+        foreach ($value as $entry) {
+            $candidateViolations = [];
+            $this->validateValue($entry, $contains, $path, $candidateViolations, $rootSchema);
+            if ($candidateViolations === []) {
+                ++$matches;
+            }
+        }
+
+        $minContains = isset($schema['minContains']) && is_int($schema['minContains']) ? $schema['minContains'] : 1;
+        if ($matches < $minContains) {
+            $violations[] = sprintf('%s must contain at least %d matching items', $path, $minContains);
+        }
+
+        if (isset($schema['maxContains']) && is_int($schema['maxContains']) && $matches > $schema['maxContains']) {
+            $violations[] = sprintf('%s must contain at most %d matching items', $path, $schema['maxContains']);
         }
     }
 
@@ -293,26 +420,35 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             }
         }
 
-        if (! isset($schema['format']) || ! is_string($schema['format'])) {
-            return;
+        $format = $schema['format'] ?? null;
+        $requirement = is_string($format) ? $this->unmetFormat($value, $format) : null;
+        if ($requirement !== null) {
+            $violations[] = sprintf('%s must be %s', $path, $requirement);
+        }
+    }
+
+    /**
+     * Names the format a string fails to meet, or null when it meets it or the format is not checked.
+     */
+    private function unmetFormat(string $value, string $format): ?string
+    {
+        return match ($format) {
+            'uri' => filter_var($value, FILTER_VALIDATE_URL) === false ? 'a valid URI' : null,
+            'email' => filter_var($value, FILTER_VALIDATE_EMAIL) === false ? 'a valid email address' : null,
+            'date-time' => $this->isDateTime($value) ? null : 'a valid date-time value',
+            default => null,
+        };
+    }
+
+    private function isDateTime(string $value): bool
+    {
+        try {
+            new \DateTimeImmutable($value);
+        } catch (\Throwable) {
+            return false;
         }
 
-        $format = $schema['format'];
-        if ($format === 'uri' && filter_var($value, FILTER_VALIDATE_URL) === false) {
-            $violations[] = sprintf('%s must be a valid URI', $path);
-        }
-
-        if ($format === 'email' && filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
-            $violations[] = sprintf('%s must be a valid email address', $path);
-        }
-
-        if ($format === 'date-time') {
-            try {
-                new \DateTimeImmutable($value);
-            } catch (\Throwable) {
-                $violations[] = sprintf('%s must be a valid date-time value', $path);
-            }
-        }
+        return true;
     }
 
     /**
