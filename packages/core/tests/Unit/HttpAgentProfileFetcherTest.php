@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
+use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Model\Http\HttpResponseChunkInterface;
 use Ucp\Sdk\Model\Http\HttpResponseInterface;
@@ -147,6 +148,32 @@ final class HttpAgentProfileFetcherTest extends TestCase
         self::assertSame('2026-04-08', $profile->version);
         self::assertFalse($response->cancelled);
         self::assertCount(1, $cacheRepository->savedProfiles);
+    }
+
+    #[Test]
+    public function itParsesTheWholeDocumentIncludingTheKeysAfterTheUcpObject(): void
+    {
+        $keyManager = new DefaultSigningKeyManager();
+        $body = json_encode([
+            'ucp' => ['version' => '2026-08-25', 'services' => [], 'capabilities' => [], 'payment_handlers' => []],
+            'keys' => [$keyManager->toPublicKey($keyManager->generate('kid-platform'))->toJwk()],
+        ], JSON_THROW_ON_ERROR);
+        $fetcher = new HttpAgentProfileFetcher(
+            new RecordingHttpClient(
+                new RecordingResponse(200),
+                [new RecordingChunk(content: $body)],
+            ),
+            new RecordingPlatformProfileCacheRepository(),
+            new UrlSafetyValidator(
+                ['platform.example'],
+                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            ),
+        );
+
+        $profile = $fetcher->fetch('https://platform.example/.well-known/ucp');
+
+        self::assertCount(1, $profile->signingKeys);
+        self::assertSame('kid-platform', $profile->signingKeys[0]->kid);
     }
 
     #[Test]
