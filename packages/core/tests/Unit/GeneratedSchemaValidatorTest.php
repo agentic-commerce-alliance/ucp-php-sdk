@@ -380,6 +380,28 @@ final class GeneratedSchemaValidatorTest extends TestCase
         }
     }
 
+    public function testAOneOfThatMatchesNoBranchDoesNotReportAnAmbiguity(): void
+    {
+        $directory = $this->createTemporarySchemaDirectory();
+        file_put_contents($directory . '/custom.json', json_encode([
+            'type' => 'object',
+            'oneOf' => [
+                ['type' => 'object', 'required' => ['a']],
+                ['type' => 'object', 'required' => ['b']],
+            ],
+        ], \JSON_THROW_ON_ERROR));
+
+        try {
+            (new GeneratedSchemaValidator($directory))->validate('custom', ['c' => 1]);
+            self::fail('Neither branch is satisfied.');
+        } catch (ValidationException $exception) {
+            $violations = implode("\n", $exception->getViolations());
+
+            self::assertStringContainsString('$ must match exactly one allowed schema.', $violations);
+            self::assertStringNotContainsString('allowed schemas (', $violations);
+        }
+    }
+
     private function createTemporarySchemaDirectory(): string
     {
         $directory = sys_get_temp_dir() . '/ucp-sdk-schema-' . bin2hex(random_bytes(4));
