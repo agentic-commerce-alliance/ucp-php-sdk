@@ -265,6 +265,7 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
         }
 
         $this->validateDeclaredProperties($payload, $schema, $path, $violations, $rootSchema);
+        $this->validatePropertyNames($payload, $schema, $path, $violations, $rootSchema);
         $this->validateAdditionalProperties($payload, $schema, $path, $violations, $rootSchema);
     }
 
@@ -284,7 +285,16 @@ final class GeneratedSchemaValidator implements SchemaValidatorInterface
             $value = $payload[(string) $property];
             $this->validateValue($value, $propertySchema, $path . '.' . $property, $violations, $rootSchema);
         }
+    }
 
+    /**
+     * @param array<int|string, mixed> $payload
+     * @param array<string, mixed> $schema
+     * @param list<string> $violations
+     * @param array<string, mixed> $rootSchema
+     */
+    private function validatePropertyNames(array $payload, array $schema, string $path, array &$violations, array $rootSchema): void
+    {
         $propertyNames = $schema['propertyNames'] ?? null;
         if (! is_array($propertyNames)) {
             return;

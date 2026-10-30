@@ -382,8 +382,6 @@ final class GeneratedSchemaValidatorTest extends TestCase
 
     public function testAOneOfThatMatchesNoBranchDoesNotReportAnAmbiguity(): void
     {
-        // Absence and ambiguity need opposite fixes, so a payload that matches nothing must
-        // not also be told it matched too much.
         $directory = $this->createTemporarySchemaDirectory();
         file_put_contents($directory . '/custom.json', json_encode([
             'type' => 'object',
