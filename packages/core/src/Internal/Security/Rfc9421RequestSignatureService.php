@@ -389,9 +389,6 @@ final class Rfc9421RequestSignatureService implements RequestSignatureServiceInt
     }
 
     /**
-     * @param list<PublicSigningKey> $keys
-     */
-    /**
      * The keys published at the request's `Signature-Agent` URL.
      *
      * A missing header is not an error here: the tag says the signer is a web bot, and a bot
