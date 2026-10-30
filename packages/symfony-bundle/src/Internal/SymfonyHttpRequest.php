@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Ucp\Sdk\Model\Http\HttpRequest;
 
 /**
- * The body-less `HttpRequest` the transport controllers hand to runtime configuration
+ * The body-less `HttpRequest` the transport and OAuth controllers hand to runtime configuration
  * resolution and A2A context building.
  *
  * Multi-value headers are joined with `, ` and the query is sorted by name, with non-scalar
