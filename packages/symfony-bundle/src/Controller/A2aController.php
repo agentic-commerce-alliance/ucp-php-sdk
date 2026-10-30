@@ -15,13 +15,12 @@ use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
-use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
-use Ucp\Sdk\Symfony\Internal\TargetUri;
+use Ucp\Sdk\Symfony\Internal\SymfonyHttpRequest;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationExecutor;
 use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
@@ -58,7 +57,7 @@ final class A2aController
     #[Route(path: '/.well-known/agent-card.json', methods: ['GET'])]
     public function agentCard(Request $request): Response
     {
-        $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($this->toHttpRequest($request));
+        $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve(SymfonyHttpRequest::withoutBody($request));
         $this->requireTransport($runtimeConfiguration);
 
         $baseUri = $runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $this->configuration->resolvedBaseUri($request->getSchemeAndHttpHost());
@@ -101,7 +100,7 @@ final class A2aController
     #[Route(path: '/ucp/a2a', methods: ['POST'])]
     public function invoke(Request $request): Response
     {
-        $httpRequest = $this->toHttpRequest($request);
+        $httpRequest = SymfonyHttpRequest::withoutBody($request);
         $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($httpRequest);
         $this->requireTransport($runtimeConfiguration);
 
@@ -244,24 +243,5 @@ final class A2aController
                 'message' => $message,
             ],
         ], $statusCode);
-    }
-
-    private function toHttpRequest(Request $request): HttpRequest
-    {
-        $headers = [];
-        foreach ($request->headers->all() as $name => $value) {
-            $headers[$name] = implode(', ', array_map(static fn (?string $entry): string => (string) $entry, $value));
-        }
-
-        $query = $request->query->all();
-        ksort($query);
-
-        return new HttpRequest(
-            $request->getMethod(),
-            TargetUri::of($request),
-            $headers,
-            array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
-            '',
-        );
     }
 }
