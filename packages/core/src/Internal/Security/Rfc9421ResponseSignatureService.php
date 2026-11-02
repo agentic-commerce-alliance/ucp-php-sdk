@@ -31,17 +31,20 @@ final class Rfc9421ResponseSignatureService implements ResponseSignatureServiceI
      */
     public const DEFAULT_SIGNED_COMPONENTS = ['@status', '"@method";req', '"@target-uri";req'];
 
+    private readonly HttpMessageSigner $signer;
+
     /**
      * @param list<string> $signedComponents
      */
     public function __construct(
         private readonly ContentDigestService $contentDigestService,
         private readonly SignatureComponentResolver $componentResolver = new SignatureComponentResolver(),
-        private readonly EcdsaSignatureCodec $signatureCodec = new EcdsaSignatureCodec(),
-        private readonly Ed25519KeyCodec $ed25519Codec = new Ed25519KeyCodec(),
+        EcdsaSignatureCodec $signatureCodec = new EcdsaSignatureCodec(),
+        Ed25519KeyCodec $ed25519Codec = new Ed25519KeyCodec(),
         private readonly int $maxLifetimeSeconds = 300,
         private readonly array $signedComponents = self::DEFAULT_SIGNED_COMPONENTS,
     ) {
+        $this->signer = new HttpMessageSigner($signatureCodec, $ed25519Codec);
     }
 
     public function sign(
@@ -92,7 +95,7 @@ final class Rfc9421ResponseSignatureService implements ResponseSignatureServiceI
 
         $signed = [
             'Signature-Input' => self::LABEL . '=' . $signatureParams,
-            'Signature' => self::LABEL . '=:' . base64_encode($this->rawSignature($base, $key, $algorithm)) . ':',
+            'Signature' => self::LABEL . '=:' . base64_encode($this->signer->sign($base, $key, $algorithm, 'response')) . ':',
         ];
 
         return $digest === null ? $signed : ['Content-Digest' => $digest, ...$signed];
@@ -170,35 +173,4 @@ final class Rfc9421ResponseSignatureService implements ResponseSignatureServiceI
         return $headers;
     }
 
-    /**
-     * Ed25519 does not go through openssl: PHP cannot use these keys there, and RFC 8032
-     * signatures are already the width the wire wants.
-     */
-    private function rawSignature(string $base, ManagedSigningKey $key, SignatureAlgorithm $algorithm): string
-    {
-        if ($algorithm === SignatureAlgorithm::Ed25519) {
-            $secretKey = $this->ed25519Codec->secretKeyFromPem($key->privateKeyPem);
-            if ($secretKey === '') {
-                throw new SignatureException('Ed25519 signing key is empty.');
-            }
-
-            return sodium_crypto_sign_detached($base, $secretKey);
-        }
-
-        $signature = '';
-        if (! openssl_sign($base, $signature, $key->privateKeyPem, $this->opensslAlgorithm($algorithm))) {
-            throw new SignatureException('Unable to sign response.');
-        }
-
-        return $this->signatureCodec->derToRaw($signature, $algorithm->coordinateBytes());
-    }
-
-    private function opensslAlgorithm(SignatureAlgorithm $algorithm): int
-    {
-        return match ($algorithm) {
-            SignatureAlgorithm::Es256 => OPENSSL_ALGO_SHA256,
-            SignatureAlgorithm::Es384 => OPENSSL_ALGO_SHA384,
-            SignatureAlgorithm::Ed25519 => throw new SignatureException('Ed25519 does not use an openssl digest algorithm.'),
-        };
-    }
 }
