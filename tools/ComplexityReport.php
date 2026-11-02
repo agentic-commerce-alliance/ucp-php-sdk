@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Tools;
 
+use PhpParser\Modifiers;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Function_;
-use PhpParser\Modifiers;
 use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
