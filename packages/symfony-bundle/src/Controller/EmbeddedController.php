@@ -12,11 +12,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
-use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\EmbeddedPageRendererInterface;
 use Ucp\Sdk\Symfony\Internal\OriginMatcher;
-use Ucp\Sdk\Symfony\Internal\TargetUri;
+use Ucp\Sdk\Symfony\Internal\SymfonyHttpRequest;
 
 /** @internal */
 final class EmbeddedController
@@ -92,7 +91,7 @@ final class EmbeddedController
 
     private function allowedOrigin(Request $request): ?string
     {
-        $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($this->toHttpRequest($request));
+        $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve(SymfonyHttpRequest::withoutBody($request));
         if (! in_array(Transport::Embedded, $runtimeConfiguration->transports, true)) {
             throw new NotFoundHttpException('Embedded transport is not enabled.');
         }
@@ -130,24 +129,5 @@ final class EmbeddedController
     private function allowsOrigin(string $origin, RuntimeConfiguration $runtimeConfiguration, string $fallbackBaseUri): bool
     {
         return OriginMatcher::allows($origin, $runtimeConfiguration->allowedAgentDomains, $runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $fallbackBaseUri);
-    }
-
-    private function toHttpRequest(Request $request): HttpRequest
-    {
-        $headers = [];
-        foreach ($request->headers->all() as $name => $value) {
-            $headers[$name] = implode(', ', array_map(static fn (?string $entry): string => (string) $entry, $value));
-        }
-
-        $query = $request->query->all();
-        ksort($query);
-
-        return new HttpRequest(
-            $request->getMethod(),
-            TargetUri::of($request),
-            $headers,
-            array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
-            '',
-        );
     }
 }

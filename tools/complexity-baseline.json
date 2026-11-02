@@ -1,0 +1,41 @@
+{
+    "cognitive": {
+        "MerchantSymfonyApp\\Support\\FulfillmentPlanner::orderExpectations": 17,
+        "Ucp\\Sdk\\Internal\\Http\\HttpAgentKeyDirectoryFetcher::fetch": 19,
+        "Ucp\\Sdk\\Internal\\Http\\HttpAgentProfileFetcher::fetchForAllowedHosts": 25,
+        "Ucp\\Sdk\\Internal\\Negotiation\\DefaultCapabilityNegotiator::negotiate": 17,
+        "Ucp\\Sdk\\Internal\\Security\\Rfc9421RequestSignatureService::verify": 30,
+        "Ucp\\Sdk\\Internal\\Service\\DefaultHttpRequestContextFactory::create": 17,
+        "Ucp\\Sdk\\Internal\\Service\\DefaultProfileBuilder::build": 17,
+        "Ucp\\Sdk\\Internal\\Service\\UrlSafetyValidator::validateAndResolve": 21,
+        "Ucp\\Sdk\\Internal\\Validation\\GeneratedSchemaValidator::validateArray": 22,
+        "Ucp\\Sdk\\Internal\\Validation\\GeneratedSchemaValidator::validateObject": 25,
+        "Ucp\\Sdk\\Internal\\Validation\\GeneratedSchemaValidator::validateString": 18,
+        "Ucp\\Sdk\\Internal\\Validation\\GeneratedSchemaValidator::validateValue": 57,
+        "Ucp\\Sdk\\Model\\Checkout\\ConsentPurpose::fromArray": 16,
+        "Ucp\\Sdk\\Symfony\\EventListener\\RequestContextListener::onKernelRequest": 16
+    },
+    "parameters": {
+        "MerchantSymfonyApp\\Ucp\\MerchantCheckoutCapability::__construct": 6,
+        "MerchantSymfonyApp\\Ucp\\MerchantCheckoutCapability::checkoutFromRequest": 8,
+        "Ucp\\Sdk\\Internal\\Http\\HttpAgentProfileFetcher::__construct": 7,
+        "Ucp\\Sdk\\Internal\\Security\\Rfc9421RequestSignatureService::__construct": 8,
+        "Ucp\\Sdk\\Internal\\Security\\Rfc9421ResponseSignatureService::__construct": 6,
+        "Ucp\\Sdk\\Internal\\Service\\DefaultHttpRequestContextFactory::__construct": 8,
+        "Ucp\\Sdk\\Internal\\Service\\DefaultOrderWebhookDispatcher::__construct": 9,
+        "Ucp\\Sdk\\Internal\\Service\\RepositoryProfileSigningKeyProvider::__construct": 6,
+        "Ucp\\Sdk\\Symfony\\Bridge\\DefaultStorage\\StorageCleanupService::__construct": 8,
+        "Ucp\\Sdk\\Symfony\\Operation\\ShoppingOperationExecutor::__construct": 7,
+        "Ucp\\Sdk\\Symfony\\UcpSdkConfiguration::__construct": 29
+    },
+    "lines": {
+        "MerchantSymfonyApp\\Ucp\\MerchantCheckoutCapability::completeCheckout": 84,
+        "Ucp\\Sdk\\Internal\\Http\\HttpAgentProfileFetcher::fetchForAllowedHosts": 86,
+        "Ucp\\Sdk\\Internal\\Security\\Rfc9421RequestSignatureService::verify": 124,
+        "Ucp\\Sdk\\Internal\\Service\\DefaultHttpRequestContextFactory::create": 124,
+        "Ucp\\Sdk\\Internal\\Validation\\GeneratedSchemaValidator::validateValue": 113,
+        "Ucp\\Sdk\\Symfony\\DependencyInjection\\Configuration::getConfigTreeBuilder": 187,
+        "Ucp\\Sdk\\Symfony\\DependencyInjection\\UcpSdkExtension::load": 330
+    },
+    "duplicated_lines": 143
+}

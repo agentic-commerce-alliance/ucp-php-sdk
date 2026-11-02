@@ -1,12 +1,18 @@
 # Changelog
 
-## 0.0.8 - 2026-10-30
+## 0.0.8 - 2026-11-02
 
 ### Added
 
 - `Ucp\Sdk\Model\Common\Media` and an optional, ordered `media` list as the last `Product` constructor argument. The first item is the featured media. Without an explicit `imageUrl`, `image_url` comes from the first item only when it is an image, so a video or 3D model never becomes an image URL. Omitting `media` keeps the previous payload. `Media` refuses what the pinned `common/types/media.json` refuses: an empty `type`, a `url` that is not absolute, or a `width` or `height` below 1 throws `ValidationException`. Variants carry no media yet ([#203](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/203), fixes [#99](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/99)).
 - `PaymentInstrument::$selected`, an optional last constructor argument that defaults to `false`. The mapper reads the schema's `selected` flag, create and update pick the selected instrument and fall back to the first one, and complete passes the full instrument list with its selection state. The fallback keeps `selected: false` as sent, so `false` does not mean "nothing chosen" ([#202](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/202), refs [#190](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/190)).
 - Package descriptions, keywords, homepage and support links in both published manifests, so Composer and Packagist searches for UCP and agentic commerce find them ([#217](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/217)).
+
+### Changed
+
+- The bundle's long service definitions are wired by parameter name instead of by position. Behaviour is unchanged, but a compiler pass that edits one of those definitions with `replaceArgument(<int>, ...)` must now use the parameter name, for example `replaceArgument('$urlSafetyValidator', ...)` ([#193](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/193)).
+- Internal refactors with no change on the wire: request and response signing share one RFC 9421 signing primitive, and request verification runs as named steps with the same order and messages ([#233](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/233), [#238](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/238)); the schema validator is split into keyword steps ([#231](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/231)); the agent profile and key directory fetchers share one bounded JSON read ([#234](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/234)); the controllers share one `HttpRequest` conversion ([#232](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/232)).
+- `composer complexity` reports cognitive complexity, parameter counts and duplication, and `composer complexity:gate` joins `composer qa` as a ratchet against `tools/complexity-baseline.json` ([#236](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/236)).
 
 ### Fixed
 
@@ -21,6 +27,8 @@
 - No backward-incompatible change against `0.0.7`. The new constructor arguments are optional and last.
 - An adapter that treated `501` on the root OAuth metadata path as "identity linking off" must now
   expect `404`.
+- A compiler pass that replaces an argument of a bundle service by its position must switch to the
+  parameter name. Replacing a whole definition, as the Shopware plugin does, is unaffected.
 
 ## 0.0.7 - 2026-09-15
 

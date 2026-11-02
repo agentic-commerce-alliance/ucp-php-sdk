@@ -13,6 +13,7 @@
         "icanhazstring/composer-unused": "^0.9.4",
         "infection/infection": "^0.31.9",
         "maglnet/composer-require-checker": "^4.18",
+        "nikic/php-parser": "^5.3",
         "pdepend/pdepend": "^3.0",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^11.5",
@@ -21,7 +22,8 @@
         "symfony/browser-kit": "^6.4 || ^7.0",
         "symfony/css-selector": "^6.4 || ^7.0",
         "symfony/dotenv": "^6.4 || ^7.0",
-        "symfony/phpunit-bridge": "^8.1.0"
+        "symfony/phpunit-bridge": "^8.1.0",
+        "tomasvotruba/cognitive-complexity": "^1.3"
     },
     "repositories": [
         {
@@ -53,7 +55,8 @@
             "Ucp\\Sdk\\Symfony\\Tests\\": "packages/symfony-bundle/tests/"
         },
         "files": [
-            "tools/InternalClassReferenceScanner.php"
+            "tools/InternalClassReferenceScanner.php",
+            "tools/ComplexityReport.php"
         ]
     },
     "scripts": {
@@ -126,14 +129,18 @@
             "@coverage:gate",
             "@mutation:gate",
             "@public-api:check",
-            "@metrics:pdepend"
+            "@metrics:pdepend",
+            "@complexity:gate"
         ],
         "require-check": "sh scripts/require-check.sh",
         "sync:verify": "@php tools/sync-ucp-schemas.php --verify",
         "spec-drift": "php tools/check-spec-drift.php",
         "public-api:dump": "php tools/build-public-api-snapshot.php",
         "public-api:check": "php tools/check-public-api-snapshot.php",
-        "bc-check": "sh scripts/bc-check.sh HEAD^ HEAD"
+        "bc-check": "sh scripts/bc-check.sh HEAD^ HEAD",
+        "complexity": "@php tools/complexity-report.php",
+        "complexity:gate": "@php tools/complexity-report.php --enforce",
+        "complexity:baseline": "@php tools/complexity-report.php --update-baseline"
     },
     "config": {
         "sort-packages": true,

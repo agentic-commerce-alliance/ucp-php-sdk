@@ -8,11 +8,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
-use Ucp\Sdk\Symfony\Internal\TargetUri;
+use Ucp\Sdk\Symfony\Internal\SymfonyHttpRequest;
 use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 /** @internal */
@@ -29,7 +28,7 @@ final class ProfileController
     public function __invoke(Request $request): Response
     {
         $baseUri = $this->configuration->resolvedBaseUri($request->getSchemeAndHttpHost());
-        $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($this->toHttpRequest($request));
+        $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve(SymfonyHttpRequest::withoutBody($request));
         $baseUri = $runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $baseUri;
 
         $profile = $this->profileBuilder->build(new ProfileBuildInput(
@@ -54,24 +53,5 @@ final class ProfileController
         $response->headers->addCacheControlDirective('must-revalidate');
 
         return $response;
-    }
-
-    private function toHttpRequest(Request $request): HttpRequest
-    {
-        $headers = [];
-        foreach ($request->headers->all() as $name => $value) {
-            $headers[$name] = implode(', ', array_map(static fn (?string $entry): string => (string) $entry, $value));
-        }
-
-        $query = $request->query->all();
-        ksort($query);
-
-        return new HttpRequest(
-            $request->getMethod(),
-            TargetUri::of($request),
-            $headers,
-            array_map(static fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR), $query),
-            '',
-        );
     }
 }

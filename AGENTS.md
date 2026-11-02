@@ -329,6 +329,11 @@ checked out on the host is what the lane runs, and the SDK is never edited insid
 - Internal coverage summary: `docker compose run --rm php composer coverage:internal`
 - Coverage hard gate: `docker compose run --rm php composer coverage:gate`
 - Dead code gate: `docker compose run --rm php composer dead-code`
+- Complexity report: `docker compose run --rm php composer complexity`, gate `composer complexity:gate`
+  (part of `qa`), accept the current state with `composer complexity:baseline`. The gate is a
+  ratchet against `tools/complexity-baseline.json`: existing hotspots pass, new or worse ones and
+  more duplicated lines fail. Private and internal signatures can change freely; see
+  [docs/qa-complexity.md](docs/qa-complexity.md).
 - Unused dependencies: `docker compose run --rm php composer unused-deps` (declared but not used)
 - **Undeclared** dependencies: `docker compose run --rm php composer require-check` (used but not
   declared — the other direction, and the one that let the bundle ship six commands extending
