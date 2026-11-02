@@ -19,6 +19,7 @@ Current documents:
 - [security-model.md](security-model.md)
 - [shopware-plugin-blueprint.md](shopware-plugin-blueprint.md)
 - [qa-dead-code.md](qa-dead-code.md)
+- [qa-complexity.md](qa-complexity.md) — cognitive complexity, parameter counts and duplication, with the ratchet gate
 
 Deferred work notes also live in the relevant docs. Right now the QA doc tracks the parked Rector follow-up for Symfony code quality.
 
