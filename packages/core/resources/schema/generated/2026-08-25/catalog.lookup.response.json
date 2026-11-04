@@ -760,7 +760,7 @@
                                     "$schema": "https://json-schema.org/draft/2020-12/schema",
                                     "$id": "https://ucp.dev/schemas/common/types/media.json",
                                     "title": "Media",
-                                    "description": "Media item (image, video, etc.).",
+                                    "description": "One logical media item \u2014 such as an image, a video, or a 3D model. `url` identifies the resource the Platform renders; `sources` lists alternate renditions; `preview` is a still.",
                                     "type": "object",
                                     "required": [
                                         "type",
@@ -769,12 +769,16 @@
                                     "properties": {
                                         "type": {
                                             "type": "string",
-                                            "description": "Media type. Well-known values: `image`, `video`, `model_3d`."
+                                            "description": "Media type. Well-known values: `image`, `video`, `external_video`, `model_3d`. A Platform MUST NOT reject the containing object for an unrecognized value; it MAY present the item from `preview` and `name`, or omit it."
                                         },
                                         "url": {
                                             "type": "string",
                                             "format": "uri",
-                                            "description": "URL to the media resource."
+                                            "description": "URL of the media resource the Platform renders; interpretation is specialized per `type`."
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "description": "Human-readable title or label for the media, distinct from `alt_text` (accessibility text). Often present for `video` and `model_3d`."
                                         },
                                         "alt_text": {
                                             "type": "string",
@@ -783,14 +787,209 @@
                                         "width": {
                                             "type": "integer",
                                             "minimum": 1,
-                                            "description": "Width in pixels (for images/video)."
+                                            "description": "Intrinsic pixel width of the media item, for image and video types; a rendition's own dimensions are on its `sources` entry."
                                         },
                                         "height": {
                                             "type": "integer",
                                             "minimum": 1,
-                                            "description": "Height in pixels (for images/video)."
+                                            "description": "Intrinsic pixel height of the media item, for image and video types; a rendition's own dimensions are on its `sources` entry."
+                                        },
+                                        "duration": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "description": "Duration in seconds, for time-based media such as `video` and `external_video`."
+                                        },
+                                        "preview": {
+                                            "type": "object",
+                                            "description": "Poster/thumbnail still the Platform renders before or instead of the primary resource. A Business SHOULD provide it for `video`, `external_video`, and `model_3d` unless no suitable still exists, and MAY provide it for `image` as a low-resolution placeholder.",
+                                            "required": [
+                                                "url"
+                                            ],
+                                            "properties": {
+                                                "url": {
+                                                    "type": "string",
+                                                    "format": "uri",
+                                                    "description": "URL of the preview image."
+                                                },
+                                                "width": {
+                                                    "type": "integer",
+                                                    "minimum": 1,
+                                                    "description": "Pixel width of the preview image."
+                                                },
+                                                "height": {
+                                                    "type": "integer",
+                                                    "minimum": 1,
+                                                    "description": "Pixel height of the preview image."
+                                                }
+                                            }
+                                        },
+                                        "sources": {
+                                            "type": "array",
+                                            "description": "Alternate renditions of the resource at `url`. The Business SHOULD include the rendition at `url`.",
+                                            "items": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "$id": "https://ucp.dev/schemas/common/types/media_source.json",
+                                                "title": "Media Source",
+                                                "description": "One encoded rendition of the parent media item: a format or resolution of an image or video, a streaming manifest, or a file format of a 3D model. The Platform selects a source by `mime_type` and dimensions.",
+                                                "type": "object",
+                                                "required": [
+                                                    "url"
+                                                ],
+                                                "properties": {
+                                                    "url": {
+                                                        "type": "string",
+                                                        "format": "uri",
+                                                        "description": "URL to this rendition's file or streaming manifest."
+                                                    },
+                                                    "mime_type": {
+                                                        "type": "string",
+                                                        "description": "IANA media type of this source. A Platform MUST NOT reject the parent media item solely because this value is unknown, but MAY skip a source it cannot decode. Examples: `image/avif`, `image/webp`, `image/jpeg`, `video/mp4`, `video/webm`, `application/vnd.apple.mpegurl` (HLS), `application/dash+xml` (DASH), `model/gltf-binary` (GLB), `model/gltf+json` (glTF), `model/vnd.usdz+zip` (USDZ)."
+                                                    },
+                                                    "format": {
+                                                        "type": "string",
+                                                        "description": "Short format token for display/selection. A Platform MUST NOT reject the parent media item solely because this value is unknown, but MAY skip a source it cannot decode. Examples: `avif`, `webp`, `jpg`, `mp4`, `webm`, `m3u8`, `mpd`, `glb`, `gltf`, `usdz`."
+                                                    },
+                                                    "width": {
+                                                        "type": "integer",
+                                                        "minimum": 1,
+                                                        "description": "Pixel width of this rendition. Omitted for adaptive manifests and 3D models."
+                                                    },
+                                                    "height": {
+                                                        "type": "integer",
+                                                        "minimum": 1,
+                                                        "description": "Pixel height of this rendition. Omitted for adaptive manifests and 3D models."
+                                                    },
+                                                    "filesize": {
+                                                        "type": "integer",
+                                                        "minimum": 1,
+                                                        "description": "File size in bytes. Lets the Platform decide whether to prefetch a large asset (e.g. a multi-megabyte 3D model). Omitted for adaptive-streaming manifests, whose total size is not fixed."
+                                                    }
+                                                }
+                                            }
                                         }
-                                    }
+                                    },
+                                    "allOf": [
+                                        {
+                                            "if": {
+                                                "properties": {
+                                                    "type": {
+                                                        "const": "image"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type"
+                                                ]
+                                            },
+                                            "then": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "$id": "https://ucp.dev/schemas/common/types/media_image.json",
+                                                "title": "Media Image",
+                                                "description": "Type-specific properties for image media.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "url": {
+                                                        "description": "A directly displayable image."
+                                                    },
+                                                    "sources": {
+                                                        "description": "Alternate encodings and sizes of the image (e.g. `image/avif`, `image/webp`, `image/jpeg`; width variants for responsive layout). `url` SHOULD be the most broadly decodable rendition."
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "if": {
+                                                "properties": {
+                                                    "type": {
+                                                        "const": "video"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type"
+                                                ]
+                                            },
+                                            "then": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "$id": "https://ucp.dev/schemas/common/types/media_video.json",
+                                                "title": "Media Video",
+                                                "description": "Type-specific properties for video media.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "url": {
+                                                        "description": "A playable rendition of the video: a progressive file or an adaptive-streaming manifest."
+                                                    },
+                                                    "width": {
+                                                        "description": "Intrinsic pixel width of the video; a rendition's own dimensions are on its `sources` entry."
+                                                    },
+                                                    "height": {
+                                                        "description": "Intrinsic pixel height of the video; a rendition's own dimensions are on its `sources` entry."
+                                                    },
+                                                    "sources": {
+                                                        "description": "Alternate renditions (MP4/WebM) and adaptive manifests (HLS/DASH)."
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "if": {
+                                                "properties": {
+                                                    "type": {
+                                                        "const": "external_video"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type"
+                                                ]
+                                            },
+                                            "then": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "$id": "https://ucp.dev/schemas/common/types/media_external_video.json",
+                                                "title": "Media External Video",
+                                                "description": "Type-specific properties for a video presented through a third-party player.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "url": {
+                                                        "description": "The third-party player the Platform embeds. A video the Business serves as files from any origin, including a CDN, is `video`, not `external_video`."
+                                                    },
+                                                    "sources": {
+                                                        "description": "Not used: a video presented through a player has no renditions."
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "if": {
+                                                "properties": {
+                                                    "type": {
+                                                        "const": "model_3d"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type"
+                                                ]
+                                            },
+                                            "then": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "$id": "https://ucp.dev/schemas/common/types/media_model_3d.json",
+                                                "title": "Media Model 3D",
+                                                "description": "Type-specific properties for 3D model media.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "url": {
+                                                        "description": "The primary model file (e.g. GLB)."
+                                                    },
+                                                    "width": {
+                                                        "description": "Not applicable: a 3D model has no pixel dimensions."
+                                                    },
+                                                    "height": {
+                                                        "description": "Not applicable: a 3D model has no pixel dimensions."
+                                                    },
+                                                    "sources": {
+                                                        "description": "Alternate file formats of the model (glTF/GLB/USDZ)."
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
                                 },
                                 "description": "Product media (images, videos, 3D models). First item is the featured media for listings."
                             },
@@ -1314,7 +1513,7 @@
                                                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                                                 "$id": "https://ucp.dev/schemas/common/types/media.json",
                                                 "title": "Media",
-                                                "description": "Media item (image, video, etc.).",
+                                                "description": "One logical media item \u2014 such as an image, a video, or a 3D model. `url` identifies the resource the Platform renders; `sources` lists alternate renditions; `preview` is a still.",
                                                 "type": "object",
                                                 "required": [
                                                     "type",
@@ -1323,12 +1522,16 @@
                                                 "properties": {
                                                     "type": {
                                                         "type": "string",
-                                                        "description": "Media type. Well-known values: `image`, `video`, `model_3d`."
+                                                        "description": "Media type. Well-known values: `image`, `video`, `external_video`, `model_3d`. A Platform MUST NOT reject the containing object for an unrecognized value; it MAY present the item from `preview` and `name`, or omit it."
                                                     },
                                                     "url": {
                                                         "type": "string",
                                                         "format": "uri",
-                                                        "description": "URL to the media resource."
+                                                        "description": "URL of the media resource the Platform renders; interpretation is specialized per `type`."
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "description": "Human-readable title or label for the media, distinct from `alt_text` (accessibility text). Often present for `video` and `model_3d`."
                                                     },
                                                     "alt_text": {
                                                         "type": "string",
@@ -1337,14 +1540,209 @@
                                                     "width": {
                                                         "type": "integer",
                                                         "minimum": 1,
-                                                        "description": "Width in pixels (for images/video)."
+                                                        "description": "Intrinsic pixel width of the media item, for image and video types; a rendition's own dimensions are on its `sources` entry."
                                                     },
                                                     "height": {
                                                         "type": "integer",
                                                         "minimum": 1,
-                                                        "description": "Height in pixels (for images/video)."
+                                                        "description": "Intrinsic pixel height of the media item, for image and video types; a rendition's own dimensions are on its `sources` entry."
+                                                    },
+                                                    "duration": {
+                                                        "type": "integer",
+                                                        "minimum": 1,
+                                                        "description": "Duration in seconds, for time-based media such as `video` and `external_video`."
+                                                    },
+                                                    "preview": {
+                                                        "type": "object",
+                                                        "description": "Poster/thumbnail still the Platform renders before or instead of the primary resource. A Business SHOULD provide it for `video`, `external_video`, and `model_3d` unless no suitable still exists, and MAY provide it for `image` as a low-resolution placeholder.",
+                                                        "required": [
+                                                            "url"
+                                                        ],
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": "string",
+                                                                "format": "uri",
+                                                                "description": "URL of the preview image."
+                                                            },
+                                                            "width": {
+                                                                "type": "integer",
+                                                                "minimum": 1,
+                                                                "description": "Pixel width of the preview image."
+                                                            },
+                                                            "height": {
+                                                                "type": "integer",
+                                                                "minimum": 1,
+                                                                "description": "Pixel height of the preview image."
+                                                            }
+                                                        }
+                                                    },
+                                                    "sources": {
+                                                        "type": "array",
+                                                        "description": "Alternate renditions of the resource at `url`. The Business SHOULD include the rendition at `url`.",
+                                                        "items": {
+                                                            "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                            "$id": "https://ucp.dev/schemas/common/types/media_source.json",
+                                                            "title": "Media Source",
+                                                            "description": "One encoded rendition of the parent media item: a format or resolution of an image or video, a streaming manifest, or a file format of a 3D model. The Platform selects a source by `mime_type` and dimensions.",
+                                                            "type": "object",
+                                                            "required": [
+                                                                "url"
+                                                            ],
+                                                            "properties": {
+                                                                "url": {
+                                                                    "type": "string",
+                                                                    "format": "uri",
+                                                                    "description": "URL to this rendition's file or streaming manifest."
+                                                                },
+                                                                "mime_type": {
+                                                                    "type": "string",
+                                                                    "description": "IANA media type of this source. A Platform MUST NOT reject the parent media item solely because this value is unknown, but MAY skip a source it cannot decode. Examples: `image/avif`, `image/webp`, `image/jpeg`, `video/mp4`, `video/webm`, `application/vnd.apple.mpegurl` (HLS), `application/dash+xml` (DASH), `model/gltf-binary` (GLB), `model/gltf+json` (glTF), `model/vnd.usdz+zip` (USDZ)."
+                                                                },
+                                                                "format": {
+                                                                    "type": "string",
+                                                                    "description": "Short format token for display/selection. A Platform MUST NOT reject the parent media item solely because this value is unknown, but MAY skip a source it cannot decode. Examples: `avif`, `webp`, `jpg`, `mp4`, `webm`, `m3u8`, `mpd`, `glb`, `gltf`, `usdz`."
+                                                                },
+                                                                "width": {
+                                                                    "type": "integer",
+                                                                    "minimum": 1,
+                                                                    "description": "Pixel width of this rendition. Omitted for adaptive manifests and 3D models."
+                                                                },
+                                                                "height": {
+                                                                    "type": "integer",
+                                                                    "minimum": 1,
+                                                                    "description": "Pixel height of this rendition. Omitted for adaptive manifests and 3D models."
+                                                                },
+                                                                "filesize": {
+                                                                    "type": "integer",
+                                                                    "minimum": 1,
+                                                                    "description": "File size in bytes. Lets the Platform decide whether to prefetch a large asset (e.g. a multi-megabyte 3D model). Omitted for adaptive-streaming manifests, whose total size is not fixed."
+                                                                }
+                                                            }
+                                                        }
                                                     }
-                                                }
+                                                },
+                                                "allOf": [
+                                                    {
+                                                        "if": {
+                                                            "properties": {
+                                                                "type": {
+                                                                    "const": "image"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type"
+                                                            ]
+                                                        },
+                                                        "then": {
+                                                            "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                            "$id": "https://ucp.dev/schemas/common/types/media_image.json",
+                                                            "title": "Media Image",
+                                                            "description": "Type-specific properties for image media.",
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "url": {
+                                                                    "description": "A directly displayable image."
+                                                                },
+                                                                "sources": {
+                                                                    "description": "Alternate encodings and sizes of the image (e.g. `image/avif`, `image/webp`, `image/jpeg`; width variants for responsive layout). `url` SHOULD be the most broadly decodable rendition."
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "if": {
+                                                            "properties": {
+                                                                "type": {
+                                                                    "const": "video"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type"
+                                                            ]
+                                                        },
+                                                        "then": {
+                                                            "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                            "$id": "https://ucp.dev/schemas/common/types/media_video.json",
+                                                            "title": "Media Video",
+                                                            "description": "Type-specific properties for video media.",
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "url": {
+                                                                    "description": "A playable rendition of the video: a progressive file or an adaptive-streaming manifest."
+                                                                },
+                                                                "width": {
+                                                                    "description": "Intrinsic pixel width of the video; a rendition's own dimensions are on its `sources` entry."
+                                                                },
+                                                                "height": {
+                                                                    "description": "Intrinsic pixel height of the video; a rendition's own dimensions are on its `sources` entry."
+                                                                },
+                                                                "sources": {
+                                                                    "description": "Alternate renditions (MP4/WebM) and adaptive manifests (HLS/DASH)."
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "if": {
+                                                            "properties": {
+                                                                "type": {
+                                                                    "const": "external_video"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type"
+                                                            ]
+                                                        },
+                                                        "then": {
+                                                            "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                            "$id": "https://ucp.dev/schemas/common/types/media_external_video.json",
+                                                            "title": "Media External Video",
+                                                            "description": "Type-specific properties for a video presented through a third-party player.",
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "url": {
+                                                                    "description": "The third-party player the Platform embeds. A video the Business serves as files from any origin, including a CDN, is `video`, not `external_video`."
+                                                                },
+                                                                "sources": {
+                                                                    "description": "Not used: a video presented through a player has no renditions."
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "if": {
+                                                            "properties": {
+                                                                "type": {
+                                                                    "const": "model_3d"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "type"
+                                                            ]
+                                                        },
+                                                        "then": {
+                                                            "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                            "$id": "https://ucp.dev/schemas/common/types/media_model_3d.json",
+                                                            "title": "Media Model 3D",
+                                                            "description": "Type-specific properties for 3D model media.",
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "url": {
+                                                                    "description": "The primary model file (e.g. GLB)."
+                                                                },
+                                                                "width": {
+                                                                    "description": "Not applicable: a 3D model has no pixel dimensions."
+                                                                },
+                                                                "height": {
+                                                                    "description": "Not applicable: a 3D model has no pixel dimensions."
+                                                                },
+                                                                "sources": {
+                                                                    "description": "Alternate file formats of the model (glTF/GLB/USDZ)."
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                ]
                                             },
                                             "description": "Variant media (images, videos, 3D models). First item is the featured media for listings."
                                         },
@@ -1962,7 +2360,7 @@
                                                         "$schema": "https://json-schema.org/draft/2020-12/schema",
                                                         "$id": "https://ucp.dev/schemas/common/types/media.json",
                                                         "title": "Media",
-                                                        "description": "Media item (image, video, etc.).",
+                                                        "description": "One logical media item \u2014 such as an image, a video, or a 3D model. `url` identifies the resource the Platform renders; `sources` lists alternate renditions; `preview` is a still.",
                                                         "type": "object",
                                                         "required": [
                                                             "type",
@@ -1971,12 +2369,16 @@
                                                         "properties": {
                                                             "type": {
                                                                 "type": "string",
-                                                                "description": "Media type. Well-known values: `image`, `video`, `model_3d`."
+                                                                "description": "Media type. Well-known values: `image`, `video`, `external_video`, `model_3d`. A Platform MUST NOT reject the containing object for an unrecognized value; it MAY present the item from `preview` and `name`, or omit it."
                                                             },
                                                             "url": {
                                                                 "type": "string",
                                                                 "format": "uri",
-                                                                "description": "URL to the media resource."
+                                                                "description": "URL of the media resource the Platform renders; interpretation is specialized per `type`."
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "description": "Human-readable title or label for the media, distinct from `alt_text` (accessibility text). Often present for `video` and `model_3d`."
                                                             },
                                                             "alt_text": {
                                                                 "type": "string",
@@ -1985,14 +2387,209 @@
                                                             "width": {
                                                                 "type": "integer",
                                                                 "minimum": 1,
-                                                                "description": "Width in pixels (for images/video)."
+                                                                "description": "Intrinsic pixel width of the media item, for image and video types; a rendition's own dimensions are on its `sources` entry."
                                                             },
                                                             "height": {
                                                                 "type": "integer",
                                                                 "minimum": 1,
-                                                                "description": "Height in pixels (for images/video)."
+                                                                "description": "Intrinsic pixel height of the media item, for image and video types; a rendition's own dimensions are on its `sources` entry."
+                                                            },
+                                                            "duration": {
+                                                                "type": "integer",
+                                                                "minimum": 1,
+                                                                "description": "Duration in seconds, for time-based media such as `video` and `external_video`."
+                                                            },
+                                                            "preview": {
+                                                                "type": "object",
+                                                                "description": "Poster/thumbnail still the Platform renders before or instead of the primary resource. A Business SHOULD provide it for `video`, `external_video`, and `model_3d` unless no suitable still exists, and MAY provide it for `image` as a low-resolution placeholder.",
+                                                                "required": [
+                                                                    "url"
+                                                                ],
+                                                                "properties": {
+                                                                    "url": {
+                                                                        "type": "string",
+                                                                        "format": "uri",
+                                                                        "description": "URL of the preview image."
+                                                                    },
+                                                                    "width": {
+                                                                        "type": "integer",
+                                                                        "minimum": 1,
+                                                                        "description": "Pixel width of the preview image."
+                                                                    },
+                                                                    "height": {
+                                                                        "type": "integer",
+                                                                        "minimum": 1,
+                                                                        "description": "Pixel height of the preview image."
+                                                                    }
+                                                                }
+                                                            },
+                                                            "sources": {
+                                                                "type": "array",
+                                                                "description": "Alternate renditions of the resource at `url`. The Business SHOULD include the rendition at `url`.",
+                                                                "items": {
+                                                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                                    "$id": "https://ucp.dev/schemas/common/types/media_source.json",
+                                                                    "title": "Media Source",
+                                                                    "description": "One encoded rendition of the parent media item: a format or resolution of an image or video, a streaming manifest, or a file format of a 3D model. The Platform selects a source by `mime_type` and dimensions.",
+                                                                    "type": "object",
+                                                                    "required": [
+                                                                        "url"
+                                                                    ],
+                                                                    "properties": {
+                                                                        "url": {
+                                                                            "type": "string",
+                                                                            "format": "uri",
+                                                                            "description": "URL to this rendition's file or streaming manifest."
+                                                                        },
+                                                                        "mime_type": {
+                                                                            "type": "string",
+                                                                            "description": "IANA media type of this source. A Platform MUST NOT reject the parent media item solely because this value is unknown, but MAY skip a source it cannot decode. Examples: `image/avif`, `image/webp`, `image/jpeg`, `video/mp4`, `video/webm`, `application/vnd.apple.mpegurl` (HLS), `application/dash+xml` (DASH), `model/gltf-binary` (GLB), `model/gltf+json` (glTF), `model/vnd.usdz+zip` (USDZ)."
+                                                                        },
+                                                                        "format": {
+                                                                            "type": "string",
+                                                                            "description": "Short format token for display/selection. A Platform MUST NOT reject the parent media item solely because this value is unknown, but MAY skip a source it cannot decode. Examples: `avif`, `webp`, `jpg`, `mp4`, `webm`, `m3u8`, `mpd`, `glb`, `gltf`, `usdz`."
+                                                                        },
+                                                                        "width": {
+                                                                            "type": "integer",
+                                                                            "minimum": 1,
+                                                                            "description": "Pixel width of this rendition. Omitted for adaptive manifests and 3D models."
+                                                                        },
+                                                                        "height": {
+                                                                            "type": "integer",
+                                                                            "minimum": 1,
+                                                                            "description": "Pixel height of this rendition. Omitted for adaptive manifests and 3D models."
+                                                                        },
+                                                                        "filesize": {
+                                                                            "type": "integer",
+                                                                            "minimum": 1,
+                                                                            "description": "File size in bytes. Lets the Platform decide whether to prefetch a large asset (e.g. a multi-megabyte 3D model). Omitted for adaptive-streaming manifests, whose total size is not fixed."
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
-                                                        }
+                                                        },
+                                                        "allOf": [
+                                                            {
+                                                                "if": {
+                                                                    "properties": {
+                                                                        "type": {
+                                                                            "const": "image"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "type"
+                                                                    ]
+                                                                },
+                                                                "then": {
+                                                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                                    "$id": "https://ucp.dev/schemas/common/types/media_image.json",
+                                                                    "title": "Media Image",
+                                                                    "description": "Type-specific properties for image media.",
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "url": {
+                                                                            "description": "A directly displayable image."
+                                                                        },
+                                                                        "sources": {
+                                                                            "description": "Alternate encodings and sizes of the image (e.g. `image/avif`, `image/webp`, `image/jpeg`; width variants for responsive layout). `url` SHOULD be the most broadly decodable rendition."
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            {
+                                                                "if": {
+                                                                    "properties": {
+                                                                        "type": {
+                                                                            "const": "video"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "type"
+                                                                    ]
+                                                                },
+                                                                "then": {
+                                                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                                    "$id": "https://ucp.dev/schemas/common/types/media_video.json",
+                                                                    "title": "Media Video",
+                                                                    "description": "Type-specific properties for video media.",
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "url": {
+                                                                            "description": "A playable rendition of the video: a progressive file or an adaptive-streaming manifest."
+                                                                        },
+                                                                        "width": {
+                                                                            "description": "Intrinsic pixel width of the video; a rendition's own dimensions are on its `sources` entry."
+                                                                        },
+                                                                        "height": {
+                                                                            "description": "Intrinsic pixel height of the video; a rendition's own dimensions are on its `sources` entry."
+                                                                        },
+                                                                        "sources": {
+                                                                            "description": "Alternate renditions (MP4/WebM) and adaptive manifests (HLS/DASH)."
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            {
+                                                                "if": {
+                                                                    "properties": {
+                                                                        "type": {
+                                                                            "const": "external_video"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "type"
+                                                                    ]
+                                                                },
+                                                                "then": {
+                                                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                                    "$id": "https://ucp.dev/schemas/common/types/media_external_video.json",
+                                                                    "title": "Media External Video",
+                                                                    "description": "Type-specific properties for a video presented through a third-party player.",
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "url": {
+                                                                            "description": "The third-party player the Platform embeds. A video the Business serves as files from any origin, including a CDN, is `video`, not `external_video`."
+                                                                        },
+                                                                        "sources": {
+                                                                            "description": "Not used: a video presented through a player has no renditions."
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            {
+                                                                "if": {
+                                                                    "properties": {
+                                                                        "type": {
+                                                                            "const": "model_3d"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "type"
+                                                                    ]
+                                                                },
+                                                                "then": {
+                                                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                                    "$id": "https://ucp.dev/schemas/common/types/media_model_3d.json",
+                                                                    "title": "Media Model 3D",
+                                                                    "description": "Type-specific properties for 3D model media.",
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "url": {
+                                                                            "description": "The primary model file (e.g. GLB)."
+                                                                        },
+                                                                        "width": {
+                                                                            "description": "Not applicable: a 3D model has no pixel dimensions."
+                                                                        },
+                                                                        "height": {
+                                                                            "description": "Not applicable: a 3D model has no pixel dimensions."
+                                                                        },
+                                                                        "sources": {
+                                                                            "description": "Alternate file formats of the model (glTF/GLB/USDZ)."
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
                                                     },
                                                     "description": "Variant media (images, videos, 3D models). First item is the featured media for listings."
                                                 },
