@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.0.8 - 2026-11-04
+
+### Added
+
+- `Ucp\Sdk\Model\Common\Media` and an optional, ordered `media` list as the last `Product` constructor argument. The first item is the featured media. Without an explicit `imageUrl`, `image_url` comes from the first item only when it is an image, so a video or 3D model never becomes an image URL. Omitting `media` keeps the previous payload. `Media` refuses what the pinned `common/types/media.json` refuses: an empty `type`, a `url` that is not absolute, or a `width` or `height` below 1 throws `ValidationException`. Variants carry no media yet ([#203](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/203), fixes [#99](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/99)).
+- `PaymentInstrument::$selected`, an optional last constructor argument that defaults to `false`. The mapper reads the schema's `selected` flag, create and update pick the selected instrument and fall back to the first one, and complete passes the full instrument list with its selection state. The fallback keeps `selected: false` as sent, so `false` does not mean "nothing chosen" ([#202](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/202), refs [#190](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/190)).
+- Package descriptions, keywords, homepage and support links in both published manifests, so Composer and Packagist searches for UCP and agentic commerce find them ([#217](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/217)).
+
+### Changed
+
+- The bundle's long service definitions are wired by parameter name instead of by position. Behaviour is unchanged, but a compiler pass that edits one of those definitions with `replaceArgument(<int>, ...)` must now use the parameter name, for example `replaceArgument('$urlSafetyValidator', ...)` ([#193](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/193)).
+- Internal refactors with no change on the wire: request and response signing share one RFC 9421 signing primitive, and request verification runs as named steps with the same order and messages ([#233](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/233), [#238](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/238)); the schema validator is split into keyword steps ([#231](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/231)); the agent profile and key directory fetchers share one bounded JSON read ([#234](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/234)); the controllers share one `HttpRequest` conversion ([#232](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/232)).
+- `composer complexity` reports cognitive complexity, parameter counts and duplication, and `composer complexity:gate` joins `composer qa` as a ratchet against `tools/complexity-baseline.json` ([#236](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/236)).
+
+### Fixed
+
+- `@target-uri` is now the URI the peer sent. It used to come from Symfony's `Request::getUri()`, which sorts and re-encodes the query. A signed request whose query was not alphabetical failed with `401 signature_invalid`, and the `"@target-uri";req` binding in response signatures pointed at the sorted URI. An OAuth authorize request in the usual parameter order was enough to trigger it ([#201](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/201)).
+- `GET /.well-known/oauth-authorization-server` answers `404` while identity linking is not registered or is disabled, instead of `501`. Other authorization servers on the same host publish below that path, and MCP clients probing the root only continue discovery on `404`. `/ucp/v1/oauth/authorize` and `/ucp/v1/oauth/token` keep answering `501` ([#215](https://github.com/agentic-commerce-alliance/ucp-php-sdk/pull/215), fixes [#214](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/214)).
+
+### Upgrade notes
+
+- Install both packages at `0.0.8`. The bundle now requires core `>=0.0.8 <0.1.0`: its payload mapper
+  reads `PaymentInstrument::$selected`, which does not exist in `0.0.7`.
+- No protocol change. This release still serves UCP `2026-08-25`.
+- No backward-incompatible change to the PHP API against `0.0.7`: the new constructor arguments
+  are optional and last. The BC check compares signatures only, so the behaviour changes below are
+  not covered by that statement.
+- `HttpRequest::$absoluteUri` now carries the query exactly as the peer sent it, no longer sorted
+  and re-encoded by Symfony. Adopters see that value in their own
+  `HttpRequestContextFactoryInterface`, `ResponseSignatureServiceInterface` and
+  `RuntimeConfigurationResolverInterface` implementations. A host that finds the Symfony request
+  behind an `HttpRequest` by comparing `absoluteUri` with `Request::getUri()` stops finding it
+  whenever the query is not already in Symfony's normalised form.
+- An adapter that treated `501` on the root OAuth metadata path as "identity linking off" must now
+  expect `404`.
+- A compiler pass that replaces an argument of a bundle service by its position must switch to the
+  parameter name. Replacing a whole definition, as the Shopware plugin does, is unaffected.
+
 ## 0.0.7 - 2026-09-15
 
 ### Changed
