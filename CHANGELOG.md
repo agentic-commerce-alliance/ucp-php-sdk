@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.8 - 2026-11-02
+## 0.0.8 - 2026-11-04
 
 ### Added
 
@@ -24,7 +24,15 @@
 - Install both packages at `0.0.8`. The bundle now requires core `>=0.0.8 <0.1.0`: its payload mapper
   reads `PaymentInstrument::$selected`, which does not exist in `0.0.7`.
 - No protocol change. This release still serves UCP `2026-08-25`.
-- No backward-incompatible change against `0.0.7`. The new constructor arguments are optional and last.
+- No backward-incompatible change to the PHP API against `0.0.7`: the new constructor arguments
+  are optional and last. The BC check compares signatures only, so the behaviour changes below are
+  not covered by that statement.
+- `HttpRequest::$absoluteUri` now carries the query exactly as the peer sent it, no longer sorted
+  and re-encoded by Symfony. Adopters see that value in their own
+  `HttpRequestContextFactoryInterface`, `ResponseSignatureServiceInterface` and
+  `RuntimeConfigurationResolverInterface` implementations. A host that finds the Symfony request
+  behind an `HttpRequest` by comparing `absoluteUri` with `Request::getUri()` stops finding it
+  whenever the query is not already in Symfony's normalised form.
 - An adapter that treated `501` on the root OAuth metadata path as "identity linking off" must now
   expect `404`.
 - A compiler pass that replaces an argument of a bundle service by its position must switch to the
