@@ -80,6 +80,13 @@ final class UcpErrorDescriptorTest extends TestCase
         self::assertSame('recoverable', $profile->severity);
         self::assertSame(424, $profile->httpStatus);
         self::assertFalse($profile->internal);
+
+        // A deferred discovery is the spec's asynchronous-discovery answer, not a failure
+        // of the platform: 503, so the platform asks again once the budget has room.
+        $deferred = UcpErrorDescriptor::fromThrowable(AgentProfileException::discoveryBudgetExceeded('https://platform.example/.well-known/ucp', 42));
+        self::assertSame('agent_profile_discovery_deferred', $deferred->code);
+        self::assertSame('recoverable', $deferred->severity);
+        self::assertSame(503, $deferred->httpStatus);
     }
 
     #[Test]

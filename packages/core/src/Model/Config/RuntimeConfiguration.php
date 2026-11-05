@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Config;
 
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 
@@ -30,6 +31,7 @@ final class RuntimeConfiguration
         public readonly ?string $tenantIdentifier = null,
         public readonly array $transportEndpoints = [],
         public readonly bool $profileFetchingDevelopmentMode = false,
+        public readonly PlatformPolicy $platformPolicy = PlatformPolicy::Listed,
     ) {
     }
 

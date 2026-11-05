@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `platform_policy` (`Ucp\Sdk\Enum\PlatformPolicy`, last optional argument of `RuntimeConfiguration` and `UcpSdkConfiguration`). The default `listed` keeps the gate this SDK always had: a profile host outside `allowed_profile_hosts` is refused, and an empty list refuses every remote platform. `all` is the UCP specification's default, "any platform with a discoverable profile can interact with any business without prior registration": the host list stops gating and becomes the registry of pre-approved platforms. The fetch-safety rules apply in both modes, and `allowed_agent_domains` keeps its own gate. Under `all`, a shop no longer has to list every agent platform by hand before it can buy ([#246](https://github.com/agentic-commerce-alliance/ucp-php-sdk/issues/246)).
+- A discovery budget for platforms outside `allowed_profile_hosts`, the specification's "fixed discovery footprint": `discovery.max_fetches_per_window` profile fetches per `discovery.window_seconds` across all origins, and a per-origin backoff of `discovery.backoff_base_seconds`, doubled per consecutive failure up to `discovery.backoff_max_seconds`. A deferred fetch throws `AgentProfileException::discoveryBudgetExceeded()`, which the bundle answers as `503` with `Retry-After`. A cache hit is never counted, and neither is a listed platform. The state lives behind `DiscoveryBudgetRepositoryInterface`, with the DBAL default in two new tables, `ucp_discovery_windows` and `ucp_discovery_backoff`, which `SchemaBootstrapper` creates and `ucp:storage:cleanup` purges.
+
+### Upgrade notes
+
+- No backward-incompatible change to the PHP API: the new constructor arguments are optional and last, and the new `UrlSafetyValidator::validateAndResolve()` parameter defaults to the previous behaviour. Behaviour is unchanged unless `platform_policy` is set to `all`.
+- Deployments on the DBAL storage adapter must run `SchemaBootstrapper::ensureSchema()` before the next `ucp:storage:cleanup`, under either policy: the cleanup now purges the two new tables, `ucp_discovery_windows` and `ucp_discovery_backoff`, and fails while they are missing.
+- Under the default `listed` policy the request path is unchanged, with one exception: the development-mode loopback shortcut in the request-context factory now returns before the `allowed_agent_domains` check, as it did before `0.0.8`'s shared allow-list reading, so a local platform on loopback is not refused by a configured agent-domain list.
+- An implementation of `DiscoveryBudgetRepositoryInterface` of your own replaces the DBAL default by aliasing the interface.
+
 ## 0.0.8 - 2026-11-04
 
 ### Added

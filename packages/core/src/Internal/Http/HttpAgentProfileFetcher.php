@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Http;
 
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Model\Profile\CachedPlatformProfile;
@@ -27,6 +28,9 @@ use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
  * specification requires profiles to be cacheable, and a fetch per request would turn every
  * platform request into a request to the platform.
  *
+ * Cold fetches of platforms outside the allowed hosts go through the {@see DiscoveryGuard},
+ * which bounds discovery as the specification asks; a cache hit never does.
+ *
  * @internal
  */
 final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherInterface
@@ -41,6 +45,7 @@ final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherI
         int $maxResponseBytes = 1048576,
         private readonly int $maxTtlSeconds = 600,
         private readonly int $minimumTtlSeconds = 60,
+        private readonly DiscoveryGuard $discoveryGuard = new DiscoveryGuard(),
     ) {
         $this->bodyReader = new BoundedJsonReader($httpClient, $timeoutSeconds, $maxResponseBytes);
     }
@@ -50,11 +55,13 @@ final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherI
         return $this->fetchForAllowedHosts($uri, []);
     }
 
-    public function fetchForAllowedHosts(string $uri, array $allowedProfileHosts): PlatformProfile
+    public function fetchForAllowedHosts(string $uri, array $allowedProfileHosts, ?PlatformPolicy $platformPolicy = null): PlatformProfile
     {
+        $platformPolicy ??= $this->discoveryGuard->platformPolicy;
         $validatedUri = $this->urlSafetyValidator->validateAndResolve(
             $uri,
             $allowedProfileHosts === [] ? null : $allowedProfileHosts,
+            $platformPolicy === PlatformPolicy::All,
         );
 
         $entry = $this->cachedEntry($uri);
@@ -63,6 +70,14 @@ final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherI
         }
 
         $stale = $entry !== null ? $entry->profile : $this->staleProfile($uri);
+
+        // Discovery exists only under `All`; `Listed` never fetches an unlisted host. A stale
+        // copy is served rather than deferred: the budget bounds cold fetches, not known platforms.
+        $discovery = $platformPolicy === PlatformPolicy::All
+            && $this->discoveryGuard->isDiscovery($validatedUri->host, $allowedProfileHosts);
+        if ($discovery && $stale === null) {
+            $this->discoveryGuard->assertAllowed($uri, $validatedUri->host);
+        }
 
         try {
             $requestHeaders = ['Accept' => 'application/json'];
@@ -84,6 +99,9 @@ final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherI
                 // The representation we hold is still the platform's. Renew its freshness from
                 // this response's directives; a 304 may carry a new ETag as well.
                 $this->store($uri, $entry->profile, $headers, $entry->etag);
+                if ($discovery) {
+                    $this->discoveryGuard->recordSuccess($validatedUri->host);
+                }
 
                 return $entry->profile;
             }
@@ -96,9 +114,15 @@ final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherI
 
             $profile = PlatformProfile::fromArray($payload);
             $this->store($uri, $profile, $headers, null);
+            if ($discovery) {
+                $this->discoveryGuard->recordSuccess($validatedUri->host);
+            }
 
             return $profile;
         } catch (\Throwable $exception) {
+            if ($discovery) {
+                $this->discoveryGuard->recordFailure($validatedUri->host);
+            }
             if ($stale !== null) {
                 return $stale;
             }

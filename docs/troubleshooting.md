@@ -66,13 +66,26 @@ MCP runtime is the adopter's responsibility (in Shopware, it depends on the
 
 ## Remote profile fetch is blocked
 
-**Cause:** The host of the profile being fetched is not in
-`allowed_profile_hosts`, or a non-public/unsafe URL was rejected by the URL
-safety checks (which block loopback, link-local, and metadata addresses).
+**Cause:** Under `platform_policy: listed` (the default), the host of the
+profile being fetched is not in `allowed_profile_hosts`. Under either policy, a
+non-public/unsafe URL was rejected by the URL safety checks (which block
+loopback, link-local, and metadata addresses).
 
-**Fix:** Add the legitimate host to `allowed_profile_hosts`. For local
+**Fix:** Add the legitimate host to `allowed_profile_hosts`, or set
+`platform_policy: all` to accept any platform with a valid profile. For local
 development against a non-public host, the example apps enable a development
 mode for profile fetching.
+
+## Request answers 503 with a Retry-After header (`agent_profile_discovery_deferred`)
+
+**Cause:** Under `platform_policy: all`, the discovery budget deferred the
+fetch of an unknown platform's profile: either the global window
+(`discovery.max_fetches_per_window` per `discovery.window_seconds`) is full,
+or that origin is in backoff after failed fetches.
+
+**Fix:** The platform retries after `Retry-After` seconds. If a legitimate
+platform keeps being deferred, add its host to `allowed_profile_hosts`, which
+exempts it from the budget, or raise the window size.
 
 ## Idempotent request returns a stale or unexpected response
 

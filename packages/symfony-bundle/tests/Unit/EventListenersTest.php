@@ -139,6 +139,18 @@ final class EventListenersTest extends TestCase
             json_decode((string) $agentProfileResponse->getContent(), true, 512, \JSON_THROW_ON_ERROR)['messages'],
         );
 
+        $deferredEvent = new ExceptionEvent(
+            $kernel,
+            Request::create('/ucp/v1/carts', 'POST'),
+            HttpKernelInterface::MAIN_REQUEST,
+            AgentProfileException::discoveryBudgetExceeded('https://agent.example/.well-known/ucp', 42),
+        );
+        $listener->onKernelException($deferredEvent);
+        $deferredResponse = $deferredEvent->getResponse();
+        self::assertNotNull($deferredResponse);
+        self::assertSame(503, $deferredResponse->getStatusCode());
+        self::assertSame('42', $deferredResponse->headers->get('Retry-After'));
+
         $httpEvent = new ExceptionEvent(
             $kernel,
             Request::create('/ucp/v1/carts', 'POST'),

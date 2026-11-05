@@ -63,7 +63,8 @@ return [
 # config/packages/ucp_sdk.yaml
 ucp_sdk:
     base_uri: '%env(UCP_BASE_URI)%'        # public base URL of this service
-    allowed_profile_hosts: ['your-host']    # hosts allowed when fetching remote profiles
+    platform_policy: 'listed'               # listed (only allowed_profile_hosts) | all (any platform with a valid profile)
+    allowed_profile_hosts: ['your-host']    # the gate under `listed`, the pre-approved fast lane under `all`
     signature_policy: 'log'                 # off | log | strict (start with log locally)
     storage:
         dsn: 'sqlite:///%kernel.project_dir%/var/ucp_sdk.sqlite'  # or a MySQL/PostgreSQL DSN
@@ -220,7 +221,7 @@ For a fuller list with causes and fixes, see [troubleshooting.md](troubleshootin
   (`bin/console ucp:signing-keys:generate` in the bundle).
 - **A2A / embedded routes return 404** — those transports are off by default; enable them
   in `transports`.
-- **Remote profile fetch blocked** — add the host to `allowed_profile_hosts`.
+- **Remote profile fetch blocked** — add the host to `allowed_profile_hosts`, or set `platform_policy: all` to accept any platform with a valid profile.
 
 ## Where to go next
 

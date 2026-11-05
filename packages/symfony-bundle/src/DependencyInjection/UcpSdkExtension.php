@@ -29,11 +29,13 @@ use Ucp\Sdk\Contract\PaymentHandlerInterface;
 use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Contract\ProfileContributorInterface;
 use Ucp\Sdk\Contract\ProfileSigningKeyProviderInterface;
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Event\ProfileBuiltEvent;
 use Ucp\Sdk\Internal\Configuration\StaticRuntimeConfigurationResolver;
+use Ucp\Sdk\Internal\Http\DiscoveryGuard;
 use Ucp\Sdk\Internal\Http\HttpAgentKeyDirectoryFetcher;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
 use Ucp\Sdk\Internal\Negotiation\DefaultCapabilityNegotiator;
@@ -55,8 +57,10 @@ use Ucp\Sdk\Internal\Service\RepositoryProfileSigningKeyProvider;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
 use Ucp\Sdk\Internal\Validation\GeneratedSchemaValidator;
 use Ucp\Sdk\Internal\Validation\SchemaDirectoryLocator;
+use Ucp\Sdk\Model\Config\DiscoveryBudget;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface;
+use Ucp\Sdk\Repository\DiscoveryBudgetRepositoryInterface;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
@@ -88,6 +92,7 @@ use Ucp\Sdk\Symfony\Bridge\DefaultStorage\SecretEncryptorInterface;
 use Ucp\Sdk\Symfony\Bridge\DefaultStorage\StorageCleanupService;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\ConnectionFactory;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalAgentKeyDirectoryCacheRepository;
+use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalDiscoveryBudgetRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalIdempotencyRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalNegotiationSessionRepository;
 use Ucp\Sdk\Symfony\Bridge\DoctrineDbal\DoctrineDbalOAuthStateRepository;
@@ -185,6 +190,7 @@ final class UcpSdkExtension extends Extension
             '$enabledCapabilities' => $config['enabled_capabilities'],
             '$responseSigningEnabled' => $config['response_signing']['enabled'],
             '$profileCacheMaxAge' => $config['profile_cache_max_age'],
+            '$platformPolicy' => $config['platform_policy'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -200,6 +206,7 @@ final class UcpSdkExtension extends Extension
             '$tenantIdentifier' => null,
             '$transportEndpoints' => $config['transport_endpoints'],
             '$profileFetchingDevelopmentMode' => $config['profile_fetching_development_mode'],
+            '$platformPolicy' => PlatformPolicy::from($config['platform_policy']),
         ]));
 
         $container->setDefinition(StaticRuntimeConfigurationResolver::class, new Definition(StaticRuntimeConfigurationResolver::class, [
@@ -263,6 +270,9 @@ final class UcpSdkExtension extends Extension
         $container->setDefinition(DoctrineDbalSignatureNonceRepository::class, new Definition(DoctrineDbalSignatureNonceRepository::class, [
             new Reference('ucp_sdk.connection'),
         ]));
+        $container->setDefinition(DoctrineDbalDiscoveryBudgetRepository::class, new Definition(DoctrineDbalDiscoveryBudgetRepository::class, [
+            new Reference('ucp_sdk.connection'),
+        ]));
 
         $container->setAlias(ManagedSigningKeyRepositoryInterface::class, new Alias(DoctrineDbalSigningKeyRepository::class, true));
         $container->setAlias(IdempotencyRepositoryInterface::class, new Alias(DoctrineDbalIdempotencyRepository::class, true));
@@ -271,6 +281,7 @@ final class UcpSdkExtension extends Extension
         $container->setAlias(AgentKeyDirectoryCacheRepositoryInterface::class, new Alias(DoctrineDbalAgentKeyDirectoryCacheRepository::class, true));
         $container->setAlias(NegotiationSessionRepositoryInterface::class, new Alias(DoctrineDbalNegotiationSessionRepository::class, true));
         $container->setAlias(SignatureNonceRepositoryInterface::class, new Alias(DoctrineDbalSignatureNonceRepository::class, true));
+        $container->setAlias(DiscoveryBudgetRepositoryInterface::class, new Alias(DoctrineDbalDiscoveryBudgetRepository::class, true));
 
         $container->setDefinition(StorageCleanupService::class, new Definition(StorageCleanupService::class, [
             '$oauthStateRepository' => new Reference(OAuthStateRepositoryInterface::class),
@@ -279,6 +290,8 @@ final class UcpSdkExtension extends Extension
             '$platformProfileCacheRepository' => new Reference(PlatformProfileCacheRepositoryInterface::class),
             '$signatureNonceRepository' => new Reference(SignatureNonceRepositoryInterface::class),
             '$managedSigningKeyRepository' => new Reference(ManagedSigningKeyRepositoryInterface::class),
+            '$discoveryBudgetRepository' => new Reference(DiscoveryBudgetRepositoryInterface::class),
+            '$discoveryRetentionSeconds' => max($config['discovery']['window_seconds'], $config['discovery']['backoff_max_seconds']),
             '$signatureNonceRetentionSeconds' => $config['signature_max_lifetime_seconds'],
             '$retiredKeyRetention' => $config['signing_keys']['retired_key_retention'],
         ]));
@@ -315,7 +328,17 @@ final class UcpSdkExtension extends Extension
         ]))
             // The platform's Cache-Control decides freshness; this is the ceiling it cannot
             // exceed and the value used when it says nothing.
-            ->setArgument('$maxTtlSeconds', $config['platform_profile_cache_ttl']);
+            ->setArgument('$maxTtlSeconds', $config['platform_profile_cache_ttl'])
+            ->setArgument('$discoveryGuard', new Definition(DiscoveryGuard::class, [
+                '$repository' => new Reference(DiscoveryBudgetRepositoryInterface::class),
+                '$budget' => new Definition(DiscoveryBudget::class, [
+                    '$maxFetchesPerWindow' => $config['discovery']['max_fetches_per_window'],
+                    '$windowSeconds' => $config['discovery']['window_seconds'],
+                    '$backoffBaseSeconds' => $config['discovery']['backoff_base_seconds'],
+                    '$backoffMaxSeconds' => $config['discovery']['backoff_max_seconds'],
+                ]),
+                '$platformPolicy' => PlatformPolicy::from($config['platform_policy']),
+            ]));
         $container->setAlias(AgentProfileFetcherInterface::class, new Alias(HttpAgentProfileFetcher::class, true));
         $container->setDefinition(HttpAgentKeyDirectoryFetcher::class, new Definition(HttpAgentKeyDirectoryFetcher::class, [
             new Reference(HttpClientInterface::class),

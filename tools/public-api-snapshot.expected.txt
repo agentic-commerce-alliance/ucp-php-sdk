@@ -122,6 +122,10 @@ enum Ucp\Sdk\Enum\CheckoutStatus
   - static cases(): array
   - static from(string|int $value): static
   - static tryFrom(string|int $value): ?static
+enum Ucp\Sdk\Enum\PlatformPolicy
+  - static cases(): array
+  - static from(string|int $value): static
+  - static tryFrom(string|int $value): ?static
 enum Ucp\Sdk\Enum\SignatureAlgorithm
   - static cases(): array
   - coordinateBytes(): int
@@ -194,6 +198,7 @@ class Ucp\Sdk\Event\VersionNegotiationObservedEvent
   - getOutcome(): Ucp\Sdk\Enum\VersionNegotiationOutcome
   - getServedVersion(): string
 class Ucp\Sdk\Exception\AgentProfileException
+  - static discoveryBudgetExceeded(string $uri, int $retryAfterSeconds): self
   - static invalid(string $uri, string $reason, ?Throwable $previous = null): self
   - static tooLarge(string $uri, int $maxResponseBytes): self
   - static unavailable(string $uri, int $statusCode): self
@@ -309,8 +314,12 @@ class Ucp\Sdk\Model\Common\UnitPrice
   - __construct(int $amount, string $currency, Ucp\Sdk\Model\Common\Measure $measure, Ucp\Sdk\Model\Common\Measure $reference)
   - static fromArray(array $payload): ?self
   - toArray(): array
+class Ucp\Sdk\Model\Config\DiscoveryBudget
+  - __construct(int $maxFetchesPerWindow = 60, int $windowSeconds = 60, int $backoffBaseSeconds = 30, int $backoffMaxSeconds = 3600)
+  - backoffSeconds(int $consecutiveFailures): int
+  - windowStart(int $now): int
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
-  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false)
+  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false, Ucp\Sdk\Enum\PlatformPolicy $platformPolicy = Ucp\Sdk\Enum\PlatformPolicy::Listed)
   - isCapabilityEnabled(string $capabilityName): bool
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')
@@ -427,6 +436,13 @@ interface Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface
   - find(string $uri, bool $allowExpired = false): ?Ucp\Sdk\Model\Security\AgentKeyDirectory
   - purgeExpired(int $olderThanUnixTimestamp): void
   - save(string $uri, Ucp\Sdk\Model\Security\AgentKeyDirectory $directory): void
+interface Ucp\Sdk\Repository\DiscoveryBudgetRepositoryInterface
+  - clearFailures(string $origin): void
+  - countFetch(int $windowStart): int
+  - extendBackoff(string $origin, int $retryAfter): void
+  - purgeExpired(int $olderThanUnixTimestamp): void
+  - recordFailure(string $origin, int $retryAfter): int
+  - retryAfter(string $origin): ?int
 interface Ucp\Sdk\Repository\IdempotencyRepositoryInterface
   - claimPending(string $key, string $fingerprint): bool
   - delete(string $key): void
@@ -505,7 +521,7 @@ interface Ucp\Sdk\Service\ProtocolValidatorInterface
   - validateRequest(string $operation, array $payload, Ucp\Sdk\Model\RequestContext $context): void
   - validateResponse(string $operation, array $payload, Ucp\Sdk\Model\RequestContext $context): void
 interface Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface
-  - fetchForAllowedHosts(string $uri, array $allowedProfileHosts): Ucp\Sdk\Model\Profile\PlatformProfile
+  - fetchForAllowedHosts(string $uri, array $allowedProfileHosts, ?Ucp\Sdk\Enum\PlatformPolicy $platformPolicy = null): Ucp\Sdk\Model\Profile\PlatformProfile
 interface Ucp\Sdk\Service\RequestSignatureServiceInterface
   - sign(Ucp\Sdk\Model\Http\HttpRequest $request, Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
   - verify(Ucp\Sdk\Model\Http\HttpRequest $request, array $keys): Ucp\Sdk\Model\Security\SignatureVerificationResult

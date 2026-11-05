@@ -69,6 +69,10 @@ final class Configuration implements ConfigurationInterface
                     ->end()
                 ->end()
                 ->booleanNode('profile_fetching_development_mode')->defaultFalse()->end()
+                // `listed` is the gate this bundle always had. `all` is the specification's
+                // default: any platform with a discoverable profile may interact, and
+                // `allowed_profile_hosts` becomes the registry of pre-approved platforms.
+                ->enumNode('platform_policy')->values(['listed', 'all'])->defaultValue('listed')->end()
                 ->enumNode('signature_policy')->values(['log', 'strict', 'off'])->defaultValue('log')->end()
                 ->arrayNode('response_signing')
                     ->info('Sign UCP responses per RFC 9421, bound to the request that produced them.')
@@ -93,6 +97,23 @@ final class Configuration implements ConfigurationInterface
                 // uncacheable, which is the state this setting exists to leave behind.
                 ->integerNode('profile_cache_max_age')->defaultValue(300)->min(60)->end()
                 ->integerNode('negotiation_session_ttl')->defaultValue(604800)->min(1)->end()
+                // The fixed discovery footprint for platforms outside `allowed_profile_hosts`:
+                // how many of their profiles may be fetched per window across all origins, and
+                // how long a failing origin is left alone. Listed platforms are never counted.
+                ->arrayNode('discovery')
+                    ->info('Bounds for fetching the profiles of platforms outside allowed_profile_hosts. Only read under platform_policy "all".')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->integerNode('max_fetches_per_window')->defaultValue(60)->min(1)->end()
+                        ->integerNode('window_seconds')->defaultValue(60)->min(1)->end()
+                        ->integerNode('backoff_base_seconds')->defaultValue(30)->min(1)->end()
+                        ->integerNode('backoff_max_seconds')->defaultValue(3600)->min(1)->end()
+                    ->end()
+                    ->validate()
+                        ->ifTrue(static fn (array $discovery): bool => $discovery['backoff_base_seconds'] > $discovery['backoff_max_seconds'])
+                        ->thenInvalid('ucp_sdk.discovery.backoff_base_seconds must not exceed backoff_max_seconds.')
+                    ->end()
+                ->end()
                 ->integerNode('signature_max_lifetime_seconds')->defaultValue(300)->min(1)->end()
                 ->arrayNode('oauth')
                     ->addDefaultsIfNotSet()

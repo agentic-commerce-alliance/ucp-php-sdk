@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Service;
 
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Model\Profile\PlatformProfile;
 
 /**
@@ -15,8 +16,10 @@ use Ucp\Sdk\Model\Profile\PlatformProfile;
 interface RequestScopedAgentProfileFetcherInterface extends AgentProfileFetcherInterface
 {
     /**
-     * @param list<string> $allowedProfileHosts host allowlist for this request; an
+     * @param list<string>    $allowedProfileHosts host allowlist for this request; an
      *        empty list falls back to the fetcher's configured default allowlist
+     * @param ?PlatformPolicy $platformPolicy the policy of this request's runtime
+     *        configuration; null keeps the fetcher's configured default
      */
-    public function fetchForAllowedHosts(string $uri, array $allowedProfileHosts): PlatformProfile;
+    public function fetchForAllowedHosts(string $uri, array $allowedProfileHosts, ?PlatformPolicy $platformPolicy = null): PlatformProfile;
 }

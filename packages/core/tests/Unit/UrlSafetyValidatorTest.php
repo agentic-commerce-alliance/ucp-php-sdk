@@ -174,4 +174,53 @@ final class UrlSafetyValidatorTest extends TestCase
 
         $validator->validateAndResolve('https://platform.example/.well-known/ucp', ['other.example']);
     }
+
+    /**
+     * `PlatformPolicy::All` seen from the validator: the allowlist step is skipped, every
+     * fetch-safety rule before it still runs.
+     */
+    #[Test]
+    public function itAllowsAnyPublicHostWhenAskedToSkipTheAllowlist(): void
+    {
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']);
+
+        $validated = $validator->validateAndResolve('https://unknown.example/.well-known/ucp', null, true);
+
+        self::assertSame('unknown.example', $validated->host);
+    }
+
+    #[Test]
+    public function itStillRejectsBlockedAddressesWhenAskedToSkipTheAllowlist(): void
+    {
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['10.0.0.8']);
+
+        $this->expectException(ValidationException::class);
+
+        $validator->validateAndResolve('https://internal.example/.well-known/ucp', null, true);
+    }
+
+    /**
+     * Loopback skips the port and address rules for local development. "Any public host" must
+     * not reopen that door in production: the server's own services stay unreachable.
+     */
+    #[Test]
+    public function itStillRefusesLoopbackWhenAskedToSkipTheAllowlistOutsideDevelopmentMode(): void
+    {
+        $validator = new UrlSafetyValidator();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Profile host "127.0.0.1" is not allowed.');
+
+        $validator->validateAndResolve('https://127.0.0.1:6379/.well-known/ucp', null, true);
+    }
+
+    #[Test]
+    public function itAllowsLoopbackWhenAskedToSkipTheAllowlistInDevelopmentMode(): void
+    {
+        $validator = new UrlSafetyValidator([], null, true);
+
+        $validated = $validator->validateAndResolve('https://localhost/.well-known/ucp', null, true);
+
+        self::assertSame('localhost', $validated->host);
+    }
 }

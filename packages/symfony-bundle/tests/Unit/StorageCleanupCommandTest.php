@@ -7,6 +7,7 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
+use Ucp\Sdk\Repository\DiscoveryBudgetRepositoryInterface;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
@@ -30,6 +31,11 @@ final class StorageCleanupCommandTest extends TestCase
                 $state->idempotencyPurgedAt = $olderThanUnixTimestamp;
             });
 
+        $discoveryBudgetRepository = $this->createMock(DiscoveryBudgetRepositoryInterface::class);
+        $discoveryBudgetRepository
+            ->expects(self::once())
+            ->method('purgeExpired')
+            ->with(self::callback(static fn (int $reference): bool => $reference <= time() - 3600));
         $command = new StorageCleanupCommand(new StorageCleanupService(
             new StorageCleanupOAuthRepository($state),
             $idempotencyRepository,
@@ -39,6 +45,7 @@ final class StorageCleanupCommandTest extends TestCase
             new StorageCleanupSigningKeyRepository($state),
             300,
             'P30D',
+            $discoveryBudgetRepository,
         ));
 
         $tester = new CommandTester($command);

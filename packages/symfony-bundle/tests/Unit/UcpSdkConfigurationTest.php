@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
@@ -78,8 +79,17 @@ final class UcpSdkConfigurationTest extends TestCase
         self::assertSame(['2025-10-01' => 'https://merchant.example/.well-known/ucp/2025-10-01'], $runtime->supportedVersions);
         self::assertSame([Transport::Rest, Transport::A2a], $runtime->transports);
         self::assertSame(['dev.ucp.shopping.checkout'], $runtime->enabledCapabilities);
+        self::assertSame(PlatformPolicy::Listed, $runtime->platformPolicy, 'the default keeps the gate this bundle always had');
         self::assertSame(['a2a' => 'https://merchant.example/ucp/a2a'], $runtime->transportEndpoints);
         self::assertTrue($runtime->profileFetchingDevelopmentMode);
+    }
+
+    #[Test]
+    public function itPassesThePlatformPolicyToTheRuntimeConfiguration(): void
+    {
+        $runtime = $this->configuration(platformPolicy: 'all')->toRuntimeConfiguration();
+
+        self::assertSame(PlatformPolicy::All, $runtime->platformPolicy);
     }
 
     /**
@@ -100,6 +110,7 @@ final class UcpSdkConfigurationTest extends TestCase
         array $transportEndpoints = [],
         bool $profileFetchingDevelopmentMode = false,
         array $enabledCapabilities = [],
+        string $platformPolicy = 'listed',
     ): UcpSdkConfiguration {
         return new UcpSdkConfiguration(
             '2026-04-08',
@@ -129,6 +140,7 @@ final class UcpSdkConfigurationTest extends TestCase
             DefaultOrderWebhookDispatcher::DEFAULT_MAX_RESPONSE_BODY_BYTES,
             $profileFetchingDevelopmentMode,
             $enabledCapabilities,
+            platformPolicy: $platformPolicy,
         );
     }
 }

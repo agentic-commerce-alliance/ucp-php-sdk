@@ -54,8 +54,10 @@ Current config keys:
 - `version`
 - `base_uri`
 - `allowed_profile_hosts`
+- `platform_policy`
 - `allowed_agent_domains`
 - `profile_fetching_development_mode`
+- `discovery.max_fetches_per_window`, `discovery.window_seconds`, `discovery.backoff_base_seconds`, `discovery.backoff_max_seconds`
 - `signature_policy`
 - `idempotency_required`
 - `idempotency_ttl`
