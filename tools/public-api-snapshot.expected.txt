@@ -515,13 +515,15 @@ interface Ucp\Sdk\Service\OrderWebhookPublisherInterface
 interface Ucp\Sdk\Service\PaymentHandlerRegistryInterface
   - all(): array
   - find(string $name): ?Ucp\Sdk\Contract\PaymentHandlerInterface
+interface Ucp\Sdk\Service\PolicyAwareAgentProfileFetcherInterface
+  - fetchForPolicy(string $uri, array $allowedProfileHosts, Ucp\Sdk\Enum\PlatformPolicy $platformPolicy): Ucp\Sdk\Model\Profile\PlatformProfile
 interface Ucp\Sdk\Service\ProfileBuilderInterface
   - build(Ucp\Sdk\Model\Profile\ProfileBuildInput $input): Ucp\Sdk\Model\Profile\PlatformProfile
 interface Ucp\Sdk\Service\ProtocolValidatorInterface
   - validateRequest(string $operation, array $payload, Ucp\Sdk\Model\RequestContext $context): void
   - validateResponse(string $operation, array $payload, Ucp\Sdk\Model\RequestContext $context): void
 interface Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface
-  - fetchForAllowedHosts(string $uri, array $allowedProfileHosts, ?Ucp\Sdk\Enum\PlatformPolicy $platformPolicy = null): Ucp\Sdk\Model\Profile\PlatformProfile
+  - fetchForAllowedHosts(string $uri, array $allowedProfileHosts): Ucp\Sdk\Model\Profile\PlatformProfile
 interface Ucp\Sdk\Service\RequestSignatureServiceInterface
   - sign(Ucp\Sdk\Model\Http\HttpRequest $request, Ucp\Sdk\Model\Security\ManagedSigningKey $key, ?int $created = null, ?int $expires = null): array
   - verify(Ucp\Sdk\Model\Http\HttpRequest $request, array $keys): Ucp\Sdk\Model\Security\SignatureVerificationResult

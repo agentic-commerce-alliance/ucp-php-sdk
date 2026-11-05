@@ -31,8 +31,8 @@ use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
+use Ucp\Sdk\Service\PolicyAwareAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
-use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 
@@ -672,12 +672,12 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
      * does not have the fetcher refuse what the factory just admitted.
      */
     #[Test]
-    public function itPassesThePlatformPolicyToARequestScopedFetcher(): void
+    public function itPassesThePlatformPolicyToAPolicyAwareFetcher(): void
     {
-        $fetcher = $this->createMock(RequestScopedAgentProfileFetcherInterface::class);
+        $fetcher = $this->createMock(PolicyAwareAgentProfileFetcherInterface::class);
         $fetcher
             ->expects($this->once())
-            ->method('fetchForAllowedHosts')
+            ->method('fetchForPolicy')
             ->with('https://new-platform.example/.well-known/ucp', [], PlatformPolicy::All)
             ->willReturn($this->platformProfile);
         $resolver = $this->createMock(RuntimeConfigurationResolverInterface::class);

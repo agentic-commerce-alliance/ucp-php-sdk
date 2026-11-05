@@ -12,7 +12,7 @@ use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Repository\PlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Repository\RevalidatingPlatformProfileCacheRepositoryInterface;
 use Ucp\Sdk\Service\HttpClientInterface;
-use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
+use Ucp\Sdk\Service\PolicyAwareAgentProfileFetcherInterface;
 
 /**
  * Fetches a platform's profile and caches it the way the platform asks to be cached.
@@ -33,7 +33,7 @@ use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
  *
  * @internal
  */
-final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherInterface
+final class HttpAgentProfileFetcher implements PolicyAwareAgentProfileFetcherInterface
 {
     private readonly BoundedJsonReader $bodyReader;
 
@@ -55,9 +55,13 @@ final class HttpAgentProfileFetcher implements RequestScopedAgentProfileFetcherI
         return $this->fetchForAllowedHosts($uri, []);
     }
 
-    public function fetchForAllowedHosts(string $uri, array $allowedProfileHosts, ?PlatformPolicy $platformPolicy = null): PlatformProfile
+    public function fetchForAllowedHosts(string $uri, array $allowedProfileHosts): PlatformProfile
     {
-        $platformPolicy ??= $this->discoveryGuard->platformPolicy;
+        return $this->fetchForPolicy($uri, $allowedProfileHosts, $this->discoveryGuard->platformPolicy);
+    }
+
+    public function fetchForPolicy(string $uri, array $allowedProfileHosts, PlatformPolicy $platformPolicy): PlatformProfile
+    {
         $validatedUri = $this->urlSafetyValidator->validateAndResolve(
             $uri,
             $allowedProfileHosts === [] ? null : $allowedProfileHosts,

@@ -24,6 +24,7 @@ use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
+use Ucp\Sdk\Service\PolicyAwareAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
@@ -105,9 +106,11 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
                 $configuration->profileFetchingDevelopmentMode,
             );
 
-            $platformProfile = $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface
-                ? $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts, $configuration->platformPolicy)
-                : $this->agentProfileFetcher->fetch($profileUri);
+            $platformProfile = match (true) {
+                $this->agentProfileFetcher instanceof PolicyAwareAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForPolicy($profileUri, $configuration->allowedProfileHosts, $configuration->platformPolicy),
+                $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts),
+                default => $this->agentProfileFetcher->fetch($profileUri),
+            };
         }
         $publicKeys = $platformProfile->signingKeys;
         $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);

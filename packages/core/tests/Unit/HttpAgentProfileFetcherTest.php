@@ -738,7 +738,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
         );
 
-        $profile = $fetcher->fetchForAllowedHosts('https://unlisted.example/.well-known/ucp', [], PlatformPolicy::All);
+        $profile = $fetcher->fetchForPolicy('https://unlisted.example/.well-known/ucp', [], PlatformPolicy::All);
 
         self::assertInstanceOf(PlatformProfile::class, $profile);
         self::assertSame(1, $client->requests);

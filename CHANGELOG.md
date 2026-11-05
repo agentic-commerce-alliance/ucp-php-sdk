@@ -9,7 +9,7 @@
 
 ### Upgrade notes
 
-- No backward-incompatible change to the PHP API: the new constructor arguments are optional and last, and the new `UrlSafetyValidator::validateAndResolve()` parameter defaults to the previous behaviour. Behaviour is unchanged unless `platform_policy` is set to `all`.
+- No backward-incompatible change to the PHP API: the new constructor arguments are optional and last, the new `UrlSafetyValidator::validateAndResolve()` parameter defaults to the previous behaviour, and the per-request policy reaches the fetcher through the new `PolicyAwareAgentProfileFetcherInterface` rather than a changed method on `RequestScopedAgentProfileFetcherInterface`. Behaviour is unchanged unless `platform_policy` is set to `all`.
 - Deployments on the DBAL storage adapter must run `SchemaBootstrapper::ensureSchema()` before the next `ucp:storage:cleanup`, under either policy: the cleanup now purges the two new tables, `ucp_discovery_windows` and `ucp_discovery_backoff`, and fails while they are missing.
 - Under the default `listed` policy the request path is unchanged, with one exception: the development-mode loopback shortcut in the request-context factory now returns before the `allowed_agent_domains` check, as it did before `0.0.8`'s shared allow-list reading, so a local platform on loopback is not refused by a configured agent-domain list.
 - An implementation of `DiscoveryBudgetRepositoryInterface` of your own replaces the DBAL default by aliasing the interface.
