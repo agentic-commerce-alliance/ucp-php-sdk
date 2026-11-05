@@ -1,7 +1,7 @@
 {
     "cognitive": {
         "MerchantSymfonyApp\\Support\\FulfillmentPlanner::orderExpectations": 17,
-        "Ucp\\Sdk\\Internal\\Http\\HttpAgentProfileFetcher::fetchForAllowedHosts": 19,
+        "Ucp\\Sdk\\Internal\\Http\\HttpAgentProfileFetcher::fetchForPolicy": 19,
         "Ucp\\Sdk\\Internal\\Negotiation\\DefaultCapabilityNegotiator::negotiate": 17,
         "Ucp\\Sdk\\Internal\\Service\\DefaultProfileBuilder::build": 17,
         "Ucp\\Sdk\\Internal\\Service\\UrlSafetyValidator::validateAndResolve": 19,
@@ -21,7 +21,7 @@
     },
     "lines": {
         "MerchantSymfonyApp\\Ucp\\MerchantCheckoutCapability::completeCheckout": 84,
-        "Ucp\\Sdk\\Internal\\Service\\DefaultHttpRequestContextFactory::create": 122,
+        "Ucp\\Sdk\\Internal\\Service\\DefaultHttpRequestContextFactory::create": 120,
         "Ucp\\Sdk\\Symfony\\Bridge\\DoctrineDbal\\StorageSchemaDefinition::createSchema": 85,
         "Ucp\\Sdk\\Symfony\\DependencyInjection\\Configuration::getConfigTreeBuilder": 208,
         "Ucp\\Sdk\\Symfony\\DependencyInjection\\UcpSdkExtension::load": 346

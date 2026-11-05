@@ -106,11 +106,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
                 $configuration->profileFetchingDevelopmentMode,
             );
 
-            $platformProfile = match (true) {
-                $this->agentProfileFetcher instanceof PolicyAwareAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForPolicy($profileUri, $configuration->allowedProfileHosts, $configuration->platformPolicy),
-                $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts),
-                default => $this->agentProfileFetcher->fetch($profileUri),
-            };
+            $platformProfile = $this->fetchPlatformProfile($profileUri, $configuration);
         }
         $publicKeys = $platformProfile->signingKeys;
         $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);
@@ -169,6 +165,19 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             $merchantAuthorizationVerification,
             $sessionId,
         );
+    }
+
+    /**
+     * The most specific fetch the configured fetcher offers: the policy-aware one carries the
+     * request's policy, the request-scoped one its allowlist, the plain one neither.
+     */
+    private function fetchPlatformProfile(string $profileUri, RuntimeConfiguration $configuration): PlatformProfile
+    {
+        return match (true) {
+            $this->agentProfileFetcher instanceof PolicyAwareAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForPolicy($profileUri, $configuration->allowedProfileHosts, $configuration->platformPolicy),
+            $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts),
+            default => $this->agentProfileFetcher->fetch($profileUri),
+        };
     }
 
     /**
