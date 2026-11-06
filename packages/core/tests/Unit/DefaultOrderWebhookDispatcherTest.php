@@ -352,7 +352,7 @@ final class DefaultOrderWebhookDispatcherTest extends TestCase
     {
         return new UrlSafetyValidator(
             ['platform.example'],
-            static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
         );
     }
 }

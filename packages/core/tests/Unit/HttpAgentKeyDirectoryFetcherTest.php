@@ -37,7 +37,7 @@ final class HttpAgentKeyDirectoryFetcherTest extends TestCase
             'timeout' => 3,
             'max_redirects' => 0,
             'buffer' => false,
-            'resolve' => ['agent.example' => '203.0.113.20'],
+            'resolve' => ['agent.example' => '93.184.216.20'],
         ])->willReturn($response);
         $httpClient->expects(self::once())->method('stream')->with($response, 3)->willReturn([$chunk]);
         $cacheRepository = $this->createMock(AgentKeyDirectoryCacheRepositoryInterface::class);
@@ -49,7 +49,7 @@ final class HttpAgentKeyDirectoryFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['agent.example'],
-                static fn (string $host): array => $host === 'agent.example' ? ['203.0.113.20'] : [],
+                static fn (string $host): array => $host === 'agent.example' ? ['93.184.216.20'] : [],
             ),
             timeoutSeconds: 3,
             maxResponseBytes: \strlen($body),

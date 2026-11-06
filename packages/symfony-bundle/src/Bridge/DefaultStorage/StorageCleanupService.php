@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\Bridge\DefaultStorage;
 
+use Ucp\Sdk\Repository\DiscoveryBudgetRepositoryInterface;
 use Ucp\Sdk\Repository\IdempotencyRepositoryInterface;
 use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
 use Ucp\Sdk\Repository\NegotiationSessionRepositoryInterface;
@@ -23,6 +24,8 @@ final class StorageCleanupService
         private readonly ManagedSigningKeyRepositoryInterface $managedSigningKeyRepository,
         private readonly int $signatureNonceRetentionSeconds,
         private readonly string $retiredKeyRetention,
+        private readonly ?DiscoveryBudgetRepositoryInterface $discoveryBudgetRepository = null,
+        private readonly int $discoveryRetentionSeconds = 3600,
     ) {
     }
 
@@ -33,6 +36,9 @@ final class StorageCleanupService
         $this->idempotencyRepository->purgeExpired($reference);
         $this->negotiationSessionRepository->purgeExpired($reference);
         $this->platformProfileCacheRepository->purgeExpired($reference);
+        // Not `$reference`: that would wipe the window in progress and reset every backoff
+        // the moment it ends, which turns a fixed footprint into one shaped by the cron schedule.
+        $this->discoveryBudgetRepository?->purgeExpired($reference - $this->discoveryRetentionSeconds);
         $this->cleanupSignatureNonces($reference - $this->signatureNonceRetentionSeconds);
         $this->managedSigningKeyRepository->purgeRetired($this->retiredKeyThreshold($reference));
     }

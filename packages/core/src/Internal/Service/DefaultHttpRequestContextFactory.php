@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Internal\Service;
 
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\VersionNegotiationOutcome;
 use Ucp\Sdk\Event\VersionNegotiationObservedEvent;
@@ -23,6 +24,7 @@ use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
+use Ucp\Sdk\Service\PolicyAwareAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RequestScopedAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
@@ -98,14 +100,13 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         if ($platformProfile === null) {
             $this->assertSafeProfileUri(
                 $profileUri,
+                $configuration->platformPolicy,
                 $configuration->allowedProfileHosts,
                 $configuration->allowedAgentDomains,
                 $configuration->profileFetchingDevelopmentMode,
             );
 
-            $platformProfile = $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface
-                ? $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts)
-                : $this->agentProfileFetcher->fetch($profileUri);
+            $platformProfile = $this->fetchPlatformProfile($profileUri, $configuration);
         }
         $publicKeys = $platformProfile->signingKeys;
         $verificationResult = $this->requestSignatureService->verify($request, $publicKeys);
@@ -164,6 +165,19 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             $merchantAuthorizationVerification,
             $sessionId,
         );
+    }
+
+    /**
+     * The most specific fetch the configured fetcher offers: the policy-aware one carries the
+     * request's policy, the request-scoped one its allowlist, the plain one neither.
+     */
+    private function fetchPlatformProfile(string $profileUri, RuntimeConfiguration $configuration): PlatformProfile
+    {
+        return match (true) {
+            $this->agentProfileFetcher instanceof PolicyAwareAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForPolicy($profileUri, $configuration->allowedProfileHosts, $configuration->platformPolicy),
+            $this->agentProfileFetcher instanceof RequestScopedAgentProfileFetcherInterface => $this->agentProfileFetcher->fetchForAllowedHosts($profileUri, $configuration->allowedProfileHosts),
+            default => $this->agentProfileFetcher->fetch($profileUri),
+        };
     }
 
     /**
@@ -256,6 +270,7 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
      */
     private function assertSafeProfileUri(
         string $profileUri,
+        PlatformPolicy $platformPolicy,
         array $allowedProfileHosts,
         array $allowedAgentDomains,
         bool $profileFetchingDevelopmentMode,
@@ -272,25 +287,18 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
             throw new SignatureException('Platform profile URI must not include userinfo.');
         }
 
-        if ($allowedProfileHosts === []) {
-            if ($profileFetchingDevelopmentMode && $this->isLocalDevelopmentProfileUri($scheme, $host)) {
-                return;
-            }
-
-            throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
+        // Under `All`, the host list is the registry of pre-approved platforms and gates nothing;
+        // the fetcher's URL-safety rules still decide what may be fetched at all.
+        if ($platformPolicy === PlatformPolicy::Listed
+            && $allowedProfileHosts === []
+            && $profileFetchingDevelopmentMode
+            && $this->isLocalDevelopmentProfileUri($scheme, $host)
+        ) {
+            return;
         }
 
-        $allowed = false;
-        foreach ($allowedProfileHosts as $allowedHost) {
-            $allowedHost = strtolower($allowedHost);
-            if ($host === $allowedHost || str_ends_with($host, '.' . $allowedHost)) {
-                $allowed = true;
-                break;
-            }
-        }
-
-        if (! $allowed) {
-            throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
+        if ($platformPolicy === PlatformPolicy::Listed) {
+            $this->assertListedProfileHost($host, $allowedProfileHosts);
         }
 
         // Shared with the embedded transport's CORS check rather than reimplemented. This
@@ -299,6 +307,21 @@ final class DefaultHttpRequestContextFactory implements HttpRequestContextFactor
         if ($allowedAgentDomains !== [] && ! AgentDomainAllowList::matchesHost($host, $allowedAgentDomains)) {
             throw new SignatureException('Platform agent domain is not allowed for the current runtime configuration.');
         }
+    }
+
+    /**
+     * @param list<string> $allowedProfileHosts
+     */
+    private function assertListedProfileHost(string $host, array $allowedProfileHosts): void
+    {
+        foreach ($allowedProfileHosts as $allowedHost) {
+            $allowedHost = strtolower($allowedHost);
+            if ($host === $allowedHost || str_ends_with($host, '.' . $allowedHost)) {
+                return;
+            }
+        }
+
+        throw new SignatureException('Platform profile host is not allowed by the current runtime configuration.');
     }
 
     private function isLocalDevelopmentProfileUri(string $scheme, string $host): bool

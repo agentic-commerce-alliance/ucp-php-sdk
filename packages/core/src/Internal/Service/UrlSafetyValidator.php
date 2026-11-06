@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Service;
 
 use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Internal\Security\SpecialUseAddress;
 
 /** @internal */
 final class UrlSafetyValidator
 {
     /** @var list<int> */
     private const REMOTE_ALLOWED_PORTS = [443, 8443];
+
+    private const MAX_URI_LENGTH = 500;
 
     /** @var list<string> */
     private const BLOCKED_HOSTS = [
@@ -38,10 +41,19 @@ final class UrlSafetyValidator
      * @param list<string>|null $allowedHostsOverride when non-null, replaces the
      *        constructor allowlist for this call (e.g. the resolved sales channel's
      *        allowed profile hosts) so the SSRF gate is scoped per request
+     * @param bool $anyPublicHost true skips the allowlist step and only keeps the
+     *        fetch-safety rules: scheme, blocked hosts, ports and resolved addresses.
+     *        This is {@see \Ucp\Sdk\Enum\PlatformPolicy::All} seen from the fetcher.
      */
-    public function validateAndResolve(string $uri, ?array $allowedHostsOverride = null): ValidatedProfileUri
+    public function validateAndResolve(string $uri, ?array $allowedHostsOverride = null, bool $anyPublicHost = false): ValidatedProfileUri
     {
         $allowedHosts = $allowedHostsOverride ?? $this->allowedHosts;
+
+        // The URI is a storage key: the profile cache, the negotiation session and the discovery
+        // backoff all hold it in a 500-character column, and a non-ASCII byte is not a URI.
+        if (strlen($uri) > self::MAX_URI_LENGTH || preg_match('/[^\x21-\x7e]/', $uri) === 1) {
+            throw new ValidationException('Profile URI must be at most 500 ASCII characters.');
+        }
 
         $parts = parse_url($uri);
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
@@ -80,19 +92,35 @@ final class UrlSafetyValidator
 
         $resolution = $this->assertHostDoesNotResolveToBlockedAddress($host);
 
-        if ($allowedHosts === [] && $this->profileFetchingDevelopmentMode && $this->isLocalHost($host)) {
-            return new ValidatedProfileUri($uri, $host, $port, $resolution['resolved_ip'], $resolution['uses_dns']);
+        if ($anyPublicHost) {
+            // Loopback skips the port and address rules above for local development. Without
+            // that mode, "any public host" must not become "and this server's own services".
+            if ($this->isLocalHost($host) && ! $this->profileFetchingDevelopmentMode) {
+                throw new ValidationException(sprintf('Profile host "%s" is not allowed.', $host));
+            }
+        } else {
+            $this->assertHostAllowed($host, $allowedHosts);
         }
 
-        if ($allowedHosts === []) {
-            throw new ValidationException(sprintf('Profile host "%s" is not allowed.', $host));
+        return new ValidatedProfileUri($uri, $host, $port, $resolution['resolved_ip'], $resolution['uses_dns']);
+    }
+
+    /**
+     * The allowlist step: a listed host, a subdomain of one, or loopback in development mode.
+     *
+     * @param list<string> $allowedHosts
+     */
+    private function assertHostAllowed(string $host, array $allowedHosts): void
+    {
+        if ($allowedHosts === [] && $this->profileFetchingDevelopmentMode && $this->isLocalHost($host)) {
+            return;
         }
 
         foreach ($allowedHosts as $allowedHost) {
             $allowedHost = strtolower($allowedHost);
 
             if ($host === $allowedHost || str_ends_with($host, '.' . $allowedHost)) {
-                return new ValidatedProfileUri($uri, $host, $port, $resolution['resolved_ip'], $resolution['uses_dns']);
+                return;
             }
         }
 
@@ -144,7 +172,7 @@ final class UrlSafetyValidator
 
     private function isBlockedIp(string $ip): bool
     {
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+        return SpecialUseAddress::isSpecialUse($ip);
     }
 
     /**

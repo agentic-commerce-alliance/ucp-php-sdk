@@ -10,6 +10,8 @@ final class AgentProfileException extends UcpException
         string $message,
         public readonly string $errorCode,
         ?\Throwable $previous = null,
+        /** Seconds the client should wait before retrying, when the fetch was rate-limited. */
+        public readonly ?int $retryAfterSeconds = null,
     ) {
         parent::__construct($message, 0, $previous);
     }
@@ -44,6 +46,20 @@ final class AgentProfileException extends UcpException
                 $maxResponseBytes,
             ),
             'agent_profile_too_large',
+        );
+    }
+
+    /**
+     * The discovery budget rate-limited the fetch. `$retryAfterSeconds` is how long the
+     * platform should wait, which the transport puts in `Retry-After`; nothing is fetched in
+     * the meantime, so the retry competes for the window again.
+     */
+    public static function discoveryBudgetExceeded(string $uri, int $retryAfterSeconds): self
+    {
+        return new self(
+            sprintf('Platform profile at "%s" was not fetched: the discovery budget is exhausted. Retry after %d seconds.', $uri, $retryAfterSeconds),
+            'agent_profile_discovery_deferred',
+            retryAfterSeconds: $retryAfterSeconds,
         );
     }
 
