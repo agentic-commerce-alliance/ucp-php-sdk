@@ -78,10 +78,11 @@ mode for profile fetching.
 
 ## Request answers 503 with a Retry-After header (`agent_profile_discovery_deferred`)
 
-**Cause:** Under `platform_policy: all`, the discovery budget deferred the
+**Cause:** Under `platform_policy: all`, the discovery budget rate-limited the
 fetch of an unknown platform's profile: either the global window
 (`discovery.max_fetches_per_window` per `discovery.window_seconds`) is full,
-or that origin is in backoff after failed fetches.
+or that profile URL is in backoff after failed fetches. Nothing is fetched in
+the meantime, so the retry competes for the window again.
 
 **Fix:** The platform retries after `Retry-After` seconds. If a legitimate
 platform keeps being deferred, add its host to `allowed_profile_hosts`, which

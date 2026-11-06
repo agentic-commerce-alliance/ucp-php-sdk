@@ -75,8 +75,7 @@ final class ExceptionListener
             $descriptor->httpStatus,
             $this->messages($descriptor, $throwable, $message),
         );
-        // A deferred discovery says when to ask again; the spec's asynchronous-discovery
-        // answer is this header on a 503.
+        // The discovery budget's rate limit says when to ask again.
         if ($throwable instanceof AgentProfileException && $throwable->retryAfterSeconds !== null) {
             $response->headers->set('Retry-After', (string) max(1, $throwable->retryAfterSeconds));
         }

@@ -42,7 +42,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -74,7 +74,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             timeoutSeconds: 7,
         );
@@ -87,7 +87,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         self::assertSame(7, $client->options['timeout']);
         self::assertSame(0, $client->options['max_redirects']);
         self::assertFalse($client->options['buffer']);
-        self::assertSame(['platform.example' => '203.0.113.10'], $client->options['resolve']);
+        self::assertSame(['platform.example' => '93.184.216.34'], $client->options['resolve']);
         self::assertSame(7.0, $client->streamTimeout);
         self::assertFalse($response->lastGetHeadersThrowArgument);
         self::assertFalse($response->cancelled);
@@ -117,7 +117,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 [],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -125,7 +125,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
 
         self::assertInstanceOf(PlatformProfile::class, $profile);
         self::assertCount(1, $cacheRepository->savedProfiles);
-        self::assertSame(['platform.example' => '203.0.113.10'], $client->options['resolve']);
+        self::assertSame(['platform.example' => '93.184.216.34'], $client->options['resolve']);
     }
 
     #[Test]
@@ -142,7 +142,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxResponseBytes: strlen($body),
         );
@@ -170,7 +170,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             new RecordingPlatformProfileCacheRepository(),
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -193,7 +193,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -225,7 +225,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxResponseBytes: 512,
         );
@@ -259,7 +259,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxResponseBytes: 512,
         );
@@ -288,7 +288,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -319,7 +319,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -345,7 +345,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -377,7 +377,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -401,7 +401,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -523,7 +523,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cache,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxTtlSeconds: $maxTtlSeconds,
             minimumTtlSeconds: $minimumTtlSeconds,
@@ -545,7 +545,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         $fetcher = new HttpAgentProfileFetcher(
             $client,
             new NullPlatformProfileCacheRepository(),
-            new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
             discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 1, windowSeconds: 60), PlatformPolicy::All),
         );
 
@@ -578,7 +578,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         $fetcher = new HttpAgentProfileFetcher(
             $client,
             new NullPlatformProfileCacheRepository(),
-            new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
             discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 1, windowSeconds: 60), PlatformPolicy::All),
         );
         $fetcher->fetchForAllowedHosts('https://unknown.example/.well-known/ucp', ['listed.example']);
@@ -601,7 +601,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         $fetcher = new HttpAgentProfileFetcher(
             $client,
             new RecordingPlatformProfileCacheRepository($cached),
-            new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
             discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 1, windowSeconds: 60), PlatformPolicy::All),
         );
         $fetcher->fetchForAllowedHosts('https://other.example/.well-known/ucp', []);
@@ -624,7 +624,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         $fetcher = new HttpAgentProfileFetcher(
             $client,
             new RecordingPlatformProfileCacheRepository(),
-            new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
             discoveryGuard: new DiscoveryGuard($budget, new DiscoveryBudget(maxFetchesPerWindow: 100, backoffBaseSeconds: 30), PlatformPolicy::All),
         );
 
@@ -643,7 +643,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             self::assertSame(30, $exception->retryAfterSeconds);
         }
         self::assertSame(1, $client->requests, 'the backed-off origin is not fetched again');
-        self::assertNotNull($budget->retryAfter('flaky.example'));
+        self::assertNotNull($budget->retryAfter('https://flaky.example/.well-known/ucp'));
     }
 
     /**
@@ -654,20 +654,20 @@ final class HttpAgentProfileFetcherTest extends TestCase
     {
         $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
         $budget = new InMemoryDiscoveryBudgetRepository();
-        $budget->recordFailure('recovered.example', time() - 1);
+        $budget->recordFailure('https://recovered.example/.well-known/ucp', time() - 1);
         $fetcher = new HttpAgentProfileFetcher(
             new RecordingHttpClient(
                 new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
                 [new RecordingChunk(content: $body), new RecordingChunk()],
             ),
             new RecordingPlatformProfileCacheRepository(),
-            new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
             discoveryGuard: new DiscoveryGuard($budget, platformPolicy: PlatformPolicy::All),
         );
 
         $fetcher->fetchForAllowedHosts('https://recovered.example/.well-known/ucp', []);
 
-        self::assertNull($budget->retryAfter('recovered.example'));
+        self::assertNull($budget->retryAfter('https://recovered.example/.well-known/ucp'));
     }
 
     /**
@@ -679,18 +679,46 @@ final class HttpAgentProfileFetcherTest extends TestCase
     {
         $stale = new PlatformProfile('2026-04-08', [], [], [], []);
         $budget = new InMemoryDiscoveryBudgetRepository();
-        $budget->recordFailure('known.example', time() + 600);
+        $budget->recordFailure('https://known.example/.well-known/ucp', time() + 600);
         $client = new RecordingHttpClient(new RecordingResponse(500), []);
         $fetcher = new HttpAgentProfileFetcher(
             $client,
             new RecordingPlatformProfileCacheRepository(null, $stale),
-            new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
             discoveryGuard: new DiscoveryGuard($budget, new DiscoveryBudget(maxFetchesPerWindow: 0), PlatformPolicy::All),
         );
 
         $profile = $fetcher->fetchForAllowedHosts('https://known.example/.well-known/ucp', []);
 
         self::assertSame($stale, $profile);
+        self::assertSame(0, $client->requests, 'a deferred fetch never reaches the network, stale copy or not');
+    }
+
+    /**
+     * Keyed on the host, one request naming a path that 404s would lock the platform's real
+     * profile out. Keyed on the URL, the bad path backs off and the real profile stays reachable.
+     */
+    #[Test]
+    public function itBacksOffTheFailingUrlAndNotThePlatformsRealProfile(): void
+    {
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $budget = new InMemoryDiscoveryBudgetRepository();
+        $budget->recordFailure('https://platform.example/does-not-exist.json', time() + 600);
+        $client = new RecordingHttpClient(
+            new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
+            [new RecordingChunk(content: $body), new RecordingChunk()],
+        );
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new NullPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard($budget, platformPolicy: PlatformPolicy::All),
+        );
+
+        $profile = $fetcher->fetchForAllowedHosts('https://platform.example/.well-known/ucp', []);
+
+        self::assertInstanceOf(PlatformProfile::class, $profile);
+        self::assertSame(1, $client->requests);
     }
 
     /**
@@ -705,7 +733,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         $fetcher = new HttpAgentProfileFetcher(
             $client,
             new NullPlatformProfileCacheRepository(),
-            new UrlSafetyValidator(['listed.example'], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator(['listed.example'], static fn (string $host): array => ['93.184.216.34']),
             discoveryGuard: new DiscoveryGuard($budget, new DiscoveryBudget(maxFetchesPerWindow: 0, backoffBaseSeconds: 30)),
         );
 
@@ -717,7 +745,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
                 self::assertSame('agent_profile_unavailable', $exception->errorCode, "attempt {$attempt} is a plain failure, not a deferral");
             }
         }
-        self::assertNull($budget->retryAfter('listed.example'));
+        self::assertNull($budget->retryAfter('https://listed.example/.well-known/ucp'));
     }
 
     /**
@@ -735,7 +763,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         $fetcher = new HttpAgentProfileFetcher(
             $client,
             new NullPlatformProfileCacheRepository(),
-            new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
         );
 
         $profile = $fetcher->fetchForPolicy('https://unlisted.example/.well-known/ucp', [], PlatformPolicy::All);

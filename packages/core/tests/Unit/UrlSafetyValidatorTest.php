@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ucp\Sdk\Exception\ValidationException;
@@ -108,6 +109,67 @@ final class UrlSafetyValidatorTest extends TestCase
         $validator->assertAllowed('https://10.0.0.1/.well-known/ucp');
     }
 
+    /**
+     * The special-use ranges PHP's filter flags do not cover, and the IPv6 forms that embed an
+     * IPv4 address. Each is judged by where the connection would end up. Under `all` these
+     * are the only thing between an unsigned request and an outbound connection.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function specialUseAddresses(): iterable
+    {
+        yield 'shared address space (CGNAT)' => ['100.64.0.1'];
+        yield 'IETF protocol assignments' => ['192.0.0.1'];
+        yield 'benchmarking' => ['198.18.0.1'];
+        yield 'documentation TEST-NET-3' => ['203.0.113.10'];
+        yield 'multicast' => ['224.0.0.1'];
+        yield 'limited broadcast' => ['255.255.255.255'];
+        yield 'site-local IPv6' => ['fec0::1'];
+        yield 'IPv6 documentation' => ['2001:db8::1'];
+        yield 'IPv4-mapped private' => ['::ffff:10.0.0.1'];
+        yield 'IPv4-mapped metadata' => ['::ffff:169.254.169.254'];
+        yield 'IPv4-mapped loopback' => ['::ffff:127.0.0.1'];
+        yield 'IPv4-compatible metadata' => ['::a9fe:a9fe'];
+        yield 'NAT64 well-known prefix embedding metadata' => ['64:ff9b::a9fe:a9fe'];
+        yield 'NAT64 local-use prefix embedding metadata' => ['64:ff9b:1::a9fe:a9fe'];
+        yield '6to4 embedding metadata' => ['2002:a9fe:a9fe::1'];
+    }
+
+    #[Test]
+    #[DataProvider('specialUseAddresses')]
+    public function itRejectsASpecialUseAddressTheHostResolvesTo(string $address): void
+    {
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => [$address]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Profile host "platform.example" resolves to a blocked IP address.');
+
+        $validator->validateAndResolve('https://platform.example/.well-known/ucp', null, true);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function publicAddresses(): iterable
+    {
+        yield 'public IPv4' => ['93.184.216.34'];
+        yield 'public IPv6' => ['2606:4700::1111'];
+        yield 'IPv4-mapped public' => ['::ffff:8.8.8.8'];
+        yield 'NAT64 embedding a public address' => ['64:ff9b::808:808'];
+        yield '6to4 embedding a public address' => ['2002:808:808::1'];
+    }
+
+    #[Test]
+    #[DataProvider('publicAddresses')]
+    public function itAcceptsAPublicAddressTheHostResolvesTo(string $address): void
+    {
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => [$address]);
+
+        $validated = $validator->validateAndResolve('https://platform.example/.well-known/ucp', null, true);
+
+        self::assertSame($address, $validated->resolvedIp);
+    }
+
     #[Test]
     public function itRejectsHostsOutsideTheAllowlist(): void
     {
@@ -153,7 +215,7 @@ final class UrlSafetyValidatorTest extends TestCase
         // override (e.g. a resolved sales channel's allowed profile hosts) wins.
         $validator = new UrlSafetyValidator(
             [],
-            static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
         );
 
         $validator->validateAndResolve('https://platform.example/.well-known/ucp', ['platform.example']);
@@ -166,7 +228,7 @@ final class UrlSafetyValidatorTest extends TestCase
         // host trusted globally is still rejected when the request scope excludes it.
         $validator = new UrlSafetyValidator(
             ['platform.example'],
-            static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+            static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
         );
 
         $this->expectException(ValidationException::class);
@@ -182,7 +244,7 @@ final class UrlSafetyValidatorTest extends TestCase
     #[Test]
     public function itAllowsAnyPublicHostWhenAskedToSkipTheAllowlist(): void
     {
-        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['203.0.113.10']);
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']);
 
         $validated = $validator->validateAndResolve('https://unknown.example/.well-known/ucp', null, true);
 

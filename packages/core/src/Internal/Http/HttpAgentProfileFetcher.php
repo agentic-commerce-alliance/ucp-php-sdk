@@ -75,12 +75,15 @@ final class HttpAgentProfileFetcher implements PolicyAwareAgentProfileFetcherInt
 
         $stale = $entry !== null ? $entry->profile : $this->staleProfile($uri);
 
-        // Discovery exists only under `All`; `Listed` never fetches an unlisted host. A stale
-        // copy is served rather than deferred: the budget bounds cold fetches, not known platforms.
+        // Discovery exists only under `All`; `Listed` never fetches an unlisted host. While the
+        // budget says no, nothing goes on the wire: a stale copy is served, otherwise the
+        // request is deferred. Serving stale without this check let a platform that once
+        // answered be fetched on every request, however often the fetch failed.
         $discovery = $platformPolicy === PlatformPolicy::All
             && $this->discoveryGuard->isDiscovery($validatedUri->host, $allowedProfileHosts);
-        if ($discovery && $stale === null) {
-            $this->discoveryGuard->assertAllowed($uri, $validatedUri->host);
+        $retryAfterSeconds = $discovery ? $this->discoveryGuard->retryAfterSeconds($uri) : null;
+        if ($retryAfterSeconds !== null) {
+            return $stale ?? throw AgentProfileException::discoveryBudgetExceeded($uri, $retryAfterSeconds);
         }
 
         try {
@@ -104,7 +107,7 @@ final class HttpAgentProfileFetcher implements PolicyAwareAgentProfileFetcherInt
                 // this response's directives; a 304 may carry a new ETag as well.
                 $this->store($uri, $entry->profile, $headers, $entry->etag);
                 if ($discovery) {
-                    $this->discoveryGuard->recordSuccess($validatedUri->host);
+                    $this->discoveryGuard->recordSuccess($uri);
                 }
 
                 return $entry->profile;
@@ -119,13 +122,13 @@ final class HttpAgentProfileFetcher implements PolicyAwareAgentProfileFetcherInt
             $profile = PlatformProfile::fromArray($payload);
             $this->store($uri, $profile, $headers, null);
             if ($discovery) {
-                $this->discoveryGuard->recordSuccess($validatedUri->host);
+                $this->discoveryGuard->recordSuccess($uri);
             }
 
             return $profile;
         } catch (\Throwable $exception) {
             if ($discovery) {
-                $this->discoveryGuard->recordFailure($validatedUri->host);
+                $this->discoveryGuard->recordFailure($uri);
             }
             if ($stale !== null) {
                 return $stale;

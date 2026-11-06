@@ -437,12 +437,12 @@ interface Ucp\Sdk\Repository\AgentKeyDirectoryCacheRepositoryInterface
   - purgeExpired(int $olderThanUnixTimestamp): void
   - save(string $uri, Ucp\Sdk\Model\Security\AgentKeyDirectory $directory): void
 interface Ucp\Sdk\Repository\DiscoveryBudgetRepositoryInterface
-  - clearFailures(string $origin): void
+  - clearFailures(string $uri): void
   - countFetch(int $windowStart): int
-  - extendBackoff(string $origin, int $retryAfter): void
+  - extendBackoff(string $uri, int $retryAfter): void
   - purgeExpired(int $olderThanUnixTimestamp): void
-  - recordFailure(string $origin, int $retryAfter): int
-  - retryAfter(string $origin): ?int
+  - recordFailure(string $uri, int $retryAfter): int
+  - retryAfter(string $uri): ?int
 interface Ucp\Sdk\Repository\IdempotencyRepositoryInterface
   - claimPending(string $key, string $fingerprint): bool
   - delete(string $key): void

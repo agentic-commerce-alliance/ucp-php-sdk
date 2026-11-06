@@ -6,7 +6,7 @@ namespace Ucp\Sdk\Repository;
 
 /**
  * State behind the discovery budget: how many profiles of unrecognized platforms were fetched
- * in the current window, and which origins are backing off after failures.
+ * in the current window, and which profile URLs are backing off after failures.
  *
  * The specification asks businesses for a fixed discovery footprint, so that resolving unknown
  * platforms costs the same however many of them ask. This contract holds the two counters that
@@ -21,25 +21,25 @@ interface DiscoveryBudgetRepositoryInterface
     public function countFetch(int $windowStart): int;
 
     /**
-     * The Unix timestamp until which `$origin` is in backoff, or null when it may be fetched.
+     * The Unix timestamp until which `$uri` is in backoff, or null when it may be fetched.
      */
-    public function retryAfter(string $origin): ?int;
+    public function retryAfter(string $uri): ?int;
 
     /**
-     * Records a failed fetch of `$origin` with the Unix timestamp until which it stays in
+     * Records a failed fetch of `$uri` with the Unix timestamp until which it stays in
      * backoff, and returns the number of failures in a row, this one included.
      */
-    public function recordFailure(string $origin, int $retryAfter): int;
+    public function recordFailure(string $uri, int $retryAfter): int;
 
     /**
-     * Moves the backoff deadline of `$origin`, once its failure count is known.
+     * Moves the backoff deadline of `$uri`, once its failure count is known.
      */
-    public function extendBackoff(string $origin, int $retryAfter): void;
+    public function extendBackoff(string $uri, int $retryAfter): void;
 
     /**
-     * Forgets the failures of `$origin` after a successful fetch.
+     * Forgets the failures of `$uri` after a successful fetch.
      */
-    public function clearFailures(string $origin): void;
+    public function clearFailures(string $uri): void;
 
     public function purgeExpired(int $olderThanUnixTimestamp): void;
 }

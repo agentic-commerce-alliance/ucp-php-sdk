@@ -90,10 +90,10 @@ final class StorageSchemaDefinition
         $table->setPrimaryKey(['window_start']);
 
         $table = $schema->createTable('ucp_discovery_backoff');
-        $table->addColumn('origin', 'string', ['length' => 255]);
+        $table->addColumn('uri', 'string', ['length' => 500]);
         $table->addColumn('failures', 'integer', ['default' => 0]);
         $table->addColumn('retry_after', 'integer');
-        $table->setPrimaryKey(['origin']);
+        $table->setPrimaryKey(['uri']);
         $table->addIndex(['retry_after'], 'idx_ucp_discovery_backoff_retry_after');
 
         return $schema;

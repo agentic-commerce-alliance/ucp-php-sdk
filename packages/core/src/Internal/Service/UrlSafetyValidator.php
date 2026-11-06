@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Service;
 
 use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Internal\Security\SpecialUseAddress;
 
 /** @internal */
 final class UrlSafetyValidator
@@ -163,7 +164,7 @@ final class UrlSafetyValidator
 
     private function isBlockedIp(string $ip): bool
     {
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+        return SpecialUseAddress::isSpecialUse($ip);
     }
 
     /**

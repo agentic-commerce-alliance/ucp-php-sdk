@@ -258,6 +258,7 @@ final class UcpSdkExtension extends Extension
         $container->setDefinition(DoctrineDbalPlatformProfileCacheRepository::class, new Definition(DoctrineDbalPlatformProfileCacheRepository::class, [
             new Reference('ucp_sdk.connection'),
             $config['platform_profile_cache_ttl'],
+            $config['platform_profile_cache_max_entries'],
         ]));
         $container->setDefinition(DoctrineDbalAgentKeyDirectoryCacheRepository::class, new Definition(DoctrineDbalAgentKeyDirectoryCacheRepository::class, [
             new Reference('ucp_sdk.connection'),

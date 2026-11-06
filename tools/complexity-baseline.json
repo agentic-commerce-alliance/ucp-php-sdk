@@ -23,8 +23,8 @@
         "MerchantSymfonyApp\\Ucp\\MerchantCheckoutCapability::completeCheckout": 84,
         "Ucp\\Sdk\\Internal\\Service\\DefaultHttpRequestContextFactory::create": 120,
         "Ucp\\Sdk\\Symfony\\Bridge\\DoctrineDbal\\StorageSchemaDefinition::createSchema": 85,
-        "Ucp\\Sdk\\Symfony\\DependencyInjection\\Configuration::getConfigTreeBuilder": 208,
-        "Ucp\\Sdk\\Symfony\\DependencyInjection\\UcpSdkExtension::load": 346
+        "Ucp\\Sdk\\Symfony\\DependencyInjection\\Configuration::getConfigTreeBuilder": 211,
+        "Ucp\\Sdk\\Symfony\\DependencyInjection\\UcpSdkExtension::load": 347
     },
     "duplicated_lines": 55
 }

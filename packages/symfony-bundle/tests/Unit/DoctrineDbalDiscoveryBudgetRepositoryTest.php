@@ -24,20 +24,20 @@ final class DoctrineDbalDiscoveryBudgetRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function itRecordsExtendsAndClearsBackoffPerOrigin(): void
+    public function itRecordsExtendsAndClearsBackoffPerUri(): void
     {
         $repository = new DoctrineDbalDiscoveryBudgetRepository($this->connection());
 
-        self::assertNull($repository->retryAfter('a.example'));
-        self::assertSame(1, $repository->recordFailure('a.example', 130));
-        self::assertSame(2, $repository->recordFailure('a.example', 160));
-        self::assertSame(160, $repository->retryAfter('a.example'));
+        self::assertNull($repository->retryAfter('https://a.example/.well-known/ucp'));
+        self::assertSame(1, $repository->recordFailure('https://a.example/.well-known/ucp', 130));
+        self::assertSame(2, $repository->recordFailure('https://a.example/.well-known/ucp', 160));
+        self::assertSame(160, $repository->retryAfter('https://a.example/.well-known/ucp'));
 
-        $repository->extendBackoff('a.example', 220);
-        self::assertSame(220, $repository->retryAfter('a.example'));
+        $repository->extendBackoff('https://a.example/.well-known/ucp', 220);
+        self::assertSame(220, $repository->retryAfter('https://a.example/.well-known/ucp'));
 
-        $repository->clearFailures('a.example');
-        self::assertNull($repository->retryAfter('a.example'));
+        $repository->clearFailures('https://a.example/.well-known/ucp');
+        self::assertNull($repository->retryAfter('https://a.example/.well-known/ucp'));
     }
 
     #[Test]
@@ -46,15 +46,15 @@ final class DoctrineDbalDiscoveryBudgetRepositoryTest extends TestCase
         $repository = new DoctrineDbalDiscoveryBudgetRepository($this->connection());
         $repository->countFetch(100);
         $repository->countFetch(200);
-        $repository->recordFailure('old.example', 150);
-        $repository->recordFailure('new.example', 250);
+        $repository->recordFailure('https://old.example/.well-known/ucp', 150);
+        $repository->recordFailure('https://new.example/.well-known/ucp', 250);
 
         $repository->purgeExpired(200);
 
         self::assertSame(1, $repository->countFetch(100));
         self::assertSame(2, $repository->countFetch(200));
-        self::assertNull($repository->retryAfter('old.example'));
-        self::assertSame(250, $repository->retryAfter('new.example'));
+        self::assertNull($repository->retryAfter('https://old.example/.well-known/ucp'));
+        self::assertSame(250, $repository->retryAfter('https://new.example/.well-known/ucp'));
     }
 
     private function connection(): Connection

@@ -21,23 +21,23 @@ final class InMemoryDiscoveryBudgetRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function itTracksFailuresAndBackoffPerOrigin(): void
+    public function itTracksFailuresAndBackoffPerUri(): void
     {
         $repository = new InMemoryDiscoveryBudgetRepository();
 
-        self::assertNull($repository->retryAfter('a.example'));
-        self::assertSame(1, $repository->recordFailure('a.example', 130));
-        self::assertSame(2, $repository->recordFailure('a.example', 160));
-        self::assertSame(160, $repository->retryAfter('a.example'));
+        self::assertNull($repository->retryAfter('https://a.example/.well-known/ucp'));
+        self::assertSame(1, $repository->recordFailure('https://a.example/.well-known/ucp', 130));
+        self::assertSame(2, $repository->recordFailure('https://a.example/.well-known/ucp', 160));
+        self::assertSame(160, $repository->retryAfter('https://a.example/.well-known/ucp'));
 
-        $repository->extendBackoff('a.example', 220);
-        self::assertSame(220, $repository->retryAfter('a.example'));
+        $repository->extendBackoff('https://a.example/.well-known/ucp', 220);
+        self::assertSame(220, $repository->retryAfter('https://a.example/.well-known/ucp'));
 
-        $repository->extendBackoff('unknown.example', 220);
-        self::assertNull($repository->retryAfter('unknown.example'), 'extending an origin without failures records nothing');
+        $repository->extendBackoff('https://unknown.example/.well-known/ucp', 220);
+        self::assertNull($repository->retryAfter('https://unknown.example/.well-known/ucp'), 'extending a URL without failures records nothing');
 
-        $repository->clearFailures('a.example');
-        self::assertNull($repository->retryAfter('a.example'));
+        $repository->clearFailures('https://a.example/.well-known/ucp');
+        self::assertNull($repository->retryAfter('https://a.example/.well-known/ucp'));
     }
 
     #[Test]
@@ -46,14 +46,14 @@ final class InMemoryDiscoveryBudgetRepositoryTest extends TestCase
         $repository = new InMemoryDiscoveryBudgetRepository();
         $repository->countFetch(100);
         $repository->countFetch(200);
-        $repository->recordFailure('old.example', 150);
-        $repository->recordFailure('new.example', 250);
+        $repository->recordFailure('https://old.example/.well-known/ucp', 150);
+        $repository->recordFailure('https://new.example/.well-known/ucp', 250);
 
         $repository->purgeExpired(200);
 
         self::assertSame(1, $repository->countFetch(100), 'the purged window starts over');
         self::assertSame(2, $repository->countFetch(200), 'the current window is kept');
-        self::assertNull($repository->retryAfter('old.example'));
-        self::assertSame(250, $repository->retryAfter('new.example'));
+        self::assertNull($repository->retryAfter('https://old.example/.well-known/ucp'));
+        self::assertSame(250, $repository->retryAfter('https://new.example/.well-known/ucp'));
     }
 }

@@ -77,8 +77,10 @@ final class UcpErrorDescriptor
             $throwable instanceof ConfigurationException => new self('configuration', 'server_misconfigured', 'unrecoverable', 500, false),
             // Recoverable on purpose: the profile lives on the platform's side, so the same
             // request can succeed once it answers again.
-            // A deferred discovery is the spec's asynchronous-discovery answer: 503 with a
-            // Retry-After, so the platform asks again once the budget has a slot for it.
+            // The discovery budget refused the fetch: a rate limit, answered as 503 with a
+            // Retry-After. Not the spec's asynchronous discovery, which resolves the profile in
+            // the background so the retry finds it cached; nothing is fetched here, and the
+            // retry competes for the window again.
             $throwable instanceof AgentProfileException && $throwable->retryAfterSeconds !== null => new self('ucp', $throwable->errorCode, 'recoverable', 503, false),
             $throwable instanceof AgentProfileException => new self('ucp', $throwable->errorCode, 'recoverable', 424, false),
             $throwable instanceof UcpException => new self('ucp', 'request_failed', 'unrecoverable', 500, false),

@@ -92,6 +92,9 @@ final class Configuration implements ConfigurationInterface
                 // decides the actual freshness, floored at the spec's 60 seconds and capped here;
                 // a profile that sends no directive is cached for exactly this long.
                 ->integerNode('platform_profile_cache_ttl')->defaultValue(600)->min(60)->end()
+                // The fixed size of the platform-profile cache: how many platforms' profiles are
+                // kept at once. Over the limit, the entries that expire soonest are dropped.
+                ->integerNode('platform_profile_cache_max_entries')->defaultValue(1000)->min(1)->end()
                 // How long platforms may cache *our* profile, as opposed to how long we cache
                 // theirs. The floor is the spec's: below 60 the document is effectively
                 // uncacheable, which is the state this setting exists to leave behind.

@@ -22,6 +22,11 @@ final class ConfigurationTest extends TestCase
         self::assertSame('listed', $this->process([])['platform_policy']);
     }
 
+    public function testItDefaultsThePlatformProfileCacheSize(): void
+    {
+        self::assertSame(1000, $this->process([])['platform_profile_cache_max_entries']);
+    }
+
     public function testItDefaultsTheDiscoveryBudget(): void
     {
         self::assertSame(

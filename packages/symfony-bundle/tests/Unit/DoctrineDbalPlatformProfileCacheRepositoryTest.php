@@ -47,6 +47,34 @@ final class DoctrineDbalPlatformProfileCacheRepositoryTest extends TestCase
         self::assertNotNull($repository->find('https://platform.example/.well-known/ucp', true));
     }
 
+    /**
+     * The specification asks for a fixed-size profile cache, so that discovery of unknown
+     * platforms cannot grow storage without limit. Over the limit, the entries that expire
+     * soonest go first; a refetch would have replaced them anyway.
+     */
+    #[Test]
+    public function itKeepsTheCacheAtItsFixedSizeByDroppingTheEntriesThatExpireSoonest(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $repository = new DoctrineDbalPlatformProfileCacheRepository($connection, 600, 2);
+        $profile = new PlatformProfile('2026-04-08', [], [], [], []);
+
+        $repository->saveEntry('https://soon.example/.well-known/ucp', $profile, time() + 100);
+        $repository->saveEntry('https://later.example/.well-known/ucp', $profile, time() + 200);
+        $repository->saveEntry('https://latest.example/.well-known/ucp', $profile, time() + 300);
+
+        self::assertNull($repository->find('https://soon.example/.well-known/ucp', true), 'the entry expiring soonest is evicted');
+        self::assertNotNull($repository->find('https://later.example/.well-known/ucp'));
+        self::assertNotNull($repository->find('https://latest.example/.well-known/ucp'));
+
+        $repository->saveEntry('https://later.example/.well-known/ucp', $profile, time() + 250);
+        self::assertCount(2, $repository->all(true), 'updating an existing entry evicts nothing');
+    }
+
     #[Test]
     public function itListsAndDeletesCachedProfiles(): void
     {

@@ -18,7 +18,7 @@ final class InMemoryDiscoveryBudgetRepository implements DiscoveryBudgetReposito
     private array $fetchesByWindow = [];
 
     /** @var array<string, array{failures: int, retryAfter: int}> */
-    private array $failuresByOrigin = [];
+    private array $failuresByUri = [];
 
     public function countFetch(int $windowStart): int
     {
@@ -27,29 +27,29 @@ final class InMemoryDiscoveryBudgetRepository implements DiscoveryBudgetReposito
         return $this->fetchesByWindow[$windowStart];
     }
 
-    public function retryAfter(string $origin): ?int
+    public function retryAfter(string $uri): ?int
     {
-        return $this->failuresByOrigin[$origin]['retryAfter'] ?? null;
+        return $this->failuresByUri[$uri]['retryAfter'] ?? null;
     }
 
-    public function recordFailure(string $origin, int $retryAfter): int
+    public function recordFailure(string $uri, int $retryAfter): int
     {
-        $failures = ($this->failuresByOrigin[$origin]['failures'] ?? 0) + 1;
-        $this->failuresByOrigin[$origin] = ['failures' => $failures, 'retryAfter' => $retryAfter];
+        $failures = ($this->failuresByUri[$uri]['failures'] ?? 0) + 1;
+        $this->failuresByUri[$uri] = ['failures' => $failures, 'retryAfter' => $retryAfter];
 
         return $failures;
     }
 
-    public function extendBackoff(string $origin, int $retryAfter): void
+    public function extendBackoff(string $uri, int $retryAfter): void
     {
-        if (isset($this->failuresByOrigin[$origin])) {
-            $this->failuresByOrigin[$origin]['retryAfter'] = $retryAfter;
+        if (isset($this->failuresByUri[$uri])) {
+            $this->failuresByUri[$uri]['retryAfter'] = $retryAfter;
         }
     }
 
-    public function clearFailures(string $origin): void
+    public function clearFailures(string $uri): void
     {
-        unset($this->failuresByOrigin[$origin]);
+        unset($this->failuresByUri[$uri]);
     }
 
     public function purgeExpired(int $olderThanUnixTimestamp): void
@@ -60,9 +60,9 @@ final class InMemoryDiscoveryBudgetRepository implements DiscoveryBudgetReposito
             }
         }
 
-        foreach ($this->failuresByOrigin as $origin => $entry) {
+        foreach ($this->failuresByUri as $uri => $entry) {
             if ($entry['retryAfter'] < $olderThanUnixTimestamp) {
-                unset($this->failuresByOrigin[$origin]);
+                unset($this->failuresByUri[$uri]);
             }
         }
     }

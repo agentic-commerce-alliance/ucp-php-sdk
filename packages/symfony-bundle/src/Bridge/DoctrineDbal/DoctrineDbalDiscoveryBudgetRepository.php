@@ -43,49 +43,49 @@ final class DoctrineDbalDiscoveryBudgetRepository implements DiscoveryBudgetRepo
         );
     }
 
-    public function retryAfter(string $origin): ?int
+    public function retryAfter(string $uri): ?int
     {
         $retryAfter = $this->connection->fetchOne(
-            'SELECT retry_after FROM ucp_discovery_backoff WHERE origin = :origin',
-            ['origin' => $origin],
+            'SELECT retry_after FROM ucp_discovery_backoff WHERE uri = :uri',
+            ['uri' => $uri],
         );
 
         return $retryAfter === false ? null : (int) $retryAfter;
     }
 
-    public function recordFailure(string $origin, int $retryAfter): int
+    public function recordFailure(string $uri, int $retryAfter): int
     {
         $updated = $this->connection->executeStatement(
-            'UPDATE ucp_discovery_backoff SET failures = failures + 1, retry_after = :retry_after WHERE origin = :origin',
-            ['origin' => $origin, 'retry_after' => $retryAfter],
+            'UPDATE ucp_discovery_backoff SET failures = failures + 1, retry_after = :retry_after WHERE uri = :uri',
+            ['uri' => $uri, 'retry_after' => $retryAfter],
         );
         if ($updated === 0) {
             try {
-                $this->connection->insert('ucp_discovery_backoff', ['origin' => $origin, 'failures' => 1, 'retry_after' => $retryAfter]);
+                $this->connection->insert('ucp_discovery_backoff', ['uri' => $uri, 'failures' => 1, 'retry_after' => $retryAfter]);
 
                 return 1;
             } catch (UniqueConstraintViolationException) {
                 $this->connection->executeStatement(
-                    'UPDATE ucp_discovery_backoff SET failures = failures + 1, retry_after = :retry_after WHERE origin = :origin',
-                    ['origin' => $origin, 'retry_after' => $retryAfter],
+                    'UPDATE ucp_discovery_backoff SET failures = failures + 1, retry_after = :retry_after WHERE uri = :uri',
+                    ['uri' => $uri, 'retry_after' => $retryAfter],
                 );
             }
         }
 
         return (int) $this->connection->fetchOne(
-            'SELECT failures FROM ucp_discovery_backoff WHERE origin = :origin',
-            ['origin' => $origin],
+            'SELECT failures FROM ucp_discovery_backoff WHERE uri = :uri',
+            ['uri' => $uri],
         );
     }
 
-    public function extendBackoff(string $origin, int $retryAfter): void
+    public function extendBackoff(string $uri, int $retryAfter): void
     {
-        $this->connection->update('ucp_discovery_backoff', ['retry_after' => $retryAfter], ['origin' => $origin]);
+        $this->connection->update('ucp_discovery_backoff', ['retry_after' => $retryAfter], ['uri' => $uri]);
     }
 
-    public function clearFailures(string $origin): void
+    public function clearFailures(string $uri): void
     {
-        $this->connection->delete('ucp_discovery_backoff', ['origin' => $origin]);
+        $this->connection->delete('ucp_discovery_backoff', ['uri' => $uri]);
     }
 
     public function purgeExpired(int $olderThanUnixTimestamp): void

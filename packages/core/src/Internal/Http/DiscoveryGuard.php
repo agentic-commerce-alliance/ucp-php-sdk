@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Ucp\Sdk\Internal\Http;
 
 use Ucp\Sdk\Enum\PlatformPolicy;
-use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Internal\Repository\InMemoryDiscoveryBudgetRepository;
 use Ucp\Sdk\Model\Config\DiscoveryBudget;
 use Ucp\Sdk\Repository\DiscoveryBudgetRepositoryInterface;
@@ -15,8 +14,13 @@ use Ucp\Sdk\Repository\DiscoveryBudgetRepositoryInterface;
  *
  * A platform outside the allowed hosts is "unrecognized" in the specification's sense, and
  * fetching its profile is discovery. The guard bounds it: a global number of fetches per
- * window, and a per-origin backoff after failures. A listed platform is never discovery, and
- * the fetcher asks the guard only for cold fetches, so a cache hit never counts either.
+ * window, and a backoff per profile URL after failures. A listed platform is never discovery,
+ * and a fresh cache hit never reaches the guard.
+ *
+ * The backoff is keyed on the full profile URL, not the host: keyed on the host, one unsigned
+ * request naming a path that 404s would lock the platform's real profile out, and keep it out
+ * with one request per backoff period. Per URL, every failure still costs a window slot, so the
+ * number of backoff rows stays bounded by the window.
  *
  * @internal
  */
@@ -48,35 +52,39 @@ final class DiscoveryGuard
     }
 
     /**
-     * @throws AgentProfileException when the origin is in backoff or the window is full
+     * Seconds until `$uri` may be fetched, or null when it may be fetched now. Asking takes a
+     * slot in the window, so a refused fetch counts like one that happened: the question is
+     * what the budget bounds, not only the answer.
      */
-    public function assertAllowed(string $uri, string $origin): void
+    public function retryAfterSeconds(string $uri): ?int
     {
         $now = time();
-        $retryAfter = $this->repository->retryAfter($origin);
+        $retryAfter = $this->repository->retryAfter($uri);
         if ($retryAfter !== null && $retryAfter > $now) {
-            throw AgentProfileException::discoveryBudgetExceeded($uri, $retryAfter - $now);
+            return $retryAfter - $now;
         }
 
         $windowStart = $this->budget->windowStart($now);
         if ($this->repository->countFetch($windowStart) > $this->budget->maxFetchesPerWindow) {
-            throw AgentProfileException::discoveryBudgetExceeded($uri, $windowStart + $this->budget->windowSeconds - $now);
+            return $windowStart + $this->budget->windowSeconds - $now;
         }
+
+        return null;
     }
 
-    public function recordFailure(string $origin): void
+    public function recordFailure(string $uri): void
     {
         $now = time();
         // The first failure's backoff is written with the count; a repeat failure only learns
         // its count from the write, so its longer backoff is set afterwards.
-        $failures = $this->repository->recordFailure($origin, $now + $this->budget->backoffSeconds(1));
+        $failures = $this->repository->recordFailure($uri, $now + $this->budget->backoffSeconds(1));
         if ($failures > 1) {
-            $this->repository->extendBackoff($origin, $now + $this->budget->backoffSeconds($failures));
+            $this->repository->extendBackoff($uri, $now + $this->budget->backoffSeconds($failures));
         }
     }
 
-    public function recordSuccess(string $origin): void
+    public function recordSuccess(string $uri): void
     {
-        $this->repository->clearFailures($origin);
+        $this->repository->clearFailures($uri);
     }
 }
