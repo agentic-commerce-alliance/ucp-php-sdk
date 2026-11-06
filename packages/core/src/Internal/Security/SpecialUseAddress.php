@@ -49,6 +49,8 @@ final class SpecialUseAddress
         'fe80::/10',          // link-local
         'fec0::/10',          // site-local (deprecated)
         'ff00::/8',           // multicast
+        '64:ff9b:1::/48',     // NAT64 local-use: the IPv4 address sits at a prefix-dependent offset, so the whole block is refused
+        '::ffff:0:0:0/96',    // IPv4-translatable (SIIT)
     ];
 
     public static function isSpecialUse(string $ip): bool
@@ -66,16 +68,17 @@ final class SpecialUseAddress
             return self::inAnyRange($ip, self::IPV6_RANGES);
         }
 
-        // Not an address at all: nothing to connect to, so nothing to protect.
+        // Not an address at all: refused, as every unparsable input is.
         return true;
     }
 
     /**
      * IPv6 prefixes (hex of the packed address) that carry an IPv4 address, with the byte
      * offset of that address: IPv4-mapped (`::ffff:a.b.c.d`), IPv4-compatible (`::a.b.c.d`),
-     * NAT64 well-known (`64:ff9b::/96`) and local-use (`64:ff9b:1::/48`), and 6to4 (`2002::/16`).
-     * The compatible form also matches `::` and `::1`; their embedded `0.0.0.0` and `0.0.0.1`
-     * fall into `0.0.0.0/8`, which is blocked, as the unspecified and loopback addresses are.
+     * the NAT64 well-known prefix (`64:ff9b::/96`), and 6to4 (`2002::/16`). The NAT64 local-use
+     * block `64:ff9b:1::/48` embeds the address at an offset that depends on the prefix length
+     * (RFC 6052), so it is refused as a whole range instead of decoded. The compatible form also
+     * matches `::` and `::1`; their embedded `0.0.0.0` and `0.0.0.1` fall into `0.0.0.0/8`.
      *
      * A list of pairs rather than a map: an all-digit key such as '2002' would become an int.
      *
@@ -85,7 +88,6 @@ final class SpecialUseAddress
         ['00000000000000000000ffff', 12],
         ['000000000000000000000000', 12],
         ['0064ff9b0000000000000000', 12],
-        ['0064ff9b0001', 12],
         ['2002', 2],
     ];
 

@@ -4,7 +4,7 @@
         "Ucp\\Sdk\\Internal\\Http\\HttpAgentProfileFetcher::fetchForPolicy": 19,
         "Ucp\\Sdk\\Internal\\Negotiation\\DefaultCapabilityNegotiator::negotiate": 17,
         "Ucp\\Sdk\\Internal\\Service\\DefaultProfileBuilder::build": 17,
-        "Ucp\\Sdk\\Internal\\Service\\UrlSafetyValidator::validateAndResolve": 19,
+        "Ucp\\Sdk\\Internal\\Service\\UrlSafetyValidator::validateAndResolve": 21,
         "Ucp\\Sdk\\Model\\Checkout\\ConsentPurpose::fromArray": 16,
         "Ucp\\Sdk\\Symfony\\EventListener\\RequestContextListener::onKernelRequest": 16
     },

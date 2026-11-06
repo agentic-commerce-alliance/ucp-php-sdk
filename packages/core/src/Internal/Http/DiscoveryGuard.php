@@ -52,9 +52,9 @@ final class DiscoveryGuard
     }
 
     /**
-     * Seconds until `$uri` may be fetched, or null when it may be fetched now. Asking takes a
-     * slot in the window, so a refused fetch counts like one that happened: the question is
-     * what the budget bounds, not only the answer.
+     * Seconds until `$uri` may be fetched, or null when it may be fetched now. A URL in backoff
+     * is answered without touching the window; otherwise asking takes a slot, so a fetch the
+     * window refuses still counts, as the one it would have been.
      */
     public function retryAfterSeconds(string $uri): ?int
     {

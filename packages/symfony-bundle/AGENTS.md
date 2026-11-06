@@ -55,6 +55,7 @@ Current config keys:
 - `base_uri`
 - `allowed_profile_hosts`
 - `platform_policy`
+- `platform_profile_cache_max_entries`
 - `allowed_agent_domains`
 - `profile_fetching_development_mode`
 - `discovery.max_fetches_per_window`, `discovery.window_seconds`, `discovery.backoff_base_seconds`, `discovery.backoff_max_seconds`

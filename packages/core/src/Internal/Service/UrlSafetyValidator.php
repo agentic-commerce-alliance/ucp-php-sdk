@@ -13,6 +13,8 @@ final class UrlSafetyValidator
     /** @var list<int> */
     private const REMOTE_ALLOWED_PORTS = [443, 8443];
 
+    private const MAX_URI_LENGTH = 500;
+
     /** @var list<string> */
     private const BLOCKED_HOSTS = [
         '169.254.169.254',
@@ -46,6 +48,12 @@ final class UrlSafetyValidator
     public function validateAndResolve(string $uri, ?array $allowedHostsOverride = null, bool $anyPublicHost = false): ValidatedProfileUri
     {
         $allowedHosts = $allowedHostsOverride ?? $this->allowedHosts;
+
+        // The URI is a storage key: the profile cache, the negotiation session and the discovery
+        // backoff all hold it in a 500-character column, and a non-ASCII byte is not a URI.
+        if (strlen($uri) > self::MAX_URI_LENGTH || preg_match('/[^\x21-\x7e]/', $uri) === 1) {
+            throw new ValidationException('Profile URI must be at most 500 ASCII characters.');
+        }
 
         $parts = parse_url($uri);
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));

@@ -8,9 +8,9 @@ namespace Ucp\Sdk\Model\Config;
  * The fixed discovery footprint for platforms that are not pre-approved.
  *
  * `maxFetchesPerWindow` fetches of unrecognized profiles are allowed per `windowSeconds`, across
- * all origins; a refused fetch answers with how long to wait for the next window. An origin whose
- * fetch failed is backed off for `backoffBaseSeconds`, doubled per consecutive failure, up to
- * `backoffMaxSeconds`. Pre-approved platforms are never counted.
+ * all callers; a refused fetch answers with how long to wait for the next window. A profile URL
+ * whose fetch failed is backed off for `backoffBaseSeconds`, doubled per consecutive failure, up
+ * to `backoffMaxSeconds`. Pre-approved platforms are never counted.
  */
 final class DiscoveryBudget
 {

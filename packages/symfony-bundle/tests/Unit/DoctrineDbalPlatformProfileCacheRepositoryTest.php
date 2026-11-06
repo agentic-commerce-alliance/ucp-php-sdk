@@ -49,30 +49,52 @@ final class DoctrineDbalPlatformProfileCacheRepositoryTest extends TestCase
 
     /**
      * The specification asks for a fixed-size profile cache, so that discovery of unknown
-     * platforms cannot grow storage without limit. Over the limit, the entries that expire
-     * soonest go first; a refetch would have replaced them anyway.
+     * platforms cannot grow storage without limit. Over the limit, the fresh entries that
+     * expire soonest go first and stale entries last: a stale copy is what the rate limit
+     * serves while a platform cannot be fetched. The entry just written is never dropped.
      */
     #[Test]
-    public function itKeepsTheCacheAtItsFixedSizeByDroppingTheEntriesThatExpireSoonest(): void
+    public function itKeepsTheCacheAtItsFixedSizeByDroppingTheFreshEntriesThatExpireSoonest(): void
     {
         $connection = DriverManager::getConnection([
             'driver' => 'pdo_sqlite',
             'memory' => true,
         ]);
         (new SchemaBootstrapper($connection))->ensureSchema();
-        $repository = new DoctrineDbalPlatformProfileCacheRepository($connection, 600, 2);
+        $repository = new DoctrineDbalPlatformProfileCacheRepository($connection, 600, 3);
         $profile = new PlatformProfile('2026-04-08', [], [], [], []);
 
-        $repository->saveEntry('https://soon.example/.well-known/ucp', $profile, time() + 100);
-        $repository->saveEntry('https://later.example/.well-known/ucp', $profile, time() + 200);
+        // Inserted out of expiry order, so insertion-order eviction would fail this test.
         $repository->saveEntry('https://latest.example/.well-known/ucp', $profile, time() + 300);
+        $repository->saveEntry('https://stale.example/.well-known/ucp', $profile, time() - 10);
+        $repository->saveEntry('https://soon.example/.well-known/ucp', $profile, time() + 100);
+        $repository->saveEntry('https://new.example/.well-known/ucp', $profile, time() + 30);
 
-        self::assertNull($repository->find('https://soon.example/.well-known/ucp', true), 'the entry expiring soonest is evicted');
-        self::assertNotNull($repository->find('https://later.example/.well-known/ucp'));
+        self::assertNull($repository->find('https://soon.example/.well-known/ucp', true), 'the fresh entry expiring soonest is evicted');
+        self::assertNotNull($repository->find('https://stale.example/.well-known/ucp', true), 'a stale entry outlives fresh ones');
+        self::assertNotNull($repository->find('https://new.example/.well-known/ucp'), 'the entry just written is never the one dropped');
         self::assertNotNull($repository->find('https://latest.example/.well-known/ucp'));
+    }
 
-        $repository->saveEntry('https://later.example/.well-known/ucp', $profile, time() + 250);
-        self::assertCount(2, $repository->all(true), 'updating an existing entry evicts nothing');
+    #[Test]
+    public function itDoesNotEvictWhenAnExistingEntryIsUpdated(): void
+    {
+        $connection = DriverManager::getConnection([
+            'driver' => 'pdo_sqlite',
+            'memory' => true,
+        ]);
+        (new SchemaBootstrapper($connection))->ensureSchema();
+        $unbounded = new DoctrineDbalPlatformProfileCacheRepository($connection, 600);
+        $profile = new PlatformProfile('2026-04-08', [], [], [], []);
+        $unbounded->saveEntry('https://a.example/.well-known/ucp', $profile, time() + 100);
+        $unbounded->saveEntry('https://b.example/.well-known/ucp', $profile, time() + 200);
+        $unbounded->saveEntry('https://c.example/.well-known/ucp', $profile, time() + 300);
+
+        // The cap is below the row count, so an insert would evict; an update must not.
+        $capped = new DoctrineDbalPlatformProfileCacheRepository($connection, 600, 1);
+        $capped->saveEntry('https://b.example/.well-known/ucp', $profile, time() + 250);
+
+        self::assertCount(3, $capped->all(true));
     }
 
     #[Test]

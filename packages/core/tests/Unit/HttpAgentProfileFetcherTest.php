@@ -671,11 +671,12 @@ final class HttpAgentProfileFetcherTest extends TestCase
     }
 
     /**
-     * The budget bounds cold fetches, not known platforms: a platform whose cached profile went
-     * stale is served the stale copy while its origin is in backoff, never deferred.
+     * While the budget says no, nothing goes on the wire. A platform whose cached profile went
+     * stale is served the stale copy, both while its URL is in backoff and while the window is
+     * full, and the client is never called.
      */
     #[Test]
-    public function itServesAStaleProfileInsteadOfDeferringABackedOffOrigin(): void
+    public function itServesAStaleProfileInsteadOfDeferringABackedOffUrl(): void
     {
         $stale = new PlatformProfile('2026-04-08', [], [], [], []);
         $budget = new InMemoryDiscoveryBudgetRepository();
@@ -694,6 +695,24 @@ final class HttpAgentProfileFetcherTest extends TestCase
         self::assertSame(0, $client->requests, 'a deferred fetch never reaches the network, stale copy or not');
     }
 
+    #[Test]
+    public function itServesAStaleProfileInsteadOfFetchingWhenTheWindowIsFull(): void
+    {
+        $stale = new PlatformProfile('2026-04-08', [], [], [], []);
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new RecordingPlatformProfileCacheRepository(null, $stale),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 0), PlatformPolicy::All),
+        );
+
+        $profile = $fetcher->fetchForAllowedHosts('https://known.example/.well-known/ucp', []);
+
+        self::assertSame($stale, $profile);
+        self::assertSame(0, $client->requests, 'a full window serves the stale copy without a fetch');
+    }
+
     /**
      * Keyed on the host, one request naming a path that 404s would lock the platform's real
      * profile out. Keyed on the URL, the bad path backs off and the real profile stays reachable.
@@ -703,22 +722,32 @@ final class HttpAgentProfileFetcherTest extends TestCase
     {
         $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
         $budget = new InMemoryDiscoveryBudgetRepository();
-        $budget->recordFailure('https://platform.example/does-not-exist.json', time() + 600);
+        $guard = new DiscoveryGuard($budget, platformPolicy: PlatformPolicy::All);
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']);
+
+        $attacker = new HttpAgentProfileFetcher(
+            new RecordingHttpClient(new RecordingResponse(404), []),
+            new NullPlatformProfileCacheRepository(),
+            $validator,
+            discoveryGuard: $guard,
+        );
+        try {
+            $attacker->fetchForAllowedHosts('https://platform.example/does-not-exist.json', []);
+            self::fail('A 404 must fail the fetch.');
+        } catch (AgentProfileException) {
+        }
+        self::assertNotNull($budget->retryAfter('https://platform.example/does-not-exist.json'), 'the bad path is in backoff');
+
         $client = new RecordingHttpClient(
             new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
             [new RecordingChunk(content: $body), new RecordingChunk()],
         );
-        $fetcher = new HttpAgentProfileFetcher(
-            $client,
-            new NullPlatformProfileCacheRepository(),
-            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
-            discoveryGuard: new DiscoveryGuard($budget, platformPolicy: PlatformPolicy::All),
-        );
+        $fetcher = new HttpAgentProfileFetcher($client, new NullPlatformProfileCacheRepository(), $validator, discoveryGuard: $guard);
 
         $profile = $fetcher->fetchForAllowedHosts('https://platform.example/.well-known/ucp', []);
 
         self::assertInstanceOf(PlatformProfile::class, $profile);
-        self::assertSame(1, $client->requests);
+        self::assertSame(1, $client->requests, 'the real profile on the same host is still fetched');
     }
 
     /**

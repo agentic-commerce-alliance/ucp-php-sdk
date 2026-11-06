@@ -131,7 +131,10 @@ final class UrlSafetyValidatorTest extends TestCase
         yield 'IPv4-mapped loopback' => ['::ffff:127.0.0.1'];
         yield 'IPv4-compatible metadata' => ['::a9fe:a9fe'];
         yield 'NAT64 well-known prefix embedding metadata' => ['64:ff9b::a9fe:a9fe'];
-        yield 'NAT64 local-use prefix embedding metadata' => ['64:ff9b:1::a9fe:a9fe'];
+        yield 'NAT64 local-use prefix embedding metadata at the /96 position' => ['64:ff9b:1::a9fe:a9fe'];
+        yield 'NAT64 local-use prefix embedding metadata at the /48 position' => ['64:ff9b:1:a9fe:a9:fe00:5db8:d822'];
+        yield 'NAT64 local-use prefix embedding loopback at the /48 position' => ['64:ff9b:1:7f00:0:100:5db8:d822'];
+        yield 'IPv4-translatable (SIIT) embedding metadata' => ['::ffff:0:a9fe:a9fe'];
         yield '6to4 embedding metadata' => ['2002:a9fe:a9fe::1'];
     }
 
@@ -235,6 +238,26 @@ final class UrlSafetyValidatorTest extends TestCase
         $this->expectExceptionMessage('Profile host "platform.example" is not allowed.');
 
         $validator->validateAndResolve('https://platform.example/.well-known/ucp', ['other.example']);
+    }
+
+    /**
+     * The URI is a storage key with a 500-character column behind it, and a non-ASCII byte is
+     * not a URI: both are refused before anything is keyed on them.
+     */
+    #[Test]
+    public function itRejectsAnOverlongOrNonAsciiProfileUri(): void
+    {
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']);
+
+        try {
+            $validator->validateAndResolve('https://platform.example/' . str_repeat('a', 500), null, true);
+            self::fail('An overlong URI must be refused.');
+        } catch (ValidationException $exception) {
+            self::assertSame('Profile URI must be at most 500 ASCII characters.', $exception->getMessage());
+        }
+
+        $this->expectException(ValidationException::class);
+        $validator->validateAndResolve("https://platform.example/?x=\xff", null, true);
     }
 
     /**

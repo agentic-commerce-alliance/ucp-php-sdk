@@ -52,15 +52,15 @@ final class DoctrineDbalPlatformProfileCacheRepository implements RevalidatingPl
             return;
         }
 
-        $this->evictOverflow();
+        $this->evictOverflow($uri);
     }
 
     /**
-     * Keeps the cache at `$maxEntries` by dropping the entries that expire soonest. Expiry is
-     * the closest thing to "least recently useful" the table records, and the entries about to
-     * expire are the ones a refetch would replace anyway.
+     * Keeps the cache at `$maxEntries`. Fresh entries that expire soonest go first; stale
+     * entries go last, because they are the fallback the discovery rate limit serves while a
+     * platform cannot be fetched, and the entry just written is never the one dropped.
      */
-    private function evictOverflow(): void
+    private function evictOverflow(string $keep): void
     {
         if ($this->maxEntries === null) {
             return;
@@ -73,7 +73,10 @@ final class DoctrineDbalPlatformProfileCacheRepository implements RevalidatingPl
         }
 
         $uris = $this->connection->fetchFirstColumn(
-            'SELECT uri FROM ucp_platform_profile_cache ORDER BY expires_at ASC, uri ASC LIMIT ' . $overflow,
+            'SELECT uri FROM ucp_platform_profile_cache WHERE uri <> :keep'
+            . ' ORDER BY CASE WHEN expires_at IS NULL OR expires_at < :now THEN 1 ELSE 0 END ASC, expires_at ASC, uri ASC'
+            . ' LIMIT ' . $overflow,
+            ['keep' => $keep, 'now' => time()],
         );
         foreach ($uris as $evicted) {
             $this->connection->delete('ucp_platform_profile_cache', ['uri' => (string) $evicted]);
