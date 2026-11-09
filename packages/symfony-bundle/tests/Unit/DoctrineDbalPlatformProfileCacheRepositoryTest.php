@@ -49,12 +49,12 @@ final class DoctrineDbalPlatformProfileCacheRepositoryTest extends TestCase
 
     /**
      * The specification asks for a fixed-size profile cache, so that discovery of unknown
-     * platforms cannot grow storage without limit. Over the limit, the fresh entries that
-     * expire soonest go first and stale entries last: a stale copy is what the rate limit
-     * serves while a platform cannot be fetched. The entry just written is never dropped.
+     * platforms cannot grow storage without limit. Over the limit, the entries that expired
+     * or expire first go: an entry only stays stale while nobody asks for it, so this is the
+     * closest the table comes to least recently used. The entry just written is never dropped.
      */
     #[Test]
-    public function itKeepsTheCacheAtItsFixedSizeByDroppingTheFreshEntriesThatExpireSoonest(): void
+    public function itKeepsTheCacheAtItsFixedSizeByDroppingTheEntriesThatExpiredFirst(): void
     {
         $connection = DriverManager::getConnection([
             'driver' => 'pdo_sqlite',
@@ -66,13 +66,13 @@ final class DoctrineDbalPlatformProfileCacheRepositoryTest extends TestCase
 
         // Inserted out of expiry order, so insertion-order eviction would fail this test.
         $repository->saveEntry('https://latest.example/.well-known/ucp', $profile, time() + 300);
-        $repository->saveEntry('https://stale.example/.well-known/ucp', $profile, time() - 10);
+        $repository->saveEntry('https://stale.example/.well-known/ucp', $profile, time() - 3600);
         $repository->saveEntry('https://soon.example/.well-known/ucp', $profile, time() + 100);
-        $repository->saveEntry('https://new.example/.well-known/ucp', $profile, time() + 30);
+        $repository->saveEntry('https://new.example/.well-known/ucp', $profile, time() - 10);
 
-        self::assertNull($repository->find('https://soon.example/.well-known/ucp', true), 'the fresh entry expiring soonest is evicted');
-        self::assertNotNull($repository->find('https://stale.example/.well-known/ucp', true), 'a stale entry outlives fresh ones');
-        self::assertNotNull($repository->find('https://new.example/.well-known/ucp'), 'the entry just written is never the one dropped');
+        self::assertNull($repository->find('https://stale.example/.well-known/ucp', true), 'the entry stale the longest is evicted first');
+        self::assertNotNull($repository->find('https://new.example/.well-known/ucp', true), 'the entry just written is never the one dropped, stale or not');
+        self::assertNotNull($repository->find('https://soon.example/.well-known/ucp'));
         self::assertNotNull($repository->find('https://latest.example/.well-known/ucp'));
     }
 

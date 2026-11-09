@@ -39,6 +39,7 @@ final class HttpAgentKeyDirectoryFetcher implements AgentKeyDirectoryFetcherInte
 
     public function fetch(string $uri): AgentKeyDirectory
     {
+        StoredUri::assertStorable($uri, 'Key directory URI');
         $validatedUri = $this->urlSafetyValidator->validateAndResolve($uri);
 
         $cached = $this->cacheRepository->find($uri);

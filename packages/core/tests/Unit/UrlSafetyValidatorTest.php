@@ -126,6 +126,8 @@ final class UrlSafetyValidatorTest extends TestCase
         yield 'limited broadcast' => ['255.255.255.255'];
         yield 'site-local IPv6' => ['fec0::1'];
         yield 'IPv6 documentation' => ['2001:db8::1'];
+        yield 'IPv6 documentation (RFC 9637)' => ['3fff::1'];
+        yield 'SRv6 segment identifiers' => ['5f00::1'];
         yield 'IPv4-mapped private' => ['::ffff:10.0.0.1'];
         yield 'IPv4-mapped metadata' => ['::ffff:169.254.169.254'];
         yield 'IPv4-mapped loopback' => ['::ffff:127.0.0.1'];
@@ -238,26 +240,6 @@ final class UrlSafetyValidatorTest extends TestCase
         $this->expectExceptionMessage('Profile host "platform.example" is not allowed.');
 
         $validator->validateAndResolve('https://platform.example/.well-known/ucp', ['other.example']);
-    }
-
-    /**
-     * The URI is a storage key with a 500-character column behind it, and a non-ASCII byte is
-     * not a URI: both are refused before anything is keyed on them.
-     */
-    #[Test]
-    public function itRejectsAnOverlongOrNonAsciiProfileUri(): void
-    {
-        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']);
-
-        try {
-            $validator->validateAndResolve('https://platform.example/' . str_repeat('a', 500), null, true);
-            self::fail('An overlong URI must be refused.');
-        } catch (ValidationException $exception) {
-            self::assertSame('Profile URI must be at most 500 ASCII characters.', $exception->getMessage());
-        }
-
-        $this->expectException(ValidationException::class);
-        $validator->validateAndResolve("https://platform.example/?x=\xff", null, true);
     }
 
     /**

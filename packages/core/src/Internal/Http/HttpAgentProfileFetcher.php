@@ -62,6 +62,7 @@ final class HttpAgentProfileFetcher implements PolicyAwareAgentProfileFetcherInt
 
     public function fetchForPolicy(string $uri, array $allowedProfileHosts, PlatformPolicy $platformPolicy): PlatformProfile
     {
+        StoredUri::assertStorable($uri, 'Profile URI');
         $validatedUri = $this->urlSafetyValidator->validateAndResolve(
             $uri,
             $allowedProfileHosts === [] ? null : $allowedProfileHosts,

@@ -12,7 +12,7 @@ The shared SDK currently provides the common protocol security pieces needed by 
 - discovery signing key publishing
 - idempotency handling
 - remote platform-profile fetch allowlists, and a `platform_policy` that decides whether they gate (`listed`) or name the pre-approved fast lane (`all`)
-- a bounded discovery budget for platforms outside the allowlist: a fixed-size profile cache (in the bundle's DBAL adapter, which drops the fresh entries that expire soonest and keeps stale ones, because they are the fallback served while a platform cannot be fetched), fetches per window across all callers, and a backoff per profile URL after failures.
+- a bounded discovery budget for platforms outside the allowlist: a fixed-size profile cache (in the bundle's DBAL adapter, which drops the entries that expired or expire first, the closest the table comes to least recently used), fetches per window across all callers, and a backoff per profile URL after failures.
   The window is global, not per tenant or per caller: it is the specification's fixed footprint, so one party sending many cold profile URIs uses up the window for every unknown platform.
   Pre-approved platforms in `allowed_profile_hosts` are never deferred, so listing the platforms a business depends on is what keeps them reachable.
   A profile is fetched before the request's signature is verified, under either policy; the fetch-safety rules are therefore the only thing between an unauthenticated request and an outbound connection, and under `all` loopback stays refused outside development mode for that reason.

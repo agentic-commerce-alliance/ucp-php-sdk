@@ -45,6 +45,8 @@ final class SpecialUseAddress
         '100::/64',           // discard-only
         '2001::/23',          // IETF protocol assignments, including ORCHID and TEREDO
         '2001:db8::/32',      // documentation
+        '3fff::/20',          // documentation (RFC 9637)
+        '5f00::/16',          // SRv6 segment identifiers (RFC 9602)
         'fc00::/7',           // unique local
         'fe80::/10',          // link-local
         'fec0::/10',          // site-local (deprecated)

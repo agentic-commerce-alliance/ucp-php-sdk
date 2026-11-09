@@ -671,6 +671,36 @@ final class HttpAgentProfileFetcherTest extends TestCase
     }
 
     /**
+     * The profile URI is a storage key with a 500-character column behind it, and a non-ASCII
+     * byte is not a URI: both are refused before anything is fetched or keyed on them.
+     */
+    #[Test]
+    public function itRejectsAnOverlongOrNonAsciiProfileUri(): void
+    {
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new NullPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard(platformPolicy: PlatformPolicy::All),
+        );
+
+        try {
+            $fetcher->fetch('https://platform.example/' . str_repeat('a', 500));
+            self::fail('An overlong URI must be refused.');
+        } catch (ValidationException $exception) {
+            self::assertSame('Profile URI must be at most 500 ASCII characters.', $exception->getMessage());
+        }
+
+        try {
+            $fetcher->fetch("https://platform.example/?x=\xff");
+            self::fail('A non-ASCII URI must be refused.');
+        } catch (ValidationException) {
+        }
+        self::assertSame(0, $client->requests);
+    }
+
+    /**
      * While the budget says no, nothing goes on the wire. A platform whose cached profile went
      * stale is served the stale copy, both while its URL is in backoff and while the window is
      * full, and the client is never called.
