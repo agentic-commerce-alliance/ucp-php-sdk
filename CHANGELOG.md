@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.9 - 2026-11-10
 
 ### Added
 
@@ -13,6 +13,8 @@
 
 ### Upgrade notes
 
+- Install both packages at `0.0.9`. The bundle now requires core `>=0.0.9 <0.1.0`: it wires `PlatformPolicy`, `DiscoveryGuard` and `DiscoveryBudget`, which do not exist in `0.0.8`.
+- No protocol change. This release still serves UCP `2026-08-25`.
 - No backward-incompatible change to the PHP API: the new constructor arguments are optional and last, the new `UrlSafetyValidator::validateAndResolve()` parameter defaults to the previous behaviour, and the per-request policy reaches the fetcher through the new `PolicyAwareAgentProfileFetcherInterface` rather than a changed method on `RequestScopedAgentProfileFetcherInterface`. Under the default `listed` policy the request path is unchanged, with one exception: the stricter special-use address rules below apply to every URL the SDK fetches, profile, key directory and webhook alike, so a listed platform or a webhook target that resolves into one of the newly refused ranges, such as shared address space (`100.64.0.0/10`), is now refused.
 - Deployments on the DBAL storage adapter must run `SchemaBootstrapper::ensureSchema()` before the next `ucp:storage:cleanup`, under either policy: the cleanup now purges the two new tables, `ucp_discovery_windows` and `ucp_discovery_backoff`, and fails while they are missing.
 - An implementation of `DiscoveryBudgetRepositoryInterface` of your own replaces the DBAL default by aliasing the interface. Its keys are profile URLs, not hosts.
