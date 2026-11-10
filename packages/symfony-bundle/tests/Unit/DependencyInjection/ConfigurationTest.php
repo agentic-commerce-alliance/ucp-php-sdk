@@ -17,6 +17,39 @@ final class ConfigurationTest extends TestCase
      * fail closed, so the symptom was "the feature does not work" -- exactly the report
      * nobody can act on. Refusing it at container build puts the message where the typo is.
      */
+    public function testItDefaultsThePlatformPolicyToListed(): void
+    {
+        self::assertSame('listed', $this->process([])['platform_policy']);
+    }
+
+    public function testItDefaultsThePlatformProfileCacheSize(): void
+    {
+        self::assertSame(1000, $this->process([])['platform_profile_cache_max_entries']);
+    }
+
+    public function testItDefaultsTheDiscoveryBudget(): void
+    {
+        self::assertSame(
+            ['max_fetches_per_window' => 60, 'window_seconds' => 60, 'backoff_base_seconds' => 30, 'backoff_max_seconds' => 3600],
+            $this->process([])['discovery'],
+        );
+    }
+
+    public function testItRefusesABackoffBaseAboveTheMaximum(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('backoff_base_seconds must not exceed backoff_max_seconds');
+
+        $this->process(['discovery' => ['backoff_base_seconds' => 120, 'backoff_max_seconds' => 60]]);
+    }
+
+    public function testItRefusesAnUnknownPlatformPolicy(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->process(['platform_policy' => 'open']);
+    }
+
     public function testItRefusesAnAllowedAgentDomainItCannotActOn(): void
     {
         $this->expectException(InvalidConfigurationException::class);

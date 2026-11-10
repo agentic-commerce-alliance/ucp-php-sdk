@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony;
 
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
 use Ucp\Sdk\Internal\Service\DefaultOrderWebhookDispatcher;
@@ -57,6 +58,7 @@ final class UcpSdkConfiguration
          * tests, so a parameter in the middle would silently shift every argument after it.
          */
         public readonly int $profileCacheMaxAge = 300,
+        public readonly string $platformPolicy = 'listed',
     ) {
     }
 
@@ -89,6 +91,7 @@ final class UcpSdkConfiguration
             $this->enabledCapabilities,
             transportEndpoints: $this->transportEndpoints,
             profileFetchingDevelopmentMode: $this->profileFetchingDevelopmentMode,
+            platformPolicy: PlatformPolicy::from($this->platformPolicy),
         );
     }
 }

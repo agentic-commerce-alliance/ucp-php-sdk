@@ -84,6 +84,18 @@ final class StorageSchemaDefinition
         $table->addColumn('created_at', 'integer', ['notnull' => false]);
         $table->setPrimaryKey(['scope', 'kid', 'signature_hash']);
 
+        $table = $schema->createTable('ucp_discovery_windows');
+        $table->addColumn('window_start', 'integer');
+        $table->addColumn('fetches', 'integer', ['default' => 0]);
+        $table->setPrimaryKey(['window_start']);
+
+        $table = $schema->createTable('ucp_discovery_backoff');
+        $table->addColumn('uri', 'string', ['length' => 500]);
+        $table->addColumn('failures', 'integer', ['default' => 0]);
+        $table->addColumn('retry_after', 'integer');
+        $table->setPrimaryKey(['uri']);
+        $table->addIndex(['retry_after'], 'idx_ucp_discovery_backoff_retry_after');
+
         return $schema;
     }
 

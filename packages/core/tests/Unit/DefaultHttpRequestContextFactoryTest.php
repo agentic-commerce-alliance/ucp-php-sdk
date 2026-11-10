@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\VersionNegotiationOutcome;
 use Ucp\Sdk\Event\VersionNegotiationObservedEvent;
@@ -30,6 +31,7 @@ use Ucp\Sdk\Service\AgentProfileFetcherInterface;
 use Ucp\Sdk\Service\CapabilityNegotiatorInterface;
 use Ucp\Sdk\Service\EventDispatcherInterface;
 use Ucp\Sdk\Service\MerchantAuthorizationServiceInterface;
+use Ucp\Sdk\Service\PolicyAwareAgentProfileFetcherInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RequestSignatureServiceInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
@@ -640,6 +642,139 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
 
         $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
             'UCP-Agent' => 'platform; profile="https://trusted.example/.well-known/ucp"',
+        ]));
+    }
+
+    /**
+     * The specification's default: a platform nobody listed may still interact, as long as its
+     * profile can be fetched and its signature verifies. The host list stops being a gate.
+     */
+    #[Test]
+    public function itAcceptsAnUnlistedProfileHostUnderThePlatformPolicyAll(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            platformPolicy: PlatformPolicy::All,
+        );
+
+        $context = $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://new-platform.example/.well-known/ucp"',
+        ]));
+
+        self::assertSame('https://new-platform.example/.well-known/ucp', $context->platformProfileUri);
+        self::assertSame(1, $this->profileFetches);
+    }
+
+    /**
+     * The policy reaches the fetcher with the request, so a resolver that sets it per tenant
+     * does not have the fetcher refuse what the factory just admitted.
+     */
+    #[Test]
+    public function itPassesThePlatformPolicyToAPolicyAwareFetcher(): void
+    {
+        $fetcher = $this->createMock(PolicyAwareAgentProfileFetcherInterface::class);
+        $fetcher
+            ->expects($this->once())
+            ->method('fetchForPolicy')
+            ->with('https://new-platform.example/.well-known/ucp', [], PlatformPolicy::All)
+            ->willReturn($this->platformProfile);
+        $resolver = $this->createMock(RuntimeConfigurationResolverInterface::class);
+        $resolver
+            ->method('resolve')
+            ->willReturn(new RuntimeConfiguration('2026-04-08', 'https://merchant.example', SignaturePolicy::Log, platformPolicy: PlatformPolicy::All));
+        $signatureService = $this->createMock(RequestSignatureServiceInterface::class);
+        $signatureService
+            ->method('verify')
+            ->willReturn($this->signatureVerificationResult);
+        $negotiator = $this->createMock(CapabilityNegotiatorInterface::class);
+        $negotiator
+            ->method('negotiate')
+            ->willReturn($this->negotiatedCapabilities);
+        $factory = new DefaultHttpRequestContextFactory(
+            runtimeConfigurationResolver: $resolver,
+            agentProfileFetcher: $fetcher,
+            requestSignatureService: $signatureService,
+            capabilityNegotiator: $negotiator,
+            negotiationSessionRepository: $this->createMock(NegotiationSessionRepositoryInterface::class),
+            merchantAuthorizationService: null,
+            eventDispatcher: $this->createMock(EventDispatcherInterface::class),
+            profileBuilder: $this->createMock(ProfileBuilderInterface::class),
+        );
+
+        $factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://new-platform.example/.well-known/ucp"',
+        ]));
+    }
+
+    /**
+     * Under `All` the list is still read: it is the registry of pre-approved platforms, so a
+     * listed host keeps working exactly as before.
+     */
+    #[Test]
+    public function itStillAcceptsAListedProfileHostUnderThePlatformPolicyAll(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['trusted.example'],
+            platformPolicy: PlatformPolicy::All,
+        );
+
+        $context = $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://trusted.example/.well-known/ucp"',
+        ]));
+
+        self::assertSame('https://trusted.example/.well-known/ucp', $context->platformProfileUri);
+    }
+
+    /**
+     * `All` opens the profile-host gate only. The agent-domain gate is a separate setting
+     * with its own meaning, so a configured agent allow-list keeps refusing hosts outside it.
+     */
+    #[Test]
+    public function itStillEnforcesAgentDomainsUnderThePlatformPolicyAll(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            [],
+            ['agent.example'],
+            platformPolicy: PlatformPolicy::All,
+        );
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform agent domain is not allowed for the current runtime configuration.');
+
+        $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://other.example/.well-known/ucp"',
+        ]));
+    }
+
+    /**
+     * `All` does not relax the URI rules: a profile URI with userinfo is refused before
+     * anything is fetched, exactly as under `Listed`.
+     */
+    #[Test]
+    public function itStillRefusesAMalformedProfileUriUnderThePlatformPolicyAll(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            platformPolicy: PlatformPolicy::All,
+        );
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform profile URI must not include userinfo.');
+
+        $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://user:secret@platform.example/.well-known/ucp"',
         ]));
     }
 }

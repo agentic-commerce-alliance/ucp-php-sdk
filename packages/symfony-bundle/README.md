@@ -59,7 +59,9 @@ Valid `signature_policy` values are `off`, `log`, and `strict`.
 Valid `transports` values are `rest`, `mcp`, `a2a`, and `embedded`; REST is the default.
 `enabled_capabilities` is an allowlist of capability descriptor names; the default empty list keeps every registered capability enabled.
 When `mcp` is enabled, `transport_endpoints.mcp` is required because the shared SDK advertises MCP metadata only and does not provide a default `/ucp/mcp` runtime endpoint.
-Remote profile fetching is default-deny until `allowed_profile_hosts` is configured. Set `profile_fetching_development_mode` to `true` only for localhost/plain-HTTP development.
+`platform_policy` decides which agent platforms may interact. The default `listed` refuses every platform whose profile host is not in `allowed_profile_hosts`, and an empty list refuses every remote platform. `all` is what the UCP specification describes as the default: any platform with a discoverable profile may interact without prior registration, and `allowed_profile_hosts` becomes the registry of pre-approved platforms, which are served without going through discovery. The fetch-safety rules (HTTPS only, no redirects, no loopback, link-local, private or metadata addresses) apply in both modes.
+Under `all`, discovery of unknown platforms is bounded by `discovery`: at most `max_fetches_per_window` profile fetches per `window_seconds` across all origins, and a profile URL whose fetch failed is backed off for `backoff_base_seconds`, doubled per consecutive failure up to `backoff_max_seconds`. A rate-limited fetch answers `503` with `Retry-After`; a stale cached copy is served instead when there is one. Listed platforms are never counted. The profile cache itself is bounded by `platform_profile_cache_max_entries`, default 1000; over the limit, the entries that expired or expire first are dropped.
+Set `profile_fetching_development_mode` to `true` only for localhost/plain-HTTP development.
 
 ## Storage Schema
 

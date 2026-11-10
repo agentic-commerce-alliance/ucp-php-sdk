@@ -7,11 +7,15 @@ namespace Ucp\Sdk\Tests\Unit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Enum\PlatformPolicy;
 use Ucp\Sdk\Exception\AgentProfileException;
 use Ucp\Sdk\Exception\ValidationException;
+use Ucp\Sdk\Internal\Http\DiscoveryGuard;
 use Ucp\Sdk\Internal\Http\HttpAgentProfileFetcher;
+use Ucp\Sdk\Internal\Repository\InMemoryDiscoveryBudgetRepository;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
+use Ucp\Sdk\Model\Config\DiscoveryBudget;
 use Ucp\Sdk\Model\Http\HttpResponseChunkInterface;
 use Ucp\Sdk\Model\Http\HttpResponseInterface;
 use Ucp\Sdk\Model\Profile\CachedPlatformProfile;
@@ -38,7 +42,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -70,7 +74,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             timeoutSeconds: 7,
         );
@@ -83,7 +87,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
         self::assertSame(7, $client->options['timeout']);
         self::assertSame(0, $client->options['max_redirects']);
         self::assertFalse($client->options['buffer']);
-        self::assertSame(['platform.example' => '203.0.113.10'], $client->options['resolve']);
+        self::assertSame(['platform.example' => '93.184.216.34'], $client->options['resolve']);
         self::assertSame(7.0, $client->streamTimeout);
         self::assertFalse($response->lastGetHeadersThrowArgument);
         self::assertFalse($response->cancelled);
@@ -113,7 +117,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 [],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -121,7 +125,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
 
         self::assertInstanceOf(PlatformProfile::class, $profile);
         self::assertCount(1, $cacheRepository->savedProfiles);
-        self::assertSame(['platform.example' => '203.0.113.10'], $client->options['resolve']);
+        self::assertSame(['platform.example' => '93.184.216.34'], $client->options['resolve']);
     }
 
     #[Test]
@@ -138,7 +142,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxResponseBytes: strlen($body),
         );
@@ -166,7 +170,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             new RecordingPlatformProfileCacheRepository(),
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -189,7 +193,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -221,7 +225,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxResponseBytes: 512,
         );
@@ -255,7 +259,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxResponseBytes: 512,
         );
@@ -284,7 +288,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -315,7 +319,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -341,7 +345,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -373,7 +377,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -397,7 +401,7 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
         );
 
@@ -519,11 +523,312 @@ final class HttpAgentProfileFetcherTest extends TestCase
             $cache,
             new UrlSafetyValidator(
                 ['platform.example'],
-                static fn (string $host): array => $host === 'platform.example' ? ['203.0.113.10'] : [],
+                static fn (string $host): array => $host === 'platform.example' ? ['93.184.216.34'] : [],
             ),
             maxTtlSeconds: $maxTtlSeconds,
             minimumTtlSeconds: $minimumTtlSeconds,
         );
+    }
+
+    /**
+     * A platform outside the allowed hosts is discovery, and discovery is bounded: once the
+     * window is full, the fetch is refused with how long to wait, and nothing goes on the wire.
+     */
+    #[Test]
+    public function itDefersDiscoveryOnceTheWindowIsFull(): void
+    {
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $client = new RecordingHttpClient(
+            new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
+            [new RecordingChunk(content: $body), new RecordingChunk()],
+        );
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new NullPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 1, windowSeconds: 60), PlatformPolicy::All),
+        );
+
+        $fetcher->fetchForAllowedHosts('https://first.example/.well-known/ucp', ['listed.example']);
+
+        try {
+            $fetcher->fetchForAllowedHosts('https://second.example/.well-known/ucp', ['listed.example']);
+            self::fail('The second discovery in the window must be deferred.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_discovery_deferred', $exception->errorCode);
+            self::assertNotNull($exception->retryAfterSeconds);
+            self::assertGreaterThan(0, $exception->retryAfterSeconds);
+            self::assertLessThanOrEqual(60, $exception->retryAfterSeconds);
+        }
+        self::assertSame(1, $client->requests, 'the deferred fetch never reaches the network');
+    }
+
+    /**
+     * Pre-approved platforms "are not subject to discovery budget constraints": a listed host
+     * is fetched however full the window is.
+     */
+    #[Test]
+    public function itNeverCountsAListedHostAgainstTheDiscoveryBudget(): void
+    {
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $client = new RecordingHttpClient(
+            new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
+            [new RecordingChunk(content: $body), new RecordingChunk()],
+        );
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new NullPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 1, windowSeconds: 60), PlatformPolicy::All),
+        );
+        $fetcher->fetchForAllowedHosts('https://unknown.example/.well-known/ucp', ['listed.example']);
+
+        $profile = $fetcher->fetchForAllowedHosts('https://api.listed.example/.well-known/ucp', ['listed.example']);
+
+        self::assertInstanceOf(PlatformProfile::class, $profile);
+        self::assertSame(2, $client->requests);
+    }
+
+    /**
+     * A cache hit is not discovery. A platform whose profile is fresh in the cache is served
+     * from it, whatever the budget says.
+     */
+    #[Test]
+    public function itServesAFreshCachedProfileWithoutTouchingTheDiscoveryBudget(): void
+    {
+        $cached = new PlatformProfile('2026-04-08', [], [], [], []);
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new RecordingPlatformProfileCacheRepository($cached),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 1, windowSeconds: 60), PlatformPolicy::All),
+        );
+        $fetcher->fetchForAllowedHosts('https://other.example/.well-known/ucp', []);
+
+        $profile = $fetcher->fetchForAllowedHosts('https://unknown.example/.well-known/ucp', []);
+
+        self::assertSame($cached, $profile);
+        self::assertSame(0, $client->requests);
+    }
+
+    /**
+     * An origin whose fetch failed is left alone for a while: the next fetch is deferred with
+     * the backoff, and the failure is not retried on every request.
+     */
+    #[Test]
+    public function itBacksOffAnOriginAfterAFailedDiscovery(): void
+    {
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $budget = new InMemoryDiscoveryBudgetRepository();
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new RecordingPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard($budget, new DiscoveryBudget(maxFetchesPerWindow: 100, backoffBaseSeconds: 30), PlatformPolicy::All),
+        );
+
+        try {
+            $fetcher->fetchForAllowedHosts('https://flaky.example/.well-known/ucp', []);
+            self::fail('A 500 from the platform must fail the fetch.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_unavailable', $exception->errorCode);
+        }
+
+        try {
+            $fetcher->fetchForAllowedHosts('https://flaky.example/.well-known/ucp', []);
+            self::fail('The origin must be in backoff after a failure.');
+        } catch (AgentProfileException $exception) {
+            self::assertSame('agent_profile_discovery_deferred', $exception->errorCode);
+            self::assertSame(30, $exception->retryAfterSeconds);
+        }
+        self::assertSame(1, $client->requests, 'the backed-off origin is not fetched again');
+        self::assertNotNull($budget->retryAfter('https://flaky.example/.well-known/ucp'));
+    }
+
+    /**
+     * A successful fetch ends the backoff, so one bad hour does not follow a platform around.
+     */
+    #[Test]
+    public function itClearsTheBackoffOnceTheOriginAnswersAgain(): void
+    {
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $budget = new InMemoryDiscoveryBudgetRepository();
+        $budget->recordFailure('https://recovered.example/.well-known/ucp', time() - 1);
+        $fetcher = new HttpAgentProfileFetcher(
+            new RecordingHttpClient(
+                new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
+                [new RecordingChunk(content: $body), new RecordingChunk()],
+            ),
+            new RecordingPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard($budget, platformPolicy: PlatformPolicy::All),
+        );
+
+        $fetcher->fetchForAllowedHosts('https://recovered.example/.well-known/ucp', []);
+
+        self::assertNull($budget->retryAfter('https://recovered.example/.well-known/ucp'));
+    }
+
+    /**
+     * The profile URI is a storage key with a 500-character column behind it, and a non-ASCII
+     * byte is not a URI: both are refused before anything is fetched or keyed on them.
+     */
+    #[Test]
+    public function itRejectsAnOverlongOrNonAsciiProfileUri(): void
+    {
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new NullPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard(platformPolicy: PlatformPolicy::All),
+        );
+
+        try {
+            $fetcher->fetch('https://platform.example/' . str_repeat('a', 500));
+            self::fail('An overlong URI must be refused.');
+        } catch (ValidationException $exception) {
+            self::assertSame('Profile URI must be at most 500 ASCII characters.', $exception->getMessage());
+        }
+
+        try {
+            $fetcher->fetch("https://platform.example/?x=\xff");
+            self::fail('A non-ASCII URI must be refused.');
+        } catch (ValidationException) {
+        }
+        self::assertSame(0, $client->requests);
+    }
+
+    /**
+     * While the budget says no, nothing goes on the wire. A platform whose cached profile went
+     * stale is served the stale copy, both while its URL is in backoff and while the window is
+     * full, and the client is never called.
+     */
+    #[Test]
+    public function itServesAStaleProfileInsteadOfDeferringABackedOffUrl(): void
+    {
+        $stale = new PlatformProfile('2026-04-08', [], [], [], []);
+        $budget = new InMemoryDiscoveryBudgetRepository();
+        $budget->recordFailure('https://known.example/.well-known/ucp', time() + 600);
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new RecordingPlatformProfileCacheRepository(null, $stale),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard($budget, new DiscoveryBudget(maxFetchesPerWindow: 0), PlatformPolicy::All),
+        );
+
+        $profile = $fetcher->fetchForAllowedHosts('https://known.example/.well-known/ucp', []);
+
+        self::assertSame($stale, $profile);
+        self::assertSame(0, $client->requests, 'a deferred fetch never reaches the network, stale copy or not');
+    }
+
+    #[Test]
+    public function itServesAStaleProfileInsteadOfFetchingWhenTheWindowIsFull(): void
+    {
+        $stale = new PlatformProfile('2026-04-08', [], [], [], []);
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new RecordingPlatformProfileCacheRepository(null, $stale),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard(new InMemoryDiscoveryBudgetRepository(), new DiscoveryBudget(maxFetchesPerWindow: 0), PlatformPolicy::All),
+        );
+
+        $profile = $fetcher->fetchForAllowedHosts('https://known.example/.well-known/ucp', []);
+
+        self::assertSame($stale, $profile);
+        self::assertSame(0, $client->requests, 'a full window serves the stale copy without a fetch');
+    }
+
+    /**
+     * Keyed on the host, one request naming a path that 404s would lock the platform's real
+     * profile out. Keyed on the URL, the bad path backs off and the real profile stays reachable.
+     */
+    #[Test]
+    public function itBacksOffTheFailingUrlAndNotThePlatformsRealProfile(): void
+    {
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $budget = new InMemoryDiscoveryBudgetRepository();
+        $guard = new DiscoveryGuard($budget, platformPolicy: PlatformPolicy::All);
+        $validator = new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']);
+
+        $attacker = new HttpAgentProfileFetcher(
+            new RecordingHttpClient(new RecordingResponse(404), []),
+            new NullPlatformProfileCacheRepository(),
+            $validator,
+            discoveryGuard: $guard,
+        );
+        try {
+            $attacker->fetchForAllowedHosts('https://platform.example/does-not-exist.json', []);
+            self::fail('A 404 must fail the fetch.');
+        } catch (AgentProfileException) {
+        }
+        self::assertNotNull($budget->retryAfter('https://platform.example/does-not-exist.json'), 'the bad path is in backoff');
+
+        $client = new RecordingHttpClient(
+            new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
+            [new RecordingChunk(content: $body), new RecordingChunk()],
+        );
+        $fetcher = new HttpAgentProfileFetcher($client, new NullPlatformProfileCacheRepository(), $validator, discoveryGuard: $guard);
+
+        $profile = $fetcher->fetchForAllowedHosts('https://platform.example/.well-known/ucp', []);
+
+        self::assertInstanceOf(PlatformProfile::class, $profile);
+        self::assertSame(1, $client->requests, 'the real profile on the same host is still fetched');
+    }
+
+    /**
+     * Under `Listed` nothing is discovery: an unlisted host is refused by the validator, and a
+     * listed one is never counted, so the budget cannot start answering 503 under the default.
+     */
+    #[Test]
+    public function itNeverDefersUnderTheListedPolicy(): void
+    {
+        $client = new RecordingHttpClient(new RecordingResponse(500), []);
+        $budget = new InMemoryDiscoveryBudgetRepository();
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new NullPlatformProfileCacheRepository(),
+            new UrlSafetyValidator(['listed.example'], static fn (string $host): array => ['93.184.216.34']),
+            discoveryGuard: new DiscoveryGuard($budget, new DiscoveryBudget(maxFetchesPerWindow: 0, backoffBaseSeconds: 30)),
+        );
+
+        foreach ([1, 2] as $attempt) {
+            try {
+                $fetcher->fetch('https://listed.example/.well-known/ucp');
+                self::fail('A 500 from the platform must fail the fetch.');
+            } catch (AgentProfileException $exception) {
+                self::assertSame('agent_profile_unavailable', $exception->errorCode, "attempt {$attempt} is a plain failure, not a deferral");
+            }
+        }
+        self::assertNull($budget->retryAfter('https://listed.example/.well-known/ucp'));
+    }
+
+    /**
+     * The policy of the request's runtime configuration wins over the fetcher's default, so a
+     * host that resolves the policy per tenant gets consistent gates in the factory and here.
+     */
+    #[Test]
+    public function itHonoursThePerCallPlatformPolicy(): void
+    {
+        $body = '{"ucp":{"version":"2026-04-08","services":{},"capabilities":{},"payment_handlers":{}},"signing_keys":[]}';
+        $client = new RecordingHttpClient(
+            new RecordingResponse(200, ['content-length' => [(string) strlen($body)]]),
+            [new RecordingChunk(content: $body), new RecordingChunk()],
+        );
+        $fetcher = new HttpAgentProfileFetcher(
+            $client,
+            new NullPlatformProfileCacheRepository(),
+            new UrlSafetyValidator([], static fn (string $host): array => ['93.184.216.34']),
+        );
+
+        $profile = $fetcher->fetchForPolicy('https://unlisted.example/.well-known/ucp', [], PlatformPolicy::All);
+
+        self::assertInstanceOf(PlatformProfile::class, $profile);
+        self::assertSame(1, $client->requests);
     }
 }
 
@@ -556,6 +861,34 @@ final class RecordingRevalidatingCacheRepository implements RevalidatingPlatform
     public function find(string $uri, bool $allowExpired = false): ?PlatformProfile
     {
         throw new \LogicException('The fetcher must use findEntry() on a revalidating repository.');
+    }
+
+    public function all(bool $allowExpired = false): array
+    {
+        return [];
+    }
+
+    public function delete(string $uri): bool
+    {
+        return false;
+    }
+
+    public function purgeExpired(int $olderThanUnixTimestamp): void
+    {
+    }
+
+}
+
+/** A cache that holds nothing, so every fetch is a cold fetch. */
+final class NullPlatformProfileCacheRepository implements PlatformProfileCacheRepositoryInterface
+{
+    public function save(string $uri, PlatformProfile $profile): void
+    {
+    }
+
+    public function find(string $uri, bool $allowExpired = false): ?PlatformProfile
+    {
+        return null;
     }
 
     public function all(bool $allowExpired = false): array
@@ -612,6 +945,8 @@ final class RecordingPlatformProfileCacheRepository implements PlatformProfileCa
 
 final class RecordingHttpClient implements HttpClientInterface
 {
+    public int $requests = 0;
+
     public string $method = '';
     public string $url = '';
 
@@ -640,6 +975,7 @@ final class RecordingHttpClient implements HttpClientInterface
      */
     public function request(string $method, string $url, array $options = []): HttpResponseInterface
     {
+        ++$this->requests;
         $this->method = $method;
         $this->url = $url;
         $this->options = $options;

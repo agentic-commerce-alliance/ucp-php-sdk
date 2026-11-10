@@ -54,6 +54,8 @@ final class ExceptionListener
         // the client's to fix and stay out of the log.
         $logMessage = match (true) {
             $throwable instanceof ConfigurationException => 'UCP request failed because of a server configuration error.',
+            // A deferral is the budget doing its job, not a platform that is down.
+            $throwable instanceof AgentProfileException && $throwable->retryAfterSeconds !== null => null,
             $throwable instanceof AgentProfileException => 'UCP request failed because the agent profile could not be fetched.',
             $descriptor->internal => 'Unhandled exception while processing a UCP request.',
             default => null,
@@ -67,12 +69,17 @@ final class ExceptionListener
         // a fixed sentence and the detail goes to the log above.
         $message = $descriptor->internal ? 'Internal server error.' : $throwable->getMessage();
 
-        $event->setResponse($this->errorResponse(
+        $response = $this->errorResponse(
             $event->getRequest(),
             $message,
             $descriptor->httpStatus,
             $this->messages($descriptor, $throwable, $message),
-        ));
+        );
+        // The discovery budget's rate limit says when to ask again.
+        if ($throwable instanceof AgentProfileException && $throwable->retryAfterSeconds !== null) {
+            $response->headers->set('Retry-After', (string) max(1, $throwable->retryAfterSeconds));
+        }
+        $event->setResponse($response);
 
         // Symfony rewrites any non-error status to 500 when a listener handles a throwable that
         // is not an HttpException, unless the listener says the code was deliberate

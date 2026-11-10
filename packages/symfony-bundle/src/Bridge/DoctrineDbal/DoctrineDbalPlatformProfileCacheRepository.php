@@ -13,9 +13,15 @@ use Ucp\Sdk\Repository\RevalidatingPlatformProfileCacheRepositoryInterface;
 /** @internal */
 final class DoctrineDbalPlatformProfileCacheRepository implements RevalidatingPlatformProfileCacheRepositoryInterface
 {
+    /**
+     * @param int|null $maxEntries the fixed size of the cache; null keeps it unbounded. The
+     *                             specification asks for a bounded cache so that discovery of
+     *                             unknown platforms cannot grow storage without limit.
+     */
     public function __construct(
         private readonly Connection $connection,
         private readonly int $ttlSeconds = 600,
+        private readonly ?int $maxEntries = null,
     ) {
     }
 
@@ -42,6 +48,37 @@ final class DoctrineDbalPlatformProfileCacheRepository implements RevalidatingPl
             $this->connection->insert('ucp_platform_profile_cache', $data);
         } catch (UniqueConstraintViolationException) {
             $this->connection->update('ucp_platform_profile_cache', $data, ['uri' => $uri]);
+
+            return;
+        }
+
+        $this->evictOverflow($uri);
+    }
+
+    /**
+     * Keeps the cache at `$maxEntries` by dropping the entries that expired or expire first,
+     * the entry just written excepted. An entry only stays stale while nobody asks for it, since
+     * a request under a free budget writes it back fresh, so the oldest expiry is the closest the
+     * table comes to least recently used, the eviction the specification gives as its example.
+     */
+    private function evictOverflow(string $keep): void
+    {
+        if ($this->maxEntries === null) {
+            return;
+        }
+
+        $count = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM ucp_platform_profile_cache');
+        $overflow = $count - $this->maxEntries;
+        if ($overflow <= 0) {
+            return;
+        }
+
+        $uris = $this->connection->fetchFirstColumn(
+            'SELECT uri FROM ucp_platform_profile_cache WHERE uri <> :keep ORDER BY expires_at ASC, uri ASC LIMIT ' . $overflow,
+            ['keep' => $keep],
+        );
+        foreach ($uris as $evicted) {
+            $this->connection->delete('ucp_platform_profile_cache', ['uri' => (string) $evicted]);
         }
     }
 

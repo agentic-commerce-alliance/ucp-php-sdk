@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Internal\Http\HttpAgentKeyDirectoryFetcher;
 use Ucp\Sdk\Internal\Security\DefaultSigningKeyManager;
 use Ucp\Sdk\Internal\Service\UrlSafetyValidator;
@@ -37,7 +38,7 @@ final class HttpAgentKeyDirectoryFetcherTest extends TestCase
             'timeout' => 3,
             'max_redirects' => 0,
             'buffer' => false,
-            'resolve' => ['agent.example' => '203.0.113.20'],
+            'resolve' => ['agent.example' => '93.184.216.20'],
         ])->willReturn($response);
         $httpClient->expects(self::once())->method('stream')->with($response, 3)->willReturn([$chunk]);
         $cacheRepository = $this->createMock(AgentKeyDirectoryCacheRepositoryInterface::class);
@@ -49,7 +50,7 @@ final class HttpAgentKeyDirectoryFetcherTest extends TestCase
             $cacheRepository,
             new UrlSafetyValidator(
                 ['agent.example'],
-                static fn (string $host): array => $host === 'agent.example' ? ['203.0.113.20'] : [],
+                static fn (string $host): array => $host === 'agent.example' ? ['93.184.216.20'] : [],
             ),
             timeoutSeconds: 3,
             maxResponseBytes: \strlen($body),
@@ -58,5 +59,31 @@ final class HttpAgentKeyDirectoryFetcherTest extends TestCase
         $directory = $fetcher->fetch('https://agent.example/keys');
 
         self::assertSame('kid-agent', $directory->keys[0]->kid);
+    }
+
+    /**
+     * The key-directory URI is a storage key with a 500-character column behind it, and a
+     * non-ASCII byte is not a URI: both are refused before anything is fetched.
+     */
+    #[Test]
+    public function itRejectsAnOverlongOrNonAsciiKeyDirectoryUri(): void
+    {
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->expects(self::never())->method('request');
+        $fetcher = new HttpAgentKeyDirectoryFetcher(
+            $httpClient,
+            $this->createMock(AgentKeyDirectoryCacheRepositoryInterface::class),
+            new UrlSafetyValidator(['agent.example'], static fn (string $host): array => ['93.184.216.20']),
+        );
+
+        try {
+            $fetcher->fetch('https://agent.example/' . str_repeat('k', 500));
+            self::fail('An overlong URI must be refused.');
+        } catch (ValidationException $exception) {
+            self::assertSame('Key directory URI must be at most 500 ASCII characters.', $exception->getMessage());
+        }
+
+        $this->expectException(ValidationException::class);
+        $fetcher->fetch("https://agent.example/keys?x=\xff");
     }
 }
