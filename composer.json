@@ -5,8 +5,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "ucp-php-sdk/core": "^0.0.8",
-        "ucp-php-sdk/symfony-bundle": "^0.0.8"
+        "ucp-php-sdk/core": "^0.0.9",
+        "ucp-php-sdk/symfony-bundle": "^0.0.9"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.80",
@@ -32,7 +32,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "ucp-php-sdk/core": "0.0.8"
+                    "ucp-php-sdk/core": "0.0.9"
                 }
             }
         },
@@ -42,7 +42,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "ucp-php-sdk/symfony-bundle": "0.0.8"
+                    "ucp-php-sdk/symfony-bundle": "0.0.9"
                 }
             }
         }
