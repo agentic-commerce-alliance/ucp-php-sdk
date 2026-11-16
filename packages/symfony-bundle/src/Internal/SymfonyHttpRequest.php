@@ -9,7 +9,7 @@ use Ucp\Sdk\Model\Http\HttpRequest;
 
 /**
  * The body-less `HttpRequest` the transport and OAuth controllers hand to runtime configuration
- * resolution and A2A context building.
+ * resolution.
  *
  * Multi-value headers are joined with `, ` and the query is sorted by name, with non-scalar
  * values JSON-encoded. The listeners build their own requests on purpose: they carry the body

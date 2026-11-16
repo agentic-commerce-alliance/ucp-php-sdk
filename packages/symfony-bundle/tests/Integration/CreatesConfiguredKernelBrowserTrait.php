@@ -176,7 +176,8 @@ trait CreatesConfiguredKernelBrowserTrait
      */
     private function withDefaultRuntimeAgentHeader(string $uri, array $server): array
     {
-        if (! str_starts_with($uri, '/ucp/v1/') || array_key_exists('HTTP_UCP_AGENT', $server)) {
+        $isRuntimeRequest = str_starts_with($uri, '/ucp/v1/') || $uri === '/ucp/a2a';
+        if (! $isRuntimeRequest || array_key_exists('HTTP_UCP_AGENT', $server)) {
             return $server;
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -12,6 +13,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Enum\SignaturePolicy;
 use Ucp\Sdk\Enum\Transport;
+use Ucp\Sdk\Exception\SignatureException;
+use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
 use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Negotiation\NegotiatedCapabilities;
@@ -20,6 +23,7 @@ use Ucp\Sdk\Model\Profile\PlatformProfile;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
 use Ucp\Sdk\Model\RequestContext;
 use Ucp\Sdk\Service\CapabilityRegistryInterface;
+use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\ProtocolValidatorInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
@@ -231,19 +235,18 @@ final class A2aControllerTest extends TestCase
         self::assertSame(404, $response->getStatusCode());
         self::assertSame('Catalog capability is not registered.', $payload['error']['message']);
 
-        $negotiatedRequest = $this->jsonRpcRequest([
-            'jsonrpc' => '2.0',
-            'id' => 'not-negotiated',
-            'method' => 'catalog.search',
-            'params' => ['query' => 'tent'],
-        ]);
-        $negotiatedRequest->attributes->set('ucp_request_context', new RequestContext(
+        $negotiatedController = $this->controller(requestContextFactory: new A2aRequestContextFactoryFake(new RequestContext(
             'merchant.example',
             platformProfile: new PlatformProfile('2026-04-08', [], [], []),
             runtimeConfiguration: new RuntimeConfiguration('2026-04-08', 'https://merchant.example'),
             negotiation: new NegotiatedCapabilities(),
-        ));
-        $response = $controller->invoke($negotiatedRequest);
+        )));
+        $response = $negotiatedController->invoke($this->jsonRpcRequest([
+            'jsonrpc' => '2.0',
+            'id' => 'not-negotiated',
+            'method' => 'catalog.search',
+            'params' => ['query' => 'tent'],
+        ]));
         $payload = $this->decode($response);
 
         self::assertSame(400, $response->getStatusCode());
@@ -252,10 +255,137 @@ final class A2aControllerTest extends TestCase
         self::assertSame('Requested operation is not included in the negotiated capability intersection.', $payload['error']['message']);
     }
 
+    /**
+     * The regression for the strict-policy bypass: the controller used to build a bare context
+     * itself, so an unsigned call reached the operation. The shared factory refuses it now, and
+     * the refusal propagates to ExceptionListener before any capability or validator is touched.
+     *
+     * @param array<string, mixed> $params
+     */
+    #[Test]
+    #[DataProvider('shoppingOperations')]
+    public function itRefusesAnUnauthenticatedCallBeforeTheOperationRuns(string $method, array $params): void
+    {
+        $registry = new A2aCapabilityRegistryFake();
+        $validator = new A2aProtocolValidatorFake();
+        $factory = new A2aRequestContextFactoryFake(failure: new SignatureException('Missing signature headers.'));
+        $controller = $this->controller(protocolValidator: $validator, requestContextFactory: $factory, capabilityRegistry: $registry);
+
+        try {
+            $controller->invoke($this->jsonRpcRequest(['jsonrpc' => '2.0', 'id' => 1, 'method' => $method, 'params' => $params]));
+            self::fail('An unauthenticated A2A call must not produce a response.');
+        } catch (SignatureException $exception) {
+            self::assertSame('Missing signature headers.', $exception->getMessage());
+        }
+
+        self::assertCount(1, $factory->requests);
+        self::assertSame(0, $registry->lookups);
+        self::assertSame([], $validator->requests);
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>}>
+     */
+    public static function shoppingOperations(): iterable
+    {
+        yield 'catalog search' => ['catalog.search', ['query' => 'tent']];
+        yield 'cart create' => ['cart.create', ['line_items' => [['item' => ['id' => 'tent-4p'], 'quantity' => 1]]]];
+        yield 'checkout complete' => ['checkout.complete', ['id' => 'chk_1', 'payment' => ['instruments' => []]]];
+    }
+
+    /**
+     * A missing UCP-Agent is a 422 on REST. Inside the JSON-RPC try block it would have become a
+     * -32602 with 400, so the factory's exceptions must leave the controller untouched.
+     */
+    #[Test]
+    public function itLeavesFactoryValidationFailuresToTheHttpErrorContract(): void
+    {
+        $controller = $this->controller(requestContextFactory: new A2aRequestContextFactoryFake(failure: new ValidationException(
+            'UCP-Agent header with a profile URI is required for UCP runtime requests.',
+            ['$.headers.ucp-agent is required'],
+        )));
+
+        $this->expectException(ValidationException::class);
+
+        $controller->invoke($this->jsonRpcRequest(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'catalog.search', 'params' => []]));
+    }
+
+    #[Test]
+    public function itAuthenticatesBeforeParsingTheBody(): void
+    {
+        $factory = new A2aRequestContextFactoryFake(failure: new SignatureException('Missing signature headers.'));
+        $controller = $this->controller(requestContextFactory: $factory);
+
+        $this->expectException(SignatureException::class);
+
+        try {
+            $controller->invoke(Request::create('/ucp/a2a', 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], '{'));
+        } finally {
+            self::assertCount(1, $factory->requests);
+        }
+    }
+
+    #[Test]
+    public function itHandsTheFactoryTheRawBodyAndTheTargetUri(): void
+    {
+        $factory = new A2aRequestContextFactoryFake();
+        $controller = $this->controller(requestContextFactory: $factory);
+        $body = '{"jsonrpc":"2.0", "id":1,"method":"unknown.method","params":{}}';
+        $request = Request::create('https://merchant.example/ucp/a2a?b=2&a=1', 'POST', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_UCP_AGENT' => 'platform; profile="https://platform.example/profile"',
+        ], $body);
+
+        $controller->invoke($request);
+
+        self::assertCount(1, $factory->requests);
+        $httpRequest = $factory->requests[0];
+        self::assertSame('POST', $httpRequest->method);
+        self::assertSame('https://merchant.example/ucp/a2a?b=2&a=1', $httpRequest->absoluteUri);
+        self::assertSame($body, $httpRequest->body);
+        self::assertSame('platform; profile="https://platform.example/profile"', $httpRequest->headers['ucp-agent']);
+    }
+
+    #[Test]
+    public function itRunsTheOperationWithTheFactoryContextAndIgnoresAPresetAttribute(): void
+    {
+        $authenticated = new RequestContext('merchant.example', platformProfileUri: 'https://platform.example/profile', signatureVerified: true);
+        $validator = new A2aProtocolValidatorFake();
+        $controller = $this->controller(protocolValidator: $validator, requestContextFactory: new A2aRequestContextFactoryFake($authenticated));
+        $request = $this->jsonRpcRequest(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'cart.update', 'params' => ['id' => 'cart-1', 'line_items' => []]]);
+        $request->attributes->set('ucp_request_context', new RequestContext('attacker.example'));
+
+        $controller->invoke($request);
+
+        self::assertSame($authenticated, $request->attributes->get('ucp_request_context'));
+        self::assertSame($authenticated, $validator->contexts['cart.update']);
+    }
+
+    #[Test]
+    public function itAnswersNotFoundForADisabledTransportWithoutAuthenticating(): void
+    {
+        $factory = new A2aRequestContextFactoryFake(failure: new SignatureException('Missing signature headers.'));
+        $controller = $this->controller(
+            new A2aRuntimeConfigurationResolverFake(new RuntimeConfiguration('2026-04-08', 'https://merchant.example', transports: [Transport::Rest])),
+            requestContextFactory: $factory,
+        );
+
+        try {
+            $controller->invoke($this->jsonRpcRequest(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'catalog.search', 'params' => []]));
+            self::fail('A disabled A2A transport must answer 404.');
+        } catch (NotFoundHttpException $exception) {
+            self::assertSame('A2A transport is not enabled.', $exception->getMessage());
+        }
+
+        self::assertSame([], $factory->requests);
+    }
+
     private function controller(
         ?RuntimeConfigurationResolverInterface $resolver = null,
         ?ProfileBuilderInterface $profileBuilder = null,
         ?ProtocolValidatorInterface $protocolValidator = null,
+        ?HttpRequestContextFactoryInterface $requestContextFactory = null,
+        ?CapabilityRegistryInterface $capabilityRegistry = null,
     ): A2aController {
         return new A2aController(
             new HttpPayloadMapper(),
@@ -267,7 +397,7 @@ final class A2aControllerTest extends TestCase
             )),
             $this->configuration(),
             new ShoppingOperationExecutor(
-                new A2aCapabilityRegistryFake(),
+                $capabilityRegistry ?? new A2aCapabilityRegistryFake(),
                 $protocolValidator ?? new A2aProtocolValidatorFake(),
                 new HttpPayloadMapper(),
                 [],
@@ -275,6 +405,7 @@ final class A2aControllerTest extends TestCase
                 [],
                 new EventDispatcher(),
             ),
+            $requestContextFactory ?? new A2aRequestContextFactoryFake(),
         );
     }
 
@@ -283,10 +414,7 @@ final class A2aControllerTest extends TestCase
      */
     private function jsonRpcRequest(array $payload): Request
     {
-        $request = Request::create('/ucp/a2a', 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload, JSON_THROW_ON_ERROR));
-        $request->attributes->set('ucp_request_context', new RequestContext('merchant.example'));
-
-        return $request;
+        return Request::create('/ucp/a2a', 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload, JSON_THROW_ON_ERROR));
     }
 
     private function configuration(): UcpSdkConfiguration
@@ -368,19 +496,50 @@ final class A2aProfileBuilderFake implements ProfileBuilderInterface
 
 final class A2aCapabilityRegistryFake implements CapabilityRegistryInterface
 {
+    public int $lookups = 0;
+
     public function all(): array
     {
+        ++$this->lookups;
+
         return [];
     }
 
     public function find(string $name): ?CapabilityInterface
     {
+        ++$this->lookups;
+
         return null;
     }
 
     public function firstImplementing(string $interface): ?CapabilityInterface
     {
+        ++$this->lookups;
+
         return null;
+    }
+}
+
+final class A2aRequestContextFactoryFake implements HttpRequestContextFactoryInterface
+{
+    /** @var list<HttpRequest> */
+    public array $requests = [];
+
+    public function __construct(
+        private readonly RequestContext $context = new RequestContext('merchant.example'),
+        private readonly ?\Throwable $failure = null,
+    ) {
+    }
+
+    public function create(HttpRequest $request): RequestContext
+    {
+        $this->requests[] = $request;
+
+        if ($this->failure !== null) {
+            throw $this->failure;
+        }
+
+        return $this->context;
     }
 }
 
@@ -391,9 +550,15 @@ final class A2aProtocolValidatorFake implements ProtocolValidatorInterface
      */
     public array $requests = [];
 
+    /**
+     * @var array<string, RequestContext>
+     */
+    public array $contexts = [];
+
     public function validateRequest(string $operation, array $payload, RequestContext $context): void
     {
         $this->requests[$operation] = $payload;
+        $this->contexts[$operation] = $context;
     }
 
     public function validateResponse(string $operation, array $payload, RequestContext $context): void
