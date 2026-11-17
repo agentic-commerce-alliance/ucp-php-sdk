@@ -115,6 +115,7 @@ final class RequestContextListener
     {
         $path = $request->getPathInfo();
 
+        // A2aController authenticates /ucp/a2a itself, through the same factory, after its transport check.
         if (
             $path === '/ucp/mcp' || str_starts_with($path, '/ucp/mcp/')
             || $path === '/ucp/a2a' || str_starts_with($path, '/ucp/a2a/')
