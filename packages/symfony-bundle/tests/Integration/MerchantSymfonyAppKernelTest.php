@@ -368,6 +368,25 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
     }
 
     #[Test]
+    public function itRefusesAnOversizedA2aBodyLikeRestEvenWhenSigned(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict'], $this->clearMerchantState(...));
+        $body = $this->jsonRpc('catalog.search', ['query' => str_repeat('tent ', 60000)]);
+
+        $this->request($client, 'POST', '/ucp/a2a', $this->signedServer($body), $body);
+
+        $response = $client->getResponse();
+        self::assertSame(413, $response->getStatusCode(), (string) $response->getContent());
+        $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertArrayNotHasKey('result', $payload);
+        self::assertSame('error', $payload['ucp']['status']);
+        self::assertSame('Request body exceeds the maximum allowed size.', $payload['messages'][0]['content']);
+
+        $this->request($client, 'POST', '/ucp/v1/catalog/search', ['CONTENT_TYPE' => 'application/json'], $body);
+        self::assertResponseStatusCodeSame(413);
+    }
+
+    #[Test]
     public function itRefusesBadlySignedA2aCallsUnderStrictSignaturePolicy(): void
     {
         $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict'], $this->clearMerchantState(...));
@@ -591,6 +610,10 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
     /**
      * The REST error contract, on A2A too: an HTTP 401 with a UCP error body, never a JSON-RPC
      * result. A null message accepts any verification failure reason.
+     *
+     * Every refusal is `signature_invalid` here, also a missing signature and a tampered body,
+     * which UCP 2026-08-25 answers with 401 `signature_missing` and 400 `digest_mismatch`
+     * (#219).
      */
     private function assertSignatureRefusal(KernelBrowser $client, ?string $message, string $case = ''): void
     {

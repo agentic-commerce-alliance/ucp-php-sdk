@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Ucp\Sdk\Enum\Transport;
@@ -106,6 +107,12 @@ final class A2aController
         $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($httpRequest);
         $this->requireTransport($runtimeConfiguration);
 
+        // Bounded before the factory digests and verifies it, as RequestContextListener does for REST.
+        $body = $request->getContent();
+        if (strlen($body) > $this->configuration->maxRequestBodyBytes) {
+            throw new HttpException(Response::HTTP_REQUEST_ENTITY_TOO_LARGE, 'Request body exceeds the maximum allowed size.');
+        }
+
         // Outside the JSON-RPC try block on purpose: an authentication failure is an HTTP-level
         // refusal, rendered by ExceptionListener exactly as for REST, never a JSON-RPC error.
         $context = $this->requestContextFactory->create(new HttpRequest(
@@ -113,7 +120,7 @@ final class A2aController
             $httpRequest->absoluteUri,
             $httpRequest->headers,
             $httpRequest->query,
-            $request->getContent(),
+            $body,
         ));
         $request->attributes->set('ucp_request_context', $context);
 

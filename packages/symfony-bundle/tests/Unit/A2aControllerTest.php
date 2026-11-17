@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Ucp\Sdk\Contract\CapabilityInterface;
 use Ucp\Sdk\Enum\SignaturePolicy;
@@ -326,6 +327,22 @@ final class A2aControllerTest extends TestCase
     }
 
     #[Test]
+    public function itRefusesAnOversizedBodyBeforeAuthenticating(): void
+    {
+        $factory = new A2aRequestContextFactoryFake();
+        $controller = $this->controller(requestContextFactory: $factory, maxRequestBodyBytes: 16);
+
+        try {
+            $controller->invoke($this->jsonRpcRequest(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'catalog.search', 'params' => []]));
+            self::fail('An oversized body must be refused.');
+        } catch (HttpException $exception) {
+            self::assertSame(413, $exception->getStatusCode());
+        }
+
+        self::assertSame([], $factory->requests);
+    }
+
+    #[Test]
     public function itHandsTheFactoryTheRawBodyAndTheTargetUri(): void
     {
         $factory = new A2aRequestContextFactoryFake();
@@ -386,6 +403,7 @@ final class A2aControllerTest extends TestCase
         ?ProtocolValidatorInterface $protocolValidator = null,
         ?HttpRequestContextFactoryInterface $requestContextFactory = null,
         ?CapabilityRegistryInterface $capabilityRegistry = null,
+        int $maxRequestBodyBytes = 262144,
     ): A2aController {
         return new A2aController(
             new HttpPayloadMapper(),
@@ -395,7 +413,7 @@ final class A2aControllerTest extends TestCase
                 'https://merchant.example',
                 transports: [Transport::Rest, Transport::A2a],
             )),
-            $this->configuration(),
+            $this->configuration($maxRequestBodyBytes),
             new ShoppingOperationExecutor(
                 $capabilityRegistry ?? new A2aCapabilityRegistryFake(),
                 $protocolValidator ?? new A2aProtocolValidatorFake(),
@@ -417,7 +435,7 @@ final class A2aControllerTest extends TestCase
         return Request::create('/ucp/a2a', 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload, JSON_THROW_ON_ERROR));
     }
 
-    private function configuration(): UcpSdkConfiguration
+    private function configuration(int $maxRequestBodyBytes = 262144): UcpSdkConfiguration
     {
         return new UcpSdkConfiguration(
             '2026-04-08',
@@ -427,7 +445,7 @@ final class A2aControllerTest extends TestCase
             [],
             false,
             86400,
-            262144,
+            $maxRequestBodyBytes,
             600,
             604800,
             300,
