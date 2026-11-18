@@ -17,6 +17,7 @@
         "Ucp\\Sdk\\Internal\\Service\\DefaultOrderWebhookDispatcher::__construct": 9,
         "Ucp\\Sdk\\Internal\\Service\\RepositoryProfileSigningKeyProvider::__construct": 6,
         "Ucp\\Sdk\\Symfony\\Bridge\\DefaultStorage\\StorageCleanupService::__construct": 10,
+        "Ucp\\Sdk\\Symfony\\Controller\\A2aController::__construct": 6,
         "Ucp\\Sdk\\Symfony\\Operation\\ShoppingOperationExecutor::__construct": 7
     },
     "lines": {

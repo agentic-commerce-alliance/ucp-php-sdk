@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Ucp\Sdk\Enum\Transport;
@@ -15,8 +16,9 @@ use Ucp\Sdk\Exception\NegotiationException;
 use Ucp\Sdk\Exception\UnsupportedCapabilityException;
 use Ucp\Sdk\Exception\ValidationException;
 use Ucp\Sdk\Model\Config\RuntimeConfiguration;
+use Ucp\Sdk\Model\Http\HttpRequest;
 use Ucp\Sdk\Model\Profile\ProfileBuildInput;
-use Ucp\Sdk\Model\RequestContext;
+use Ucp\Sdk\Service\HttpRequestContextFactoryInterface;
 use Ucp\Sdk\Service\ProfileBuilderInterface;
 use Ucp\Sdk\Service\RuntimeConfigurationResolverInterface;
 use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
@@ -51,6 +53,7 @@ final class A2aController
         private readonly RuntimeConfigurationResolverInterface $runtimeConfigurationResolver,
         private readonly UcpSdkConfiguration $configuration,
         private readonly ShoppingOperationExecutor $operationExecutor,
+        private readonly HttpRequestContextFactoryInterface $requestContextFactory,
     ) {
     }
 
@@ -104,6 +107,23 @@ final class A2aController
         $runtimeConfiguration = $this->runtimeConfigurationResolver->resolve($httpRequest);
         $this->requireTransport($runtimeConfiguration);
 
+        // Bounded before the factory digests and verifies it, as RequestContextListener does for REST.
+        $body = $request->getContent();
+        if (strlen($body) > $this->configuration->maxRequestBodyBytes) {
+            throw new HttpException(Response::HTTP_REQUEST_ENTITY_TOO_LARGE, 'Request body exceeds the maximum allowed size.');
+        }
+
+        // Outside the JSON-RPC try block on purpose: an authentication failure is an HTTP-level
+        // refusal, rendered by ExceptionListener exactly as for REST, never a JSON-RPC error.
+        $context = $this->requestContextFactory->create(new HttpRequest(
+            $httpRequest->method,
+            $httpRequest->absoluteUri,
+            $httpRequest->headers,
+            $httpRequest->query,
+            $body,
+        ));
+        $request->attributes->set('ucp_request_context', $context);
+
         $id = null;
 
         try {
@@ -111,14 +131,6 @@ final class A2aController
             $id = $this->jsonRpcId($payload);
             $method = $this->jsonRpcMethod($payload);
             $params = $this->jsonRpcParams($payload);
-            $context = $request->attributes->get('ucp_request_context');
-            if (! $context instanceof RequestContext) {
-                $context = new RequestContext(
-                    parse_url($request->getUri(), PHP_URL_HOST) ?: '',
-                    $httpRequest->headers,
-                    runtimeConfiguration: $runtimeConfiguration,
-                );
-            }
 
             if (! isset(self::SUPPORTED_METHODS[$method])) {
                 // -32601 is JSON-RPC's own "method not found", and it belongs in the body of a

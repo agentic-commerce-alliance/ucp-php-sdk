@@ -17,6 +17,9 @@ The shared SDK currently provides the common protocol security pieces needed by 
   Pre-approved platforms in `allowed_profile_hosts` are never deferred, so listing the platforms a business depends on is what keeps them reachable.
   A profile is fetched before the request's signature is verified, under either policy; the fetch-safety rules are therefore the only thing between an unauthenticated request and an outbound connection, and under `all` loopback stays refused outside development mode for that reason.
 - request body size enforcement before signature verification and validation
+- a `signature_policy` that covers every UCP route the SDK serves: REST under `/ucp/v1` through `RequestContextListener`, and `POST /ucp/a2a` through `A2aController`.
+  The embedded pages and the `/.well-known/*` discovery documents are not signed.
+  The SDK serves no MCP route, so a host that does must call `HttpRequestContextFactoryInterface` itself to get the same checks.
 - an unsupported-by-default merchant-authorization hook that host apps can replace
 
 ## Signature Wire Format

@@ -9,6 +9,12 @@ use MerchantSymfonyApp\Kernel;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Ucp\Sdk\Model\Http\HttpRequest;
+use Ucp\Sdk\Model\Security\ManagedSigningKey;
+use Ucp\Sdk\Repository\ManagedSigningKeyRepositoryInterface;
+use Ucp\Sdk\Service\RequestSignatureServiceInterface;
+use Ucp\Sdk\Service\SigningKeyManagerInterface;
+use Ucp\Sdk\Symfony\UcpSdkConfiguration;
 
 final class MerchantSymfonyAppKernelTest extends WebTestCase
 {
@@ -322,6 +328,104 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         self::assertSame('2026-08-25', $agentCard['version']);
     }
 
+    /**
+     * The strict-policy bypass: A2A built its own bare context, so an unsigned call ran the
+     * operation. It now answers exactly as REST does, and leaves no merchant state behind.
+     */
+    #[Test]
+    public function itRefusesUnsignedA2aCallsUnderStrictSignaturePolicyLikeRest(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict'], $this->clearMerchantState(...));
+
+        foreach ([
+            'catalog.search' => ['query' => 'tent'],
+            'cart.create' => ['line_items' => [['item' => ['id' => 'tent-4p'], 'quantity' => 1]]],
+            'checkout.create' => ['line_items' => [['item' => ['id' => 'tent-4p'], 'quantity' => 1]]],
+            'checkout.complete' => ['id' => 'chk_unknown', 'payment' => ['instruments' => []]],
+        ] as $method => $params) {
+            $this->request($client, 'POST', '/ucp/a2a', ['CONTENT_TYPE' => 'application/json'], $this->jsonRpc($method, $params));
+            $this->assertSignatureRefusal($client, 'Missing signature headers.');
+        }
+
+        self::assertSame([], glob($this->merchantStateDirectory() . '/*.json') ?: []);
+
+        $this->request($client, 'POST', '/ucp/v1/catalog/search', ['CONTENT_TYPE' => 'application/json'], json_encode(['query' => 'tent'], JSON_THROW_ON_ERROR));
+        $this->assertSignatureRefusal($client, 'Missing signature headers.');
+    }
+
+    #[Test]
+    public function itServesCorrectlySignedA2aCallsUnderStrictSignaturePolicy(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict'], $this->clearMerchantState(...));
+        $body = $this->jsonRpc('catalog.search', ['query' => 'tent', 'limit' => 1]);
+
+        $this->request($client, 'POST', '/ucp/a2a', $this->signedServer($body), $body);
+
+        self::assertResponseIsSuccessful();
+        $response = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame(42, $response['id']);
+        self::assertSame('tent-4p', $response['result']['products'][0]['id']);
+    }
+
+    #[Test]
+    public function itRefusesAnOversizedA2aBodyLikeRestEvenWhenSigned(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict'], $this->clearMerchantState(...));
+        $body = $this->jsonRpc('catalog.search', ['query' => str_repeat('tent ', 60000)]);
+
+        $this->request($client, 'POST', '/ucp/a2a', $this->signedServer($body), $body);
+
+        $response = $client->getResponse();
+        self::assertSame(413, $response->getStatusCode(), (string) $response->getContent());
+        $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertArrayNotHasKey('result', $payload);
+        self::assertSame('error', $payload['ucp']['status']);
+        self::assertSame('Request body exceeds the maximum allowed size.', $payload['messages'][0]['content']);
+
+        $this->request($client, 'POST', '/ucp/v1/catalog/search', ['CONTENT_TYPE' => 'application/json'], $body);
+        self::assertResponseStatusCodeSame(413);
+    }
+
+    #[Test]
+    public function itRefusesBadlySignedA2aCallsUnderStrictSignaturePolicy(): void
+    {
+        $client = $this->createConfiguredClientWithEnvironment(['UCP_SIGNATURE_POLICY' => 'strict'], $this->clearMerchantState(...));
+        $body = $this->jsonRpc('cart.create', ['line_items' => [['item' => ['id' => 'tent-4p'], 'quantity' => 1]]]);
+        $tamperedBody = $this->jsonRpc('cart.create', ['line_items' => [['item' => ['id' => 'tent-4p'], 'quantity' => 9]]]);
+        $signed = $this->signedServer($body);
+        /** @var SigningKeyManagerInterface $keyManager */
+        $keyManager = self::getContainer()->get(SigningKeyManagerInterface::class);
+
+        $deviations = [
+            'missing Signature' => [array_diff_key($signed, ['HTTP_SIGNATURE' => true]), $body, 'Missing signature headers.'],
+            'missing Signature-Input' => [array_diff_key($signed, ['HTTP_SIGNATURE_INPUT' => true]), $body, 'Missing signature headers.'],
+            'malformed Signature' => [['HTTP_SIGNATURE' => 'sig1=not-a-byte-sequence'] + $signed, $body, null],
+            'altered signature bytes' => [['HTTP_SIGNATURE' => $this->flipSignatureBit($signed['HTTP_SIGNATURE'])] + $signed, $body, null],
+            'tampered body' => [$signed, $tamperedBody, null],
+            'key outside the platform profile' => [$this->signedServer($body, $keyManager->generate('rogue-kid')), $body, null],
+        ];
+
+        foreach ($deviations as $name => [$server, $content, $message]) {
+            $this->request($client, 'POST', '/ucp/a2a', $server, $content);
+            $this->assertSignatureRefusal($client, $message, $name);
+        }
+
+        self::assertSame([], glob($this->merchantStateDirectory() . '/*.json') ?: []);
+    }
+
+    #[Test]
+    public function itRequiresTheUcpAgentHeaderOnA2aEvenUnderTheLogPolicy(): void
+    {
+        $client = $this->createConfiguredClient($this->clearMerchantState(...));
+
+        $this->request($client, 'POST', '/ucp/a2a', ['CONTENT_TYPE' => 'application/json', 'HTTP_UCP_AGENT' => ''], $this->jsonRpc('catalog.search', ['query' => 'tent']));
+
+        self::assertResponseStatusCodeSame(422);
+        $payload = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('invalid_request', $payload['messages'][0]['code']);
+        self::assertSame('$.headers.ucp-agent is required', $payload['messages'][0]['content']);
+    }
+
     #[Test]
     public function itRejectsInvalidA2aRequestsAndUntrustedEmbeddedOrigins(): void
     {
@@ -443,11 +547,85 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
 
     private function clearMerchantState(): void
     {
-        foreach (glob(dirname(__DIR__, 4) . '/examples/merchant-symfony-app/var/state/*.json') ?: [] as $file) {
+        foreach (glob($this->merchantStateDirectory() . '/*.json') ?: [] as $file) {
             @unlink($file);
         }
 
         @unlink(dirname(__DIR__, 4) . '/examples/merchant-symfony-app/var/ucp_sdk.sqlite');
+    }
+
+    private function merchantStateDirectory(): string
+    {
+        return dirname(__DIR__, 4) . '/examples/merchant-symfony-app/var/state';
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private function jsonRpc(string $method, array $params): string
+    {
+        return json_encode(['jsonrpc' => '2.0', 'id' => 42, 'method' => $method, 'params' => $params], JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * A real RFC 9421 signature over the request the kernel browser sends, made with the managed
+     * key the seeded agent profile publishes, unless another key is given.
+     *
+     * @return array<string, string>
+     */
+    private function signedServer(string $body, ?ManagedSigningKey $key = null): array
+    {
+        /** @var UcpSdkConfiguration $configuration */
+        $configuration = self::getContainer()->get(UcpSdkConfiguration::class);
+        /** @var ManagedSigningKeyRepositoryInterface $keys */
+        $keys = self::getContainer()->get(ManagedSigningKeyRepositoryInterface::class);
+        /** @var RequestSignatureServiceInterface $signer */
+        $signer = self::getContainer()->get(RequestSignatureServiceInterface::class);
+        $agentHeader = sprintf('platform; profile="%s"', $this->testAgentProfileUri($configuration->resolvedBaseUri()));
+
+        $key ??= $keys->findManaged('demo-kid');
+        self::assertNotNull($key);
+        $signatureHeaders = $signer->sign(new HttpRequest('POST', 'http://localhost/ucp/a2a', ['ucp-agent' => $agentHeader], [], $body), $key);
+
+        return [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_UCP_AGENT' => $agentHeader,
+            'HTTP_CONTENT_DIGEST' => $signatureHeaders['Content-Digest'],
+            'HTTP_SIGNATURE_INPUT' => $signatureHeaders['Signature-Input'],
+            'HTTP_SIGNATURE' => $signatureHeaders['Signature'],
+        ];
+    }
+
+    private function flipSignatureBit(string $signatureHeader): string
+    {
+        $label = strstr($signatureHeader, '=:', true);
+        self::assertIsString($label);
+        $bytes = base64_decode(substr($signatureHeader, strlen($label) + 2, -1), true);
+        self::assertIsString($bytes);
+        $bytes[0] = chr(ord($bytes[0]) ^ 0x01);
+
+        return $label . '=:' . base64_encode($bytes) . ':';
+    }
+
+    /**
+     * The REST error contract, on A2A too: an HTTP 401 with a UCP error body, never a JSON-RPC
+     * result. A null message accepts any verification failure reason.
+     *
+     * Every refusal is `signature_invalid` here, also a missing signature and a tampered body,
+     * which UCP 2026-08-25 answers with 401 `signature_missing` and 400 `digest_mismatch`
+     * (#219).
+     */
+    private function assertSignatureRefusal(KernelBrowser $client, ?string $message, string $case = ''): void
+    {
+        $response = $client->getResponse();
+        self::assertSame(401, $response->getStatusCode(), $case . ': ' . $response->getContent());
+        $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertArrayNotHasKey('result', $payload, $case);
+        self::assertSame('error', $payload['ucp']['status'], $case);
+        self::assertSame('signature_invalid', $payload['messages'][0]['code'], $case);
+        if ($message !== null) {
+            self::assertSame($message, $payload['messages'][0]['content'], $case);
+        }
     }
 
     /**
