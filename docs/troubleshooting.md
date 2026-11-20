@@ -53,7 +53,8 @@ return not found until the transport is explicitly enabled.
 
 **Fix:** Add the transport to `transports` in the bundle configuration, e.g.
 `transports: ['rest', 'a2a']`. Embedded responses additionally only allow
-configured agent origins.
+the origins in `allowed_embedded_origins`, or in `allowed_agent_domains` when
+that list is empty; any other `Origin` is refused with `403`.
 
 ## MCP endpoint does not respond
 

@@ -60,6 +60,21 @@ final class ConfigurationTest extends TestCase
         ]);
     }
 
+    public function testItLeavesTheEmbeddedOriginsEmptySoTheAgentDomainsDecide(): void
+    {
+        self::assertSame([], $this->process([])['allowed_embedded_origins']);
+    }
+
+    public function testItRefusesAnAllowedEmbeddedOriginItCannotActOn(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Invalid ucp_sdk.allowed_embedded_origins entry');
+
+        $this->process([
+            'allowed_embedded_origins' => ['https://host.example', 'https://host.example/checkout'],
+        ]);
+    }
+
     /**
      * Both notations are accepted, because both exist in the wild: the setting is named
      * for domains, and configurations were written as origins while that was the only form

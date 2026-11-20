@@ -128,6 +128,6 @@ final class EmbeddedController
 
     private function allowsOrigin(string $origin, RuntimeConfiguration $runtimeConfiguration, string $fallbackBaseUri): bool
     {
-        return OriginMatcher::allows($origin, $runtimeConfiguration->allowedAgentDomains, $runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $fallbackBaseUri);
+        return OriginMatcher::allows($origin, $runtimeConfiguration->embeddedOriginAllowList(), $runtimeConfiguration->baseUri !== '' ? $runtimeConfiguration->baseUri : $fallbackBaseUri);
     }
 }
