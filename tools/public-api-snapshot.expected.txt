@@ -319,7 +319,8 @@ class Ucp\Sdk\Model\Config\DiscoveryBudget
   - backoffSeconds(int $consecutiveFailures): int
   - windowStart(int $now): int
 class Ucp\Sdk\Model\Config\RuntimeConfiguration
-  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false, Ucp\Sdk\Enum\PlatformPolicy $platformPolicy = Ucp\Sdk\Enum\PlatformPolicy::Listed)
+  - __construct(string $version, string $baseUri, Ucp\Sdk\Enum\SignaturePolicy $signaturePolicy = Ucp\Sdk\Enum\SignaturePolicy::Log, bool $idempotencyRequired = false, array $allowedProfileHosts = [], array $allowedAgentDomains = [], array $supportedVersions = [], array $transports = [], array $enabledCapabilities = [], ?string $tenantIdentifier = null, array $transportEndpoints = [], bool $profileFetchingDevelopmentMode = false, Ucp\Sdk\Enum\PlatformPolicy $platformPolicy = Ucp\Sdk\Enum\PlatformPolicy::Listed, array $allowedEmbeddedOrigins = [])
+  - embeddedOriginAllowList(): array
   - isCapabilityEnabled(string $capabilityName): bool
 class Ucp\Sdk\Model\Http\HttpRequest
   - __construct(string $method, string $absoluteUri, array $headers = [], array $query = [], string $body = '')

@@ -191,6 +191,7 @@ final class UcpSdkExtension extends Extension
             '$responseSigningEnabled' => $config['response_signing']['enabled'],
             '$profileCacheMaxAge' => $config['profile_cache_max_age'],
             '$platformPolicy' => $config['platform_policy'],
+            '$allowedEmbeddedOrigins' => $config['allowed_embedded_origins'],
         ]));
 
         $container->setDefinition(RuntimeConfiguration::class, new Definition(RuntimeConfiguration::class, [
@@ -207,6 +208,7 @@ final class UcpSdkExtension extends Extension
             '$transportEndpoints' => $config['transport_endpoints'],
             '$profileFetchingDevelopmentMode' => $config['profile_fetching_development_mode'],
             '$platformPolicy' => PlatformPolicy::from($config['platform_policy']),
+            '$allowedEmbeddedOrigins' => $config['allowed_embedded_origins'],
         ]));
 
         $container->setDefinition(StaticRuntimeConfigurationResolver::class, new Definition(StaticRuntimeConfigurationResolver::class, [

@@ -68,6 +68,20 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+                // For hosts whose embedding hosts are not their agent domains. Left empty, the
+                // embedded pages keep checking `allowed_agent_domains`.
+                ->arrayNode('allowed_embedded_origins')
+                    ->scalarPrototype()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $entry): bool => ! is_string($entry) || ! AgentDomainAllowList::isUsableEntry($entry))
+                            ->thenInvalid(
+                                'Invalid ucp_sdk.allowed_embedded_origins entry %s. Write a domain such as '
+                                . '"host.example", which also covers its subdomains, or a full origin such as '
+                                . '"https://host.example" to pin the scheme and port.',
+                            )
+                        ->end()
+                    ->end()
+                ->end()
                 ->booleanNode('profile_fetching_development_mode')->defaultFalse()->end()
                 // `listed` is the gate this bundle always had. `all` is the specification's
                 // default: any platform with a discoverable profile may interact, and

@@ -92,6 +92,17 @@ final class UcpSdkConfigurationTest extends TestCase
         self::assertSame(PlatformPolicy::All, $runtime->platformPolicy);
     }
 
+    #[Test]
+    public function itAllowsTheEmbeddingOriginsInsteadOfTheAgentDomainsOnceTheyAreListed(): void
+    {
+        $configuration = $this->configuration(allowedAgentDomains: ['agent.example'], allowedEmbeddedOrigins: ['https://host.example']);
+
+        self::assertSame(['https://host.example'], $configuration->toRuntimeConfiguration()->allowedEmbeddedOrigins);
+        self::assertTrue($configuration->allowsOrigin('https://host.example'));
+        self::assertFalse($configuration->allowsOrigin('https://agent.example'));
+        self::assertTrue($this->configuration(allowedAgentDomains: ['agent.example'])->allowsOrigin('https://agent.example'));
+    }
+
     /**
      * @param list<string> $allowedProfileHosts
      * @param list<string> $allowedAgentDomains
@@ -99,6 +110,7 @@ final class UcpSdkConfigurationTest extends TestCase
      * @param list<Transport> $transports
      * @param array<string, string> $transportEndpoints
      * @param list<string> $enabledCapabilities
+     * @param list<string> $allowedEmbeddedOrigins
      */
     private function configuration(
         ?string $baseUri = 'https://merchant.example',
@@ -111,6 +123,7 @@ final class UcpSdkConfigurationTest extends TestCase
         bool $profileFetchingDevelopmentMode = false,
         array $enabledCapabilities = [],
         string $platformPolicy = 'listed',
+        array $allowedEmbeddedOrigins = [],
     ): UcpSdkConfiguration {
         return new UcpSdkConfiguration(
             '2026-04-08',
@@ -141,6 +154,7 @@ final class UcpSdkConfigurationTest extends TestCase
             $profileFetchingDevelopmentMode,
             $enabledCapabilities,
             platformPolicy: $platformPolicy,
+            allowedEmbeddedOrigins: $allowedEmbeddedOrigins,
         );
     }
 }
