@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Symfony\DependencyInjection;
 
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
@@ -53,35 +54,10 @@ final class Configuration implements ConfigurationInterface
                 ->arrayNode('allowed_profile_hosts')
                     ->scalarPrototype()->end()
                 ->end()
-                // Refused at container build rather than skipped at request time. An
-                // unusable entry used to be dropped silently, which left an operator with
-                // an allow-list that refused every agent and no indication why.
-                ->arrayNode('allowed_agent_domains')
-                    ->scalarPrototype()
-                        ->validate()
-                            ->ifTrue(static fn (mixed $entry): bool => ! is_string($entry) || ! AgentDomainAllowList::isUsableEntry($entry))
-                            ->thenInvalid(
-                                'Invalid ucp_sdk.allowed_agent_domains entry %s. Write a domain such as '
-                                . '"agent.example", which also covers its subdomains, or a full origin such as '
-                                . '"https://agent.example" to pin the scheme and port.',
-                            )
-                        ->end()
-                    ->end()
-                ->end()
+                ->append(self::originAllowList('allowed_agent_domains', 'agent.example'))
                 // For hosts whose embedding hosts are not their agent domains. Left empty, the
                 // embedded pages keep checking `allowed_agent_domains`.
-                ->arrayNode('allowed_embedded_origins')
-                    ->scalarPrototype()
-                        ->validate()
-                            ->ifTrue(static fn (mixed $entry): bool => ! is_string($entry) || ! AgentDomainAllowList::isUsableEntry($entry))
-                            ->thenInvalid(
-                                'Invalid ucp_sdk.allowed_embedded_origins entry %s. Write a domain such as '
-                                . '"host.example", which also covers its subdomains, or a full origin such as '
-                                . '"https://host.example" to pin the scheme and port.',
-                            )
-                        ->end()
-                    ->end()
-                ->end()
+                ->append(self::originAllowList('allowed_embedded_origins', 'host.example'))
                 ->booleanNode('profile_fetching_development_mode')->defaultFalse()->end()
                 // `listed` is the gate this bundle always had. `all` is the specification's
                 // default: any platform with a discoverable profile may interact, and
@@ -236,5 +212,30 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $treeBuilder;
+    }
+
+    /**
+     * Refused at container build rather than skipped at request time. An unusable entry used
+     * to be dropped silently, which left an operator with an allow-list that refused everyone
+     * and no indication why.
+     */
+    private static function originAllowList(string $name, string $exampleDomain): ArrayNodeDefinition
+    {
+        $node = new ArrayNodeDefinition($name);
+        $node
+            ->scalarPrototype()
+                ->validate()
+                    ->ifTrue(static fn (mixed $entry): bool => ! is_string($entry) || ! AgentDomainAllowList::isUsableEntry($entry))
+                    ->thenInvalid(sprintf(
+                        'Invalid ucp_sdk.%s entry %%s. Write a domain such as "%s", which also covers its subdomains, '
+                        . 'or a full origin such as "https://%s" to pin the scheme and port.',
+                        $name,
+                        $exampleDomain,
+                        $exampleDomain,
+                    ))
+                ->end()
+            ->end();
+
+        return $node;
     }
 }
