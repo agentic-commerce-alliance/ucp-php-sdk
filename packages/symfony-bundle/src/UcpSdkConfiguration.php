@@ -76,9 +76,9 @@ final class UcpSdkConfiguration
 
     public function allowsOrigin(string $origin, ?string $fallbackBaseUri = null): bool
     {
-        $allowList = $this->allowedEmbeddedOrigins !== [] ? $this->allowedEmbeddedOrigins : $this->allowedAgentDomains;
+        $runtimeConfiguration = $this->toRuntimeConfiguration($fallbackBaseUri);
 
-        return OriginMatcher::allows($origin, $allowList, $this->resolvedBaseUri($fallbackBaseUri));
+        return OriginMatcher::allows($origin, $runtimeConfiguration->embeddedOriginAllowList(), $runtimeConfiguration->baseUri);
     }
 
     public function toRuntimeConfiguration(?string $fallbackBaseUri = null): RuntimeConfiguration
