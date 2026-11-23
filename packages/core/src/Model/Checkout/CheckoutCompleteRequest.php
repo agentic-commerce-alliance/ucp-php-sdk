@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ucp\Sdk\Model\Checkout;
 
+use Ucp\Sdk\Internal\Checkout\PaymentInstrumentSelector;
 use Ucp\Sdk\Model\Common\Signals;
 
 /**
@@ -29,5 +30,10 @@ final class CheckoutCompleteRequest
         public readonly array $instruments = [],
         public readonly ?Signals $signals = null,
     ) {
+    }
+
+    public function selectedInstrument(): ?PaymentInstrument
+    {
+        return PaymentInstrumentSelector::select($this->instruments);
     }
 }
