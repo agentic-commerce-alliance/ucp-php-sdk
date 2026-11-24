@@ -20,6 +20,7 @@ final class UcpSdkConfiguration
      * @param list<Transport> $transports
      * @param array<string, string> $transportEndpoints
      * @param list<string> $enabledCapabilities
+     * @param list<string> $allowedEmbeddedOrigins
      */
     public function __construct(
         public readonly string $version,
@@ -59,6 +60,7 @@ final class UcpSdkConfiguration
          */
         public readonly int $profileCacheMaxAge = 300,
         public readonly string $platformPolicy = 'listed',
+        public readonly array $allowedEmbeddedOrigins = [],
     ) {
     }
 
@@ -74,7 +76,9 @@ final class UcpSdkConfiguration
 
     public function allowsOrigin(string $origin, ?string $fallbackBaseUri = null): bool
     {
-        return OriginMatcher::allows($origin, $this->allowedAgentDomains, $this->resolvedBaseUri($fallbackBaseUri));
+        $runtimeConfiguration = $this->toRuntimeConfiguration($fallbackBaseUri);
+
+        return OriginMatcher::allows($origin, $runtimeConfiguration->embeddedOriginAllowList(), $runtimeConfiguration->baseUri);
     }
 
     public function toRuntimeConfiguration(?string $fallbackBaseUri = null): RuntimeConfiguration
@@ -92,6 +96,7 @@ final class UcpSdkConfiguration
             transportEndpoints: $this->transportEndpoints,
             profileFetchingDevelopmentMode: $this->profileFetchingDevelopmentMode,
             platformPolicy: PlatformPolicy::from($this->platformPolicy),
+            allowedEmbeddedOrigins: $this->allowedEmbeddedOrigins,
         );
     }
 }

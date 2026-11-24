@@ -646,6 +646,31 @@ final class DefaultHttpRequestContextFactoryTest extends TestCase
     }
 
     /**
+     * Listing a host as an embedding origin lets it read the embedded pages and nothing more:
+     * the platform-profile gate keeps reading the agent domains only.
+     */
+    #[Test]
+    public function itDoesNotTrustAnEmbeddingOriginAsAnAgentDomain(): void
+    {
+        $this->runtimeConfiguration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            SignaturePolicy::Log,
+            false,
+            ['trusted.example'],
+            ['https://other-agent.example'],
+            allowedEmbeddedOrigins: ['https://trusted.example'],
+        );
+
+        $this->expectException(SignatureException::class);
+        $this->expectExceptionMessage('Platform agent domain is not allowed for the current runtime configuration.');
+
+        $this->factory->create(new HttpRequest('GET', 'https://merchant.example/.well-known/ucp', [
+            'UCP-Agent' => 'platform; profile="https://trusted.example/.well-known/ucp"',
+        ]));
+    }
+
+    /**
      * The specification's default: a platform nobody listed may still interact, as long as its
      * profile can be fetched and its signature verifies. The host list stops being a gate.
      */

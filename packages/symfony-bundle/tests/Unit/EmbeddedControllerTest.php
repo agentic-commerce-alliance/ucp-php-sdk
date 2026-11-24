@@ -113,6 +113,40 @@ final class EmbeddedControllerTest extends TestCase
     }
 
     /**
+     * A host that keeps its embedding hosts apart from its agent domains lists them in
+     * `allowedEmbeddedOrigins`. Such an origin is served without being trusted as an agent:
+     * the agent domains, which also gate platform profiles, do not have to name it.
+     */
+    #[Test]
+    public function anEmbeddingOriginIsServedWithoutBeingAnAgentDomain(): void
+    {
+        $controller = $this->controller(allowedAgentDomains: ['agent.example'], allowedEmbeddedOrigins: ['https://host.example']);
+
+        $page = $controller->cart('cart-1', $this->requestFrom('https://host.example'));
+        $preflight = $controller->cartPreflight('cart-1', $this->requestFrom('https://host.example', 'OPTIONS'));
+
+        self::assertSame('https://host.example', $page->headers->get('Access-Control-Allow-Origin'));
+        self::assertSame("frame-ancestors 'self' https://host.example", $page->headers->get('Content-Security-Policy'));
+        self::assertSame('https://host.example', $preflight->headers->get('Access-Control-Allow-Origin'));
+    }
+
+    /**
+     * Once a host lists its embedding origins, those are the whole allow-list for these
+     * pages. An agent domain that is not among them is refused rather than added on top,
+     * so listing an agent never grants it the embedded pages by the back door.
+     */
+    #[Test]
+    public function anAgentDomainIsRefusedOnceTheEmbeddingOriginsAreListed(): void
+    {
+        $controller = $this->controller(allowedAgentDomains: ['agent.example'], allowedEmbeddedOrigins: ['https://host.example']);
+
+        $this->expectException(AccessDeniedHttpException::class);
+        $this->expectExceptionMessage('Embedded origin is not allowed.');
+
+        $controller->cart('cart-1', $this->requestFrom('https://agent.example'));
+    }
+
+    /**
      * A merchant serving only REST has not published these pages, and the honest answer
      * is that the route does not exist -- not 403, which would confirm the resource is
      * there and merely withheld.
@@ -254,11 +288,13 @@ final class EmbeddedControllerTest extends TestCase
      * @param list<Transport>                     $transports
      * @param list<string>                        $allowedAgentDomains
      * @param list<EmbeddedPageRendererInterface> $renderers
+     * @param list<string>                        $allowedEmbeddedOrigins
      */
     private function controller(
         array $transports = [Transport::Rest, Transport::Embedded],
         array $allowedAgentDomains = [],
         array $renderers = [],
+        array $allowedEmbeddedOrigins = [],
     ): EmbeddedController {
         return new EmbeddedController(
             new FixedRuntimeConfigurationResolver(new RuntimeConfiguration(
@@ -266,6 +302,7 @@ final class EmbeddedControllerTest extends TestCase
                 'https://merchant.example',
                 allowedAgentDomains: $allowedAgentDomains,
                 transports: $transports,
+                allowedEmbeddedOrigins: $allowedEmbeddedOrigins,
             )),
             $renderers,
         );

@@ -30,4 +30,29 @@ final class RuntimeConfigurationTest extends TestCase
         self::assertTrue($configuration->isCapabilityEnabled('dev.ucp.shopping.checkout'));
         self::assertFalse($configuration->isCapabilityEnabled('dev.ucp.shopping.cart'));
     }
+
+    #[Test]
+    public function itAppliesTheAgentDomainsToTheEmbeddedPagesWhenNoEmbeddedOriginIsListed(): void
+    {
+        $configuration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            allowedAgentDomains: ['agent.example'],
+        );
+
+        self::assertSame(['agent.example'], $configuration->embeddedOriginAllowList());
+    }
+
+    #[Test]
+    public function itAppliesTheListedEmbeddedOriginsInsteadOfTheAgentDomains(): void
+    {
+        $configuration = new RuntimeConfiguration(
+            '2026-04-08',
+            'https://merchant.example',
+            allowedAgentDomains: ['agent.example'],
+            allowedEmbeddedOrigins: ['https://host.example'],
+        );
+
+        self::assertSame(['https://host.example'], $configuration->embeddedOriginAllowList());
+    }
 }

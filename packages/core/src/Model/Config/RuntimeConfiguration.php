@@ -17,6 +17,9 @@ final class RuntimeConfiguration
      * @param list<Transport> $transports
      * @param list<string> $enabledCapabilities
      * @param array<string, string> $transportEndpoints
+     * @param list<string> $allowedEmbeddedOrigins origins the embedded pages are served to, for hosts
+     *                                             whose embedding hosts are not their agent domains;
+     *                                             empty means `allowedAgentDomains` decides
      */
     public function __construct(
         public readonly string $version,
@@ -32,7 +35,18 @@ final class RuntimeConfiguration
         public readonly array $transportEndpoints = [],
         public readonly bool $profileFetchingDevelopmentMode = false,
         public readonly PlatformPolicy $platformPolicy = PlatformPolicy::Listed,
+        public readonly array $allowedEmbeddedOrigins = [],
     ) {
+    }
+
+    /**
+     * The allow-list the embedded pages check a browser's `Origin` against.
+     *
+     * @return list<string>
+     */
+    public function embeddedOriginAllowList(): array
+    {
+        return $this->allowedEmbeddedOrigins !== [] ? $this->allowedEmbeddedOrigins : $this->allowedAgentDomains;
     }
 
     public function isCapabilityEnabled(string $capabilityName): bool

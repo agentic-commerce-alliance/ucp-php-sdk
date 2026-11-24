@@ -17,7 +17,7 @@
 - Default endpoint generation remains generic for SDK-owned runtime transports: `/ucp/v1`, `/ucp/a2a`, and `/ucp/embedded`.
 - MCP is metadata-only in the shared SDK and requires an explicit `mcp` transport endpoint supplied by the adopter.
 - REST remains the default enabled transport. A2A and embedded routes must return not found unless the transport is explicitly enabled in bundle config.
-- Embedded responses must only allow configured agent origins.
+- Embedded responses must only allow configured agent origins, or the configured embedded origins when a host keeps its embedding hosts apart from its agent domains.
 
 ## MCP Runtime Boundary
 
