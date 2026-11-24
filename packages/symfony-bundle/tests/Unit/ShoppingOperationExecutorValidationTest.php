@@ -18,8 +18,10 @@ use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
 use Ucp\Sdk\Enum\CheckoutStatus;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Enum\VersionNegotiationOutcome;
+use Ucp\Sdk\Event\PaymentMandateVerificationEvent;
 use Ucp\Sdk\Event\VersionNegotiationObservedEvent;
 use Ucp\Sdk\Exception\NegotiationException;
+use Ucp\Sdk\Exception\ResourceNotFoundException;
 use Ucp\Sdk\Model\Cart\Cart;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
@@ -48,6 +50,13 @@ use Ucp\Sdk\Symfony\Operation\ShoppingOperationRequest;
 
 final class ShoppingOperationExecutorValidationTest extends TestCase
 {
+    private const EXPECTED_PAYMENT_FAILED_MESSAGE = [
+        'type' => 'error',
+        'content' => 'Complete Checkout requires exactly one payment instrument.',
+        'severity' => 'recoverable',
+        'code' => 'payment_failed',
+    ];
+
     #[Test]
     public function itValidatesRequestsAndResponsesForEveryShoppingOperation(): void
     {
@@ -128,7 +137,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
     }
 
     #[Test]
-    public function itReadsNoInstrumentsFromAnEmptySpecShapedPaymentObject(): void
+    public function itRefusesCompletionWithoutAnInstrumentWithAPaymentFailedMessage(): void
     {
         $capability = new ShoppingOperationPaymentAwareCapabilityFake();
         $executor = new ShoppingOperationExecutor(
@@ -141,17 +150,98 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             new EventDispatcher(),
         );
 
-        // `{"instruments": []}` satisfies the spec-required payment while naming no
-        // instrument. Reading a top-level handler_id here would invent one with an
-        // empty handler id and fail every mandate verifier.
-        $executor->execute(new ShoppingOperationRequest(
+        $response = $executor->execute(new ShoppingOperationRequest(
             'checkout.complete',
             ['payment' => ['instruments' => []]],
             new RequestContext('merchant.example'),
             'checkout-1',
-        ));
+        ))->toArray();
 
-        self::assertSame([], $capability->completeRequest?->instruments);
+        self::assertSame('checkout-1', $response['id']);
+        self::assertSame('incomplete', $response['status']);
+        self::assertSame([self::EXPECTED_PAYMENT_FAILED_MESSAGE], $response['messages']);
+        self::assertNull($capability->completeRequest);
+    }
+
+    #[Test]
+    public function itRefusesCompletionWithTwoInstruments(): void
+    {
+        $capability = new ShoppingOperationPaymentAwareCapabilityFake();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['payment' => ['instruments' => [
+                ['id' => 'pi-1', 'type' => 'card', 'handler_id' => 'com.example.card'],
+                ['id' => 'pi-2', 'type' => 'invoice', 'handler_id' => 'com.example.invoice'],
+            ]]],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ))->toArray();
+
+        self::assertSame([self::EXPECTED_PAYMENT_FAILED_MESSAGE], $response['messages']);
+        self::assertNull($capability->completeRequest);
+    }
+
+    #[Test]
+    public function itRefusesCompletionWithoutAnInstrumentForACapabilityThatDidNotOptIn(): void
+    {
+        $capability = new ShoppingOperationCapabilityFake();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['payment' => ['instruments' => []]],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ))->toArray();
+
+        self::assertSame([self::EXPECTED_PAYMENT_FAILED_MESSAGE], $response['messages']);
+        self::assertFalse($capability->completedWithoutRequest);
+    }
+
+    #[Test]
+    public function itCompletesWithSeveralInstrumentsWhenSplitPaymentsIsNegotiated(): void
+    {
+        $capability = new ShoppingOperationPaymentAwareCapabilityFake();
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['payment' => ['instruments' => [
+                ['id' => 'pi-1', 'type' => 'card', 'handler_id' => 'com.example.card'],
+                ['id' => 'pi-2', 'type' => 'invoice', 'handler_id' => 'com.example.invoice'],
+            ]]],
+            new RequestContext('merchant.example', negotiatedCapabilities: ['dev.ucp.common.payment.split_payments']),
+            'checkout-1',
+        ))->toArray();
+
+        self::assertSame('completed', $response['status']);
+        self::assertCount(2, $capability->completeRequest->instruments ?? []);
     }
 
     #[Test]
@@ -229,9 +319,87 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
     }
 
     #[Test]
-    public function itSkipsMandateVerificationWhenCompletionNamesNoInstrument(): void
+    public function itLeavesACompletedCheckoutToTheCapabilityWithoutAnInstrument(): void
+    {
+        $capability = new ShoppingOperationFinishedCheckoutCapabilityFake(CheckoutStatus::Completed);
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['payment' => ['instruments' => []]],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ))->toArray();
+
+        self::assertTrue($capability->completedWithoutRequest);
+        self::assertSame([], $response['messages']);
+    }
+
+    #[Test]
+    public function itLeavesACanceledCheckoutToTheCapabilityWithoutAnInstrument(): void
+    {
+        $capability = new ShoppingOperationFinishedCheckoutCapabilityFake(CheckoutStatus::Canceled);
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake($capability),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $response = $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['payment' => ['instruments' => []]],
+            new RequestContext('merchant.example'),
+            'checkout-1',
+        ))->toArray();
+
+        self::assertTrue($capability->completedWithoutRequest);
+        self::assertSame([], $response['messages']);
+    }
+
+    #[Test]
+    public function itStillRaisesNotFoundWhenRefusingCompletionOfAnUnknownCheckout(): void
+    {
+        $executor = new ShoppingOperationExecutor(
+            new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationUnknownCheckoutCapabilityFake()),
+            new ShoppingOperationProtocolValidatorSpy(),
+            new HttpPayloadMapper(),
+            [],
+            [],
+            [],
+            new EventDispatcher(),
+        );
+
+        $this->expectException(ResourceNotFoundException::class);
+
+        $executor->execute(new ShoppingOperationRequest(
+            'checkout.complete',
+            ['payment' => ['instruments' => []]],
+            new RequestContext('merchant.example'),
+            'checkout-unknown',
+        ));
+    }
+
+    #[Test]
+    public function itDoesNotVerifyMandatesForARefusedCompletion(): void
     {
         $verifier = new ShoppingOperationMandateVerifierSpy();
+        $verificationEvents = [];
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(PaymentMandateVerificationEvent::class, static function (PaymentMandateVerificationEvent $event) use (&$verificationEvents): void {
+            $verificationEvents[] = $event;
+        });
         $executor = new ShoppingOperationExecutor(
             new ShoppingOperationCapabilityRegistryFake(new ShoppingOperationPaymentAwareCapabilityFake()),
             new ShoppingOperationProtocolValidatorSpy(),
@@ -239,17 +407,21 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             [],
             [],
             [$verifier],
-            new EventDispatcher(),
+            $dispatcher,
         );
 
         $executor->execute(new ShoppingOperationRequest(
             'checkout.complete',
-            ['payment' => ['instruments' => []]],
+            ['payment' => ['instruments' => [
+                ['id' => 'pi-1', 'type' => 'card', 'handler_id' => 'com.example.card'],
+                ['id' => 'pi-2', 'type' => 'invoice', 'handler_id' => 'com.example.invoice'],
+            ]]],
             new RequestContext('merchant.example'),
             'checkout-1',
         ));
 
         self::assertSame([], $verifier->verifiedHandlerIds);
+        self::assertSame([], $verificationEvents);
     }
 
     #[Test]
@@ -578,7 +750,7 @@ final class ShoppingOperationExecutorValidationTest extends TestCase
             new ShoppingOperationRequest('checkout.create', ['line_items' => []], $context),
             new ShoppingOperationRequest('checkout.get', [], $context, 'checkout-1'),
             new ShoppingOperationRequest('checkout.update', ['line_items' => []], $context, 'checkout-1'),
-            new ShoppingOperationRequest('checkout.complete', [], $context, 'checkout-1'),
+            new ShoppingOperationRequest('checkout.complete', ['payment' => ['instruments' => [['id' => 'pi-1', 'type' => 'card', 'handler_id' => 'com.example.card']]]], $context, 'checkout-1'),
             new ShoppingOperationRequest('checkout.cancel', [], $context, 'checkout-1'),
             new ShoppingOperationRequest('order.get', [], $context, 'order-1'),
         ];
@@ -800,6 +972,27 @@ final class ShoppingOperationPaymentAwareCapabilityFake extends ShoppingOperatio
         $this->completeRequest = $request;
 
         return new Checkout($request->id, CheckoutStatus::Completed, 'EUR', [], []);
+    }
+}
+
+final class ShoppingOperationFinishedCheckoutCapabilityFake extends ShoppingOperationCapabilityFake
+{
+    public function __construct(
+        private readonly CheckoutStatus $status,
+    ) {
+    }
+
+    public function getCheckout(string $id, RequestContext $context): Checkout
+    {
+        return new Checkout($id, $this->status, 'EUR', [], []);
+    }
+}
+
+final class ShoppingOperationUnknownCheckoutCapabilityFake extends ShoppingOperationCapabilityFake
+{
+    public function getCheckout(string $id, RequestContext $context): Checkout
+    {
+        throw new ResourceNotFoundException(sprintf('Checkout "%s" was not found.', $id));
     }
 }
 

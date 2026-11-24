@@ -17,11 +17,8 @@ use Ucp\Sdk\Model\RequestContext;
  * the executor validated the payment and then discarded it. Every UCP business was
  * therefore obliged to collect a field nothing could read.
  *
- * Adding the method to CheckoutCapabilityInterface would break every implementer, so
- * this is a separate interface the executor feature-detects, the same way it already
- * resolves capabilities by `instanceof`. Implement it to receive the payment;
- * implementations that do not are called through completeCheckout() exactly as
- * before, and keep working unchanged.
+ * Unless `dev.ucp.common.payment.split_payments` is negotiated, the executor refuses a
+ * completion without exactly one instrument before either method is called.
  *
  * @see PaymentAwareCheckoutAdapterInterface for the adapter-layer equivalent
  */

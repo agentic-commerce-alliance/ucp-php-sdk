@@ -16,6 +16,7 @@ use Ucp\Sdk\Contract\DiscountCapabilityInterface;
 use Ucp\Sdk\Contract\OrderCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentAwareCheckoutCapabilityInterface;
 use Ucp\Sdk\Contract\PaymentMandateVerifierInterface;
+use Ucp\Sdk\Enum\CheckoutStatus;
 use Ucp\Sdk\Enum\UcpCapability;
 use Ucp\Sdk\Enum\UcpProtocolVersion;
 use Ucp\Sdk\Enum\UcpResponseStatus;
@@ -30,6 +31,7 @@ use Ucp\Sdk\Model\Catalog\CatalogLookupResponse;
 use Ucp\Sdk\Model\Catalog\CatalogProductResponse;
 use Ucp\Sdk\Model\Checkout\Checkout;
 use Ucp\Sdk\Model\Checkout\DiscountCode;
+use Ucp\Sdk\Model\Common\Message;
 use Ucp\Sdk\Model\Protocol\UcpEnvelope;
 use Ucp\Sdk\Model\Protocol\UcpOperationPayload;
 use Ucp\Sdk\Model\Protocol\UcpOperationResponse;
@@ -51,6 +53,8 @@ use Ucp\Sdk\Symfony\Bridge\HttpPayloadMapper;
  */
 final class ShoppingOperationExecutor
 {
+    private const SPLIT_PAYMENTS_CAPABILITY = 'dev.ucp.common.payment.split_payments';
+
     /**
      * @param iterable<CheckoutRequestValidatorInterface> $requestValidators
      * @param iterable<CheckoutResponseAugmenterInterface> $responseAugmenters
@@ -284,11 +288,20 @@ final class ShoppingOperationExecutor
         $capability = $this->checkout($request->context);
         $completeRequest = $this->payloadMapper->toCheckoutCompleteRequest($id, $request->payload);
 
+        // UCP "Instrument Cardinality": a business MUST answer a violation with `payment_failed`
+        // in messages[], which is a business outcome and so a 200 carrying the checkout.
+        $isSplitPaymentsNegotiated = in_array(self::SPLIT_PAYMENTS_CAPABILITY, $request->context->negotiatedCapabilities, true);
+        if (count($completeRequest->instruments) !== 1 && $isSplitPaymentsNegotiated === false) {
+            $checkout = $capability->getCheckout($id, $request->context);
+            $isFinished = in_array($checkout->status, [CheckoutStatus::Completed, CheckoutStatus::Canceled], true);
+            if ($isFinished === false) {
+                return $this->response('checkout.complete', $this->finalizeCheckout($this->withPaymentFailed($checkout), $request), UcpCapability::Checkout, $request->context);
+            }
+        }
+
         // Same treatment checkout.update gives a payment it is handed. Completion is
         // where money actually moves, so skipping verification here was the odder of
-        // the two. A no-op when no verifier is registered, and a no-op when the caller
-        // supplied no instruments -- an empty list is nothing to verify, not an
-        // instrument that fails verification.
+        // the two. A no-op when no verifier is registered.
         foreach ($completeRequest->instruments as $instrument) {
             foreach ($this->mandateVerifiers as $verifier) {
                 $verifier->verify($instrument, $request->context);
@@ -297,14 +310,29 @@ final class ShoppingOperationExecutor
             $this->eventDispatcher->dispatch(new PaymentMandateVerificationEvent($instrument, $request->context));
         }
 
-        // Capabilities that did not opt in are called exactly as before, so the
-        // spec-required payment reaches whoever can use it without obliging anyone to
-        // change. See PaymentAwareCheckoutCapabilityInterface.
         $checkout = $capability instanceof PaymentAwareCheckoutCapabilityInterface
             ? $capability->completeCheckoutFromRequest($completeRequest, $request->context)
             : $capability->completeCheckout($id, $request->context);
 
         return $this->response('checkout.complete', $this->finalizeCheckout($checkout, $request), UcpCapability::Checkout, $request->context);
+    }
+
+    private function withPaymentFailed(Checkout $checkout): Checkout
+    {
+        return new Checkout(
+            $checkout->id,
+            $checkout->status,
+            $checkout->currency,
+            $checkout->lineItems,
+            $checkout->totals,
+            [...$checkout->messages, new Message('error', 'Complete Checkout requires exactly one payment instrument.', 'recoverable', 'payment_failed')],
+            $checkout->links,
+            $checkout->buyer,
+            $checkout->continueUrl,
+            $checkout->expiresAt,
+            $checkout->order,
+            $checkout->extra,
+        );
     }
 
     private function checkoutCancel(ShoppingOperationRequest $request): UcpOperationResponse

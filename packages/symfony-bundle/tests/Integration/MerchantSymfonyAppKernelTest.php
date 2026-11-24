@@ -158,6 +158,16 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         ], JSON_THROW_ON_ERROR));
 
         self::assertResponseIsSuccessful();
+        $refused = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('ready_for_complete', $refused['status']);
+        self::assertArrayNotHasKey('order', $refused);
+        self::assertSame('payment_failed', $refused['messages'][array_key_last($refused['messages'])]['code']);
+
+        $this->request($client, 'POST', '/ucp/v1/checkout-sessions/' . $checkoutId . '/complete', ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'payment' => ['instruments' => [['id' => 'pi-1', 'type' => 'card', 'handler_id' => 'merchant.card', 'credential' => ['type' => 'card', 'card_last4' => '4242']]]],
+        ], JSON_THROW_ON_ERROR));
+
+        self::assertResponseIsSuccessful();
         $completed = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('completed', $completed['status']);
         self::assertStringStartsWith('ord_', $completed['order']['id']);
@@ -292,7 +302,10 @@ final class MerchantSymfonyAppKernelTest extends WebTestCase
         ]);
         self::assertSame('ready_for_complete', $updatedCheckout['status']);
 
-        $completedCheckout = $this->a2a($client, 'checkout.complete', ['id' => $checkout['id'], 'payment' => ['instruments' => []]]);
+        $completedCheckout = $this->a2a($client, 'checkout.complete', [
+            'id' => $checkout['id'],
+            'payment' => ['instruments' => [['id' => 'pi-1', 'type' => 'card', 'handler_id' => 'merchant.card', 'credential' => ['type' => 'card', 'card_last4' => '4242']]]],
+        ]);
         self::assertSame('completed', $completedCheckout['status']);
         self::assertStringStartsWith('ord_', $completedCheckout['order']['id']);
 
