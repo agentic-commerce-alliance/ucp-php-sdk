@@ -163,6 +163,28 @@ final class HttpPayloadMapperTest extends TestCase
     }
 
     #[Test]
+    public function aFlatPaymentNamingOnlyAHandlerIdStillYieldsAnInstrument(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCreateRequest(['payment' => ['handler_id' => 'com.example.card']]);
+
+        self::assertSame('com.example.card', $request->payment?->handlerId);
+        self::assertSame('tokenized', $request->payment->type);
+    }
+
+    #[Test]
+    public function aFlatPaymentNamingOnlyATypeStillYieldsAnInstrument(): void
+    {
+        $mapper = new HttpPayloadMapper();
+
+        $request = $mapper->toCheckoutCreateRequest(['payment' => ['type' => 'card']]);
+
+        self::assertSame('card', $request->payment?->type);
+        self::assertSame('', $request->payment->handlerId);
+    }
+
+    #[Test]
     public function itReportsNoInstrumentRatherThanOneWithAnEmptyHandlerId(): void
     {
         $mapper = new HttpPayloadMapper();

@@ -256,6 +256,7 @@ class Ucp\Sdk\Model\Checkout\Checkout
   - toArray(): array
 class Ucp\Sdk\Model\Checkout\CheckoutCompleteRequest
   - __construct(string $id, array $instruments = [], ?Ucp\Sdk\Model\Common\Signals $signals = null)
+  - selectedInstrument(): ?Ucp\Sdk\Model\Checkout\PaymentInstrument
 class Ucp\Sdk\Model\Checkout\CheckoutCreateRequest
   - __construct(array $lineItems, ?Ucp\Sdk\Model\Common\Buyer $buyer = null, ?Ucp\Sdk\Model\Common\Signals $signals = null, array $discounts = [], ?Ucp\Sdk\Model\Checkout\FulfillmentSelection $fulfillment = null, ?Ucp\Sdk\Model\Checkout\BuyerConsent $consent = null, ?string $cartId = null, ?Ucp\Sdk\Model\Checkout\PaymentInstrument $payment = null)
 class Ucp\Sdk\Model\Checkout\CheckoutUpdateRequest

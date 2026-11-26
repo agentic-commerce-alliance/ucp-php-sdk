@@ -6,6 +6,7 @@ namespace Ucp\Sdk\Symfony\Bridge;
 
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Ucp\Sdk\Internal\Checkout\PaymentInstrumentSelector;
 use Ucp\Sdk\Model\Cart\CartCreateRequest;
 use Ucp\Sdk\Model\Cart\CartUpdateRequest;
 use Ucp\Sdk\Model\Catalog\CatalogLookupRequest;
@@ -208,46 +209,11 @@ final class HttpPayloadMapper
     }
 
     /**
-     * The instrument a create or update request means, out of a spec-shaped payment object.
-     *
-     * `payment.json` defines `{"instruments": [...]}` and the item carries `selected`, so
-     * the one the buyer chose is the one to read, falling back to the first offered.
-     * That fallback keeps the payload's `selected: false`: an adapter reading
-     * `$request->payment->selected` must not treat false as "no instrument chosen", because
-     * it is also what a sole instrument without the flag looks like.
-     *
-     * Reading the payment object itself -- what update used to do -- looks for a top-level
-     * `handler_id` the spec shape does not have, so a conformant
-     * `{"instruments":[{"handler_id":"..."}]}` became `PaymentInstrument('tokenized', '')`
-     * and the handler id was silently lost. `checkout.complete` was given the list-aware
-     * path in #107; create and update were left behind.
-     *
-     * The flat single-instrument shape still works, because `CheckoutUpdateRequest` has
-     * always accepted it.
+     * The instrument a create or update request means.
      */
     private function toSelectedPaymentInstrument(mixed $payload): ?PaymentInstrument
     {
-        if (! is_array($payload)) {
-            return null;
-        }
-
-        if (isset($payload['instruments'])) {
-            $instruments = $this->toPaymentInstruments($payload);
-            foreach ($instruments as $instrument) {
-                if ($instrument->selected) {
-                    return $instrument;
-                }
-            }
-
-            return $instruments[0] ?? null;
-        }
-
-        // No instrument identity anywhere means no instrument, which is distinct from a
-        // broken one and better than manufacturing an empty handler id for a mandate
-        // verifier to reject.
-        return isset($payload['handler_id']) || isset($payload['type'])
-            ? $this->toPaymentInstrument($payload)
-            : null;
+        return PaymentInstrumentSelector::select($this->toPaymentInstruments($payload));
     }
 
     public function toOAuthAuthorizationRequest(Request $request): OAuthAuthorizationRequest
